@@ -44,6 +44,7 @@ WRITE = {
     "connector": {"execute_action"},
     "mail": {"compose", "delete", "move", "add_local_mailbox"},
     "imessage": {"send"},
+    "vault": {"write", "append", "delete", "move"},
 }
 
 SAMPLE = {"int": "3", "float": "1.5", "list_int": "3"}

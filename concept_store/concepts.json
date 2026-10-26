@@ -30,9 +30,11 @@
         "Generated modules contain no copied handler default values; a handler-side default change reaches `mac` without regeneration",
         "CLI rows in mcp_tool_calls log only supplied args (e.g. '{}'), so they differ in shape from MCP rows, which carry FastMCP-filled defaults; nothing reads args_json",
         "Hand-written mac/groups/notes.py and reminders.py are outside the generator but follow the same rule by hand: SUPPRESS defaults plus given(), no copied handler defaults (task:906b962e); ForwardingTest in tests/test_parity_notes_reminders.py pins exact kwargs",
-        "AREAS includes mail and imessage; their gates (imessage send, mail delete) live in local-mac tool_hooks and are tested by tests/test_parity_mail_imessage.py GateTest with the real invoke and stubbed handlers"
+        "AREAS includes mail and imessage; their gates (imessage send, mail delete) live in local-mac tool_hooks and are tested by tests/test_parity_mail_imessage.py GateTest with the real invoke and stubbed handlers",
+        "AREAS includes vault (task:0c64fa90); vault write/append/delete/move are write in both gen_groups.WRITE and the test's WRITE copy. Vault containment is the handler's own tool_hooks.Refused, which _backend maps to 'blocked'",
+        "Hand-written groups outside the generator: notes, reminders and safari. safari is hand-written so it can enforce the tab guard (concept safari-tab-guard)"
       ],
-      "last_validated": "2026-10-26T10:02:59.006552+00:00",
+      "last_validated": "2026-10-26T11:13:51.398326+00:00",
       "module": "tools/gen_groups.py",
       "name": "generated-group-verbs",
       "related": [
@@ -73,9 +75,40 @@
       "module": "mac/groups/_backend.py",
       "name": "mcp-handler-backend",
       "related": []
+    },
+    "safari-tab-guard": {
+      "confidence": 0.9,
+      "contracts": [
+        "navigate, js, read, screenshot, close_tab, reload, back, forward require --expect-host HOST (argparse required: omitting it is a usage error, exit 2, and no handler runs)",
+        "Before the action, the verb calls safari current_url through the dispatcher; it proceeds only if that URL's host is HOST or a subdomain of it, ignoring a leading www. and case; otherwise Failure('blocked') naming the front URL",
+        "open, current_url, current_title, list_tabs and close_all_tabs are unguarded; open --new-window is how a caller puts its own page in front",
+        "write verbs: open, navigate, js, close_tab, close_all_tabs, reload, back, forward; read: current_url, current_title, list_tabs, read, screenshot",
+        "Optional flags default to argparse.SUPPRESS and go through given(); read's mode is not restricted with choices, so the handler's own list is the only one"
+      ],
+      "created_at": "2026-10-26T11:13:57.778128+00:00",
+      "description": "Hand-written `mac safari` group. Every verb acting on Safari's front tab requires --expect-host and refuses with 'blocked' unless the front tab's host matches, so a js/read/close_tab can't land on the user's tab.",
+      "evidence": [
+        "mac/groups/safari.py:guard",
+        "mac/groups/safari.py:host_matches",
+        "tests/test_parity_vault_safari.py:SafariGuardTest",
+        "tests/test_parity_vault_safari.py:SafariForwardingTest",
+        "~/.claude/skills/safari-tab-check/SKILL.md"
+      ],
+      "invariants": [
+        "A guard refusal is decided before dispatcher.invoke, so mcp_tool_calls has no blocked=1 row for it, only the current_url probe",
+        "Check and action are two osascript calls; a tab switch between them is still possible",
+        "tests/test_parity_vault_safari.py pins coverage of DOMAIN_MAP safari, modes (SAFARI_WRITE), exact forwarded kwargs per verb, and the guard; CoverageTest in test_parity_simple_groups.py does not cover safari"
+      ],
+      "last_validated": "2026-10-26T11:13:57.778150+00:00",
+      "module": "mac/groups/safari.py",
+      "name": "safari-tab-guard",
+      "related": [
+        "generated-group-verbs",
+        "mcp-handler-backend"
+      ]
     }
   },
   "meta": {
-    "updated_at": "2026-10-26T10:03:01.508566+00:00"
+    "updated_at": "2026-10-26T11:13:57.778193+00:00"
   }
 }
