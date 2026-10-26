@@ -1,5 +1,39 @@
 {
   "concepts": {
+    "find-cli": {
+      "confidence": 0.8,
+      "contracts": [
+        "find(task, graph, edges, limit=5, hops=2) -> {query, seeds: [{id, score, mode, desc, usage}], neighbours: [{id, via, dir, from, hop, mode, desc, usage}]}; seeds are best first, ties broken by id.",
+        "neighbours: via is feeds/requires/prefer_over with dir out/in, or in_domain with dir sibling; hops 0 = seeds only, 1 = edge neighbours, 2 = second edge hop plus area siblings; hops above 2 act as 2.",
+        "MAX_NODES=25 caps seeds plus neighbours only when limit <= 25; seeds alone follow the caller's limit.",
+        "The MCP server registers exactly one tool, `find_cli(task, limit, hops)`; its schema is ~190 tokens."
+      ],
+      "created_at": "2026-10-26T13:18:06.872864+00:00",
+      "description": "find_cli maps a plain-language task phrase to a small subgraph of `mac` commands. rank.py scores commands with stdlib BM25 over area + verb + desc + alias names to pick seeds. expand.py adds neighbours: hand-written edges at hops 1-2 plus up to 3 same-area siblings per seed. find() combines the two. server.py exposes it as the single MCP tool `find_cli`, run under local-mac's venv.",
+      "evidence": [
+        "find_cli/__init__.py:find",
+        "find_cli/rank.py:seeds",
+        "find_cli/rank.py:documents",
+        "find_cli/expand.py:expand",
+        "find_cli/server.py:find_cli",
+        "tests/test_find_cli.py:FindOnCommittedGraphTest",
+        "tests/test_find_cli.py:ExpandTest",
+        "tests/test_find_cli.py:ServerTest"
+      ],
+      "invariants": [
+        "Reads only the committed graph/cli_graph.json and graph/edges.json, never a live CLI.",
+        "Every returned id is a command node (graph.validate_edges.command_ids); alias_of names only add BM25 text to their canonical command and are never returned or expanded.",
+        "Output is a pure function of (task, graph, edges, limit, hops) and byte-identical across processes with different hash seeds: no ordering comes from sets.",
+        "rank.py and expand.py import no `mcp`, so the eval (597ac09d) and tests run under system python3."
+      ],
+      "last_validated": "2026-10-26T13:18:06.872875+00:00",
+      "module": "find_cli/__init__.py",
+      "name": "find-cli",
+      "related": [
+        "hand-written-edges",
+        "generated-command-graph"
+      ]
+    },
     "generated-command-graph": {
       "confidence": 0.8,
       "contracts": [
@@ -169,6 +203,6 @@
     }
   },
   "meta": {
-    "updated_at": "2026-10-26T13:09:35.660276+00:00"
+    "updated_at": "2026-10-26T13:18:06.872911+00:00"
   }
 }
