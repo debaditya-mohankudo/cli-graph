@@ -10,7 +10,8 @@ Run under local-mac's venv after a handler signature changes:
 
 Argument rules: a parameter without a default is positional; one with a default
 is a --flag; bool flags are store_true; a Literal becomes choices; a dict
-parameter takes a JSON string; a list[int] or list[str] takes one or more
+parameter takes a JSON string; an IsoDate / IsoDateTime (local-mac's
+tools/arg_types.py) gets mac.cli's iso_date / iso_datetime type; a list[int] or list[str] takes one or more
 values (nargs="+"). A handler parameter named `limit` is fed from
 the global --limit, so it is not added twice.
 
@@ -30,6 +31,9 @@ REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 
 from mac.groups._backend import dispatcher  # noqa: E402
+
+# local-mac's annotated string formats -> the mac.cli argparse type checking the same thing.
+FORMAT_TYPES = {"date": "iso_date", "date-or-datetime": "iso_datetime"}
 
 AREAS = ["time", "vpn", "podcasts", "music", "sound", "contacts",
          "calendar", "system", "market", "connector", "mail", "imessage", "vault", "vault_rag"]
@@ -58,12 +62,18 @@ KINDS = {bool: "bool", int: "int", float: "float", dict: "json"}
 
 
 def kind(annotation):
-    """(kind, choices): kind is 'bool' | 'int' | 'float' | 'json' | 'str' | 'list_int' | 'list_str';
-    choices only for a Literal."""
+    """(kind, choices): kind is 'bool' | 'int' | 'float' | 'json' | 'str' | 'list_int' | 'list_str'
+    or a FORMAT_TYPES value; choices only for a Literal."""
+    from tools.arg_types import arg_format
     if typing.get_origin(annotation) is typing.Literal:
         return "str", typing.get_args(annotation)
     union = typing.get_origin(annotation) in (typing.Union, types.UnionType)
     for arg in typing.get_args(annotation) if union else (annotation,):  # `dict | None` -> dict
+        fmt = arg_format(arg)
+        if fmt is not None:
+            if fmt not in FORMAT_TYPES:
+                raise SystemExit(f"no mac.cli type for local-mac format {fmt!r}; add one to FORMAT_TYPES")
+            return FORMAT_TYPES[fmt], None
         base = typing.get_origin(arg) or arg
         if base is list:
             return ("list_int" if typing.get_args(arg) == (int,) else "list_str"), None
@@ -83,7 +93,7 @@ def _first_line(fn):
 
 def _verb(area, action, fn):
     mode = "write" if action in WRITE.get(area, ()) else "read"
-    arg_lines, names, uses_json = [], [], False
+    arg_lines, names = [], []
     for p in parameters(fn):
         names.append(p.name)
         if p.name == "limit":
@@ -99,11 +109,10 @@ def _verb(area, action, fn):
                 opts.append('nargs="+"')
                 if k == "list_int":
                     opts.append("type=int")
-            elif k in ("int", "float"):
+            elif k in ("int", "float", *FORMAT_TYPES.values()):
                 opts.append(f"type={k}")
             elif k == "json":
                 opts.append("type=json_object")
-                uses_json = True
             if choices:
                 opts.append(f"choices={choices!r}")
         arg_lines.append(f'p.add_argument({", ".join([repr(name)] + opts)})')
@@ -121,19 +130,18 @@ def _verb(area, action, fn):
     given = f", **given(ns, {tuple(names)!r})" if names else ""
     lines.append(f"        return call({area!r}, {action!r}{given})")
     lines.append("")
-    return lines, uses_json
+    return lines
 
 
 def render(area, module_path, actions):
     module = importlib.import_module(module_path)
-    body, uses_json = [], False
+    body = []
     for action in actions:
-        lines, json_arg = _verb(area, action, getattr(module, f"handle_{action}"))
-        body += lines
-        uses_json |= json_arg
+        body += _verb(area, action, getattr(module, f"handle_{action}"))
     text = "\n".join(body)
+    cli_types = [t for t in sorted(("json_object", *FORMAT_TYPES.values())) if f"type={t}" in text]
     imports = (["import argparse", ""] if "argparse.SUPPRESS" in text else []) + \
-        (["from mac.cli import json_object"] if uses_json else []) + \
+        ([f"from mac.cli import {', '.join(cli_types)}"] if cli_types else []) + \
         ["from mac.groups._backend import call" + (", given" if "**given(" in text else "")]
     return (HEADER.format(area=area) + "\n".join(imports) + "\n"
             + "\n\ndef register(registry):\n" + "\n".join(body).rstrip() + "\n")

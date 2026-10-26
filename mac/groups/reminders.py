@@ -6,6 +6,7 @@ uses dest="list" because given() reads attributes by handler parameter name.
 """
 import argparse
 
+from mac.cli import iso_datetime
 from mac.groups._backend import call, given
 
 UNSET = argparse.SUPPRESS
@@ -34,7 +35,8 @@ def register(registry):
     def create_args(p):
         p.add_argument("title")
         p.add_argument("--list", default=UNSET)
-        p.add_argument("--due-date", default=UNSET, help="ISO-8601, e.g. 2026-04-11T09:00:00")
+        p.add_argument("--due-date", default=UNSET, type=iso_datetime,
+                       help="ISO-8601, e.g. 2026-04-11T09:00:00")
         p.add_argument("--notes", default=UNSET)
         p.add_argument("--recurrence", default=UNSET, help="accepted but ignored (AppleScript limit)")
 
@@ -46,7 +48,8 @@ def register(registry):
     def update_args(p):
         p.add_argument("id")
         p.add_argument("--title", default=UNSET)
-        p.add_argument("--due-date", default=UNSET, help="ISO-8601; a due date can be moved, not removed")
+        p.add_argument("--due-date", default=UNSET, type=iso_datetime,
+                       help="ISO-8601; a due date can be moved, not removed")
         p.add_argument("--notes", default=UNSET)
 
     @registry.verb("reminders", "update", mode="write", desc="edit a reminder in place by id",

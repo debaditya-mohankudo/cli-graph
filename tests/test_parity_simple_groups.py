@@ -50,7 +50,8 @@ WRITE = {
     "vault_rag": {"index_vault", "index_file", "remove_section"},
 }
 
-SAMPLE = {"int": "3", "float": "1.5", "list_int": "3"}
+SAMPLE = {"int": "3", "float": "1.5", "list_int": "3",
+          "iso_date": "2026-11-01", "iso_datetime": "2026-11-01T09:00:00"}
 
 
 def domain_map():

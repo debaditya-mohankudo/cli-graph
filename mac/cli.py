@@ -1,7 +1,9 @@
 """Argument handling, help and dispatch for `mac <area> <verb>`."""
 import argparse
 import json
+import re
 import sys
+from datetime import date, datetime
 
 from mac.contract import (
     EXIT_OK, EXIT_USAGE, Failure, apply_limit, dump, error_object,
@@ -41,6 +43,42 @@ def _json_of(pytype, label):
 # argparse types for a dict or list parameter passed as a JSON string.
 json_object = _json_of(dict, "object")
 json_list = _json_of(list, "array")
+
+
+_YMD = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+
+def iso_date(text):
+    """argparse type for local-mac's IsoDate: YYYY-MM-DD and a real calendar day."""
+    if not _YMD.fullmatch(text):  # date.fromisoformat also takes 20261027 and 2026-W44-2
+        raise argparse.ArgumentTypeError(f"not a YYYY-MM-DD date: {text!r}")
+    try:
+        date.fromisoformat(text)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"not a valid YYYY-MM-DD date: {text!r} ({exc})")
+    return text
+
+
+def iso_datetime(text):
+    """argparse type for local-mac's IsoDateTime: a YYYY-MM-DD date or an ISO-8601 date-time.
+
+    Date and time must be joined with 'T': the handlers read a value without
+    one as a bare date. tests/test_arg_types.py holds this and iso_date to the
+    same verdicts as local-mac's tools/arg_types.py.
+    """
+    if len(text) == 10:
+        return iso_date(text)
+    if text[10:11] == " ":
+        raise argparse.ArgumentTypeError(
+            f"join date and time with 'T', e.g. 2026-10-27T15:00:00: {text!r}")
+    if text[10:11] != "T":
+        raise argparse.ArgumentTypeError(f"not a YYYY-MM-DD date or ISO-8601 date-time: {text!r}")
+    iso_date(text[:10])
+    try:
+        datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"not a valid ISO-8601 date-time: {text!r} ({exc})")
+    return text
 
 
 def int_or_str(text):
