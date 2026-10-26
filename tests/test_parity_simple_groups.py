@@ -59,7 +59,7 @@ def real_handler(area, action):
     try:
         module = importlib.import_module(domain_map()[area][0])
     except ImportError as exc:
-        raise unittest.SkipTest(f"{area} handlers need local-mac's venv: {exc}")
+        raise unittest.SkipTest(f"{area} handlers need local-mac's dependencies (run under `uv run`): {exc}")
     return getattr(module, f"handle_{action}")
 
 
@@ -78,7 +78,7 @@ class CoverageTest(unittest.TestCase):
             try:
                 expected = gen_groups.render(area, module_path, actions)
             except ImportError as exc:
-                self.skipTest(f"needs local-mac's venv: {exc}")
+                self.skipTest(f"needs local-mac's dependencies (run under `uv run`): {exc}")
             actual = (REPO / "mac" / "groups" / f"{area}.py").read_text()
             self.assertEqual(actual, expected, f"{area}: rerun tools/gen_groups.py")
 

@@ -1,0 +1,20 @@
+[project]
+name = "cli-graph"
+version = "0.1.0"
+description = "mac CLI dispatcher, command graph and the find_cli MCP tool"
+requires-python = ">=3.12"
+dependencies = [
+    # find_cli/server.py uses FastMCP, which mcp 2.x renamed.
+    "mcp>=1.0.0,<2",
+    # The mac backend runs local-mac's handlers in-process (mac/groups/_backend.py),
+    # so the suite needs local-mac's dependencies. Taking them from its own
+    # pyproject keeps one list instead of a copy that drifts.
+    "claude-for-mac-local",
+]
+
+[tool.uv]
+# Not an installable package: the suite runs from the repo root.
+package = false
+
+[tool.uv.sources]
+claude-for-mac-local = { path = "../claude_for_mac_local", editable = true }

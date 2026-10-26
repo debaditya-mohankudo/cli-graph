@@ -84,7 +84,7 @@ class TranslationTest(unittest.TestCase):
         self.assertEqual((status, json.loads(out)), (0, []))
 
     def test_permission_error_is_blocked_not_internal(self):
-        refused = _backend._load("tool_hooks").Refused
+        refused = _backend.tool_hooks().Refused
         notes = mock.Mock(handle_read=mock.Mock(side_effect=refused("Refused: outside vault")))
         with handlers(notes):
             status, _, err = run("notes", "read", "x")
@@ -181,7 +181,7 @@ class HookTest(unittest.TestCase):
     Only resolve is stubbed, so the handlers are mocks."""
 
     def setUp(self):
-        self.hooks = _backend._load("tool_hooks")
+        self.hooks = _backend.tool_hooks()
         scratch = tempfile.TemporaryDirectory()
         self.addCleanup(scratch.cleanup)
         db = Path(scratch.name) / "tool_hints.sqlite"

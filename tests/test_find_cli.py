@@ -1,7 +1,7 @@
 """find_cli: BM25 seeds plus edge expansion over the committed graph (task:129f1bc3).
 
 Imports only find_cli, rank and expand at module level; the server test needs
-the `mcp` package and skips without it (run it under local-mac's venv).
+the `mcp` package and skips without it (run it under `uv run`).
 """
 import json
 import os
@@ -176,7 +176,7 @@ except ImportError:
     HAVE_MCP = False
 
 
-@unittest.skipUnless(HAVE_MCP, "needs the mcp package (run under local-mac's venv)")
+@unittest.skipUnless(HAVE_MCP, "needs the mcp package (run under `uv run`)")
 class ServerTest(unittest.TestCase):
     def test_server_exposes_exactly_one_small_tool(self):
         import asyncio

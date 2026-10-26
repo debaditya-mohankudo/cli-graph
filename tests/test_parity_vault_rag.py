@@ -29,7 +29,7 @@ def handler_module():
     try:
         return importlib.import_module(_backend.dispatcher().DOMAIN_MAP["vault_rag"][0])
     except ImportError as exc:
-        raise unittest.SkipTest(f"vault_rag handlers need local-mac's venv: {exc}")
+        raise unittest.SkipTest(f"vault_rag handlers need local-mac's dependencies (run under `uv run`): {exc}")
 
 
 class ForwardingTest(unittest.TestCase):
@@ -69,7 +69,7 @@ class ImportCostTest(unittest.TestCase):
         # The interpreter bin/mac runs under: MAC_PYTHON, else the venv next to the source tree.
         python = Path(os.environ.get("MAC_PYTHON", Path(src).parent / ".venv" / "bin" / "python"))
         if not python.exists():
-            self.skipTest("needs local-mac's venv")
+            self.skipTest(f"bin/mac's interpreter not found: {python} (set MAC_PYTHON)")
         probe = ("import sys; sys.path.insert(0, sys.argv[1]); import tools.vault_rag; "
                  "print(any(m.startswith('llama_index') for m in sys.modules))")
         out = subprocess.run([str(python), "-c", probe, src], capture_output=True, text=True, check=True)

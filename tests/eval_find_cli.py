@@ -1,6 +1,6 @@
 """Hit-rate eval for find_cli over tests/eval_phrases.json (task:597ac09d).
 
-    python3 tests/eval_find_cli.py [--threshold 0.9] [--limit 5] [--hops 2]
+    uv run python tests/eval_find_cli.py [--threshold 0.9] [--limit 5] [--hops 2]
 
 A phrase is a hit when any of its expected commands is in the returned
 subgraph (seeds or neighbours); a seed hit when one is among the seeds. Both

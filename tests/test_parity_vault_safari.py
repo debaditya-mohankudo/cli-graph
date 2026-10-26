@@ -39,7 +39,7 @@ def handler_module(area):
     try:
         return importlib.import_module(_backend.dispatcher().DOMAIN_MAP[area][0])
     except ImportError as exc:
-        raise unittest.SkipTest(f"{area} handlers need local-mac's venv: {exc}")
+        raise unittest.SkipTest(f"{area} handlers need local-mac's dependencies (run under `uv run`): {exc}")
 
 
 class FakeSafari:

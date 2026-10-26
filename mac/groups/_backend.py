@@ -58,6 +58,11 @@ def dispatcher():
     return _load("dispatcher")
 
 
+def tool_hooks():
+    """local-mac's tool_hooks: the gates and the Refused they raise."""
+    return _load("tool_hooks")
+
+
 def given(ns, names):
     """The handler arguments the user actually supplied: `names` present on ns and not None.
 
@@ -71,7 +76,7 @@ def given(ns, names):
 def call(area, action, /, **kwargs):
     """Run the `<area>__<action>` handler through the dispatcher and translate its result."""
     d = dispatcher()
-    refused = _load("tool_hooks").Refused
+    refused = tool_hooks().Refused
     try:
         result = d.invoke(area, action, d.resolve(area, action), kwargs)
     except refused as exc:

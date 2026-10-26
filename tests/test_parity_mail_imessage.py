@@ -88,7 +88,7 @@ class GateTest(unittest.TestCase):
     """Real dispatcher.invoke and tool_hooks gates against a scratch DB; only resolve is stubbed."""
 
     def setUp(self):
-        hooks = _backend._load("tool_hooks")
+        hooks = _backend.tool_hooks()
         scratch = tempfile.TemporaryDirectory()
         self.addCleanup(scratch.cleanup)
         self.db = Path(scratch.name) / "tool_hints.sqlite"
@@ -163,7 +163,7 @@ class LiveTest(unittest.TestCase):
         self.assertIn("found no matching contact", err)
 
     def test_delete_refused_without_a_recent_read(self):
-        hooks = _backend._load("tool_hooks")
+        hooks = _backend.tool_hooks()
         if hooks._called_recently("mail__read"):
             self.skipTest("a mail read ran in the last 120s, so the gate would pass")
         # id 0 matches no message, so even a gate regression trashes nothing.
