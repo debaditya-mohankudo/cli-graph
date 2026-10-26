@@ -22,7 +22,9 @@
         "mac/groups/_backend.py:given",
         "tests/test_parity_simple_groups.py:TranslationTest",
         "tools/gen_groups.py:kind",
-        "tests/test_parity_mail_imessage.py:GateTest"
+        "tests/test_parity_mail_imessage.py:GateTest",
+        "tests/test_parity_vault_rag.py:ImportCostTest",
+        "tests/test_parity_vault_rag.py:ForwardingTest"
       ],
       "invariants": [
         "Committed mac/groups/<area>.py must equal render() output for the current handlers; CoverageTest.test_generated_modules_are_current fails otherwise",
@@ -32,9 +34,11 @@
         "Hand-written mac/groups/notes.py and reminders.py are outside the generator but follow the same rule by hand: SUPPRESS defaults plus given(), no copied handler defaults (task:906b962e); ForwardingTest in tests/test_parity_notes_reminders.py pins exact kwargs",
         "AREAS includes mail and imessage; their gates (imessage send, mail delete) live in local-mac tool_hooks and are tested by tests/test_parity_mail_imessage.py GateTest with the real invoke and stubbed handlers",
         "AREAS includes vault (task:0c64fa90); vault write/append/delete/move are write in both gen_groups.WRITE and the test's WRITE copy. Vault containment is the handler's own tool_hooks.Refused, which _backend maps to 'blocked'",
-        "Hand-written groups outside the generator: notes, reminders and safari. safari is hand-written so it can enforce the tab guard (concept safari-tab-guard)"
+        "Hand-written groups outside the generator: notes, reminders and safari. safari is hand-written so it can enforce the tab guard (concept safari-tab-guard)",
+        "AREAS includes vault_rag (task:73cbda5d). index_vault, index_file and remove_section are write verbs in both gen_groups.WRITE and the test's WRITE copy. local-mac's code_rag and ollama_agent were deliberately left out of AREAS (0 calls; decision recorded on task:73cbda5d)",
+        "Loading local-mac's tools.vault_rag must not import llama_index, because each `mac` call is a fresh process and that import costs about 1.2s. OllamaEmbedding is imported inside _get_embed_model in local-mac. ImportCostTest in tests/test_parity_vault_rag.py checks sys.modules in a subprocess"
       ],
-      "last_validated": "2026-10-26T11:13:51.398326+00:00",
+      "last_validated": "2026-10-26T12:45:53.654068+00:00",
       "module": "tools/gen_groups.py",
       "name": "generated-group-verbs",
       "related": [
@@ -109,6 +113,6 @@
     }
   },
   "meta": {
-    "updated_at": "2026-10-26T11:13:57.778193+00:00"
+    "updated_at": "2026-10-26T12:45:53.654149+00:00"
   }
 }
