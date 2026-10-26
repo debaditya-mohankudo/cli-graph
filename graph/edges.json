@@ -1,0 +1,7 @@
+{
+  "edges": [
+    {"from": "mac imessage send", "type": "requires", "to": "mac contacts search"},
+    {"from": "mac mail delete", "type": "requires", "to": "mac mail read"},
+    {"from": "mac vault outline", "type": "feeds", "to": "mac vault read"}
+  ]
+}
