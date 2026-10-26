@@ -2,23 +2,22 @@
 
 **cli-graph: replace ~300 MCP tools with a `mac` CLI plus one graph-backed `find_cli` MCP tool**
 
-9 of 16 tasks still open. All 6 of the epic's own completion criteria are still unticked.
+8 of 16 tasks still open. All 6 of the epic's own completion criteria are still unticked.
 
 ## Open tasks (suggested order)
 
 | # | Task | Title | Checklist |
 |---|---|---|---|
-| 1 | `0c64fa90` | Migrate local-mac vault and safari groups to `mac` verbs, keeping the safari tab guard | 0/4 |
-| 2 | `73cbda5d` | Decide whether to migrate or drop the venv-only groups (code_rag, ollama_agent, vault_rag) | 0/3 |
-| 3 | `25e053bc` | Migrate the stateless non-local-mac servers (claude-hooks memory/scratch/vault_map/rag, astrology, wyckoff, sysml) and decide on taskfw | 0/4 |
-| 4 | `980f10b3` | Build the command graph from each CLI's `--help`, with a drift check | 0/3 |
-| 5 | `821c2f7e` | Hand-written typed edges file (feeds, requires, alias_of, prefer_over), checked against the generated graph | 0/3 |
-| 6 | `129f1bc3` | `find_cli(task)` MCP tool: keyword search plus 1–2 hop edge expansion | 0/5 |
-| 7 | `597ac09d` | Hit-rate eval: about 20 real task phrases must find the right command | 0/3 |
-| 8 | `0aa96180` | Move permissions, hooks and tool hints from MCP tool names to Bash command prefixes | 0/4 |
-| 9 | `8cd14cfe` | Cutover: turn off the migrated MCP servers and keep a rollback path | 0/3 |
+| 1 | `73cbda5d` | Decide whether to migrate or drop the venv-only groups (code_rag, ollama_agent, vault_rag) | 0/3 |
+| 2 | `25e053bc` | Migrate the stateless non-local-mac servers (claude-hooks memory/scratch/vault_map/rag, astrology, wyckoff, sysml) and decide on taskfw | 0/4 |
+| 3 | `980f10b3` | Build the command graph from each CLI's `--help`, with a drift check | 0/3 |
+| 4 | `821c2f7e` | Hand-written typed edges file (feeds, requires, alias_of, prefer_over), checked against the generated graph | 0/3 |
+| 5 | `129f1bc3` | `find_cli(task)` MCP tool: keyword search plus 1–2 hop edge expansion | 0/5 |
+| 6 | `597ac09d` | Hit-rate eval: about 20 real task phrases must find the right command | 0/3 |
+| 7 | `0aa96180` | Move permissions, hooks and tool hints from MCP tool names to Bash command prefixes | 0/4 |
+| 8 | `8cd14cfe` | Cutover: turn off the migrated MCP servers and keep a rollback path | 0/3 |
 
-## Done (7)
+## Done (8)
 
 | Task | Title |
 |---|---|
@@ -29,10 +28,11 @@
 | `2cea5538` | gen_groups.py stops copying handler defaults into generated `mac` verbs |
 | `906b962e` | Hand-written `mac notes` / `mac reminders` stop copying handler defaults |
 | `babafba2` | Migrate local-mac mail and imessage groups with the send/delete gates |
+| `0c64fa90` | Migrate local-mac vault and safari groups; `mac safari` enforces the tab guard with --expect-host |
 
 ## Where things stand
 
-All the done tasks are migrations to `mac` commands. The graph and `find_cli` work (rows 4–7) hasn't started. The fastest next step is `0c64fa90` (vault/safari), which finishes the local-mac migration. Alternatively, `980f10b3` (the graph) unblocks the `find_cli` work.
+All the done tasks are migrations to `mac` commands. The graph and `find_cli` work (rows 4–7) hasn't started. The local-mac AppleScript/handler groups are all migrated (vault/safari landed in `0c64fa90`). Next: `73cbda5d` decides the venv-only groups, or `980f10b3` (the graph) unblocks the `find_cli` work.
 
 ## Epic completion criteria (all open)
 
