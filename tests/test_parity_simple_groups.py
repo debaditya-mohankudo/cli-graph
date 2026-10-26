@@ -15,8 +15,10 @@ import importlib
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -213,13 +215,39 @@ class LiveParityTest(unittest.TestCase):
     def test_notify(self):
         self.assertIn("Notification sent", self.cli("system", "notify", "mac parity", "--body", "live test"))
 
-    def test_wait_and_alarm_schedule_at_jobs_that_are_removed(self):
+    def test_wait_and_alarm_schedule_timers_that_are_removed(self):
+        # time_tools runs each timer as a detached `sh` that leads its own
+        # process group, and reports it as "(pid N)"; older builds queued an
+        # at job ("job N at"). Cleanup is registered before any assertion,
+        # so a failing run still leaves no timer behind. Cleanups run last-in
+        # first-out, so the leftover check registered here runs after the kills.
+        self.addCleanup(self.assertNoParityTimers)
         for argv in (("time", "wait", "600", "--label", "mac-parity"),
                      ("time", "alarm", "23:59", "--label", "mac-parity")):
             message = self.cli(*argv)
+            pid = re.search(r"\(pid (\d+)\)", message)
             job = re.search(r"job (\d+) at", message)
-            self.assertIsNotNone(job, message)
-            subprocess.run(["atrm", job.group(1)], check=True)
+            if pid:
+                self.addCleanup(_kill_group, int(pid.group(1)))
+            if job:
+                self.addCleanup(subprocess.run, ["atrm", job.group(1)])
+            self.assertIsNotNone(pid, message)
+            self.assertIn("mac-parity", message)
+
+    def assertNoParityTimers(self):
+        for _ in range(20):
+            left = subprocess.run(["pgrep", "-f", "mac-parity"], capture_output=True, text=True).stdout.split()
+            if not left:
+                break
+            time.sleep(0.1)
+        self.assertEqual(left, [], "mac-parity timer still running")
+
+
+def _kill_group(pid):
+    try:
+        os.killpg(pid, signal.SIGTERM)
+    except ProcessLookupError:
+        pass
 
 
 if __name__ == "__main__":
