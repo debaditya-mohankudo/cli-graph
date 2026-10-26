@@ -1,0 +1,29 @@
+{
+  "about": "Hit-rate fixture for find_cli (task:597ac09d). Each phrase is a prompt from a Claude Code transcript that led to a local-mac tool call. source=transcript means it is verbatim apart from typos kept as typed; source=paraphrase means a name was removed or a reply that needed earlier context was made to stand alone. expect lists every command that would be a right answer; any one of them in the returned subgraph is a hit.",
+  "phrases": [
+    {"phrase": "add a calendar event for 30-Sep recheck", "expect": ["mac calendar add_event"], "source": "transcript"},
+    {"phrase": "send each section by message to my friend", "expect": ["mac imessage send"], "source": "paraphrase"},
+    {"phrase": "check recent messages", "expect": ["mac imessage read"], "source": "transcript"},
+    {"phrase": "write the draft in my apple mail and open", "expect": ["mac mail compose"], "source": "transcript"},
+    {"phrase": "check reply from the bank if any?", "expect": ["mac mail read", "mac mail search"], "source": "transcript"},
+    {"phrase": "check my sent mail", "expect": ["mac mail search", "mac mail read"], "source": "transcript"},
+    {"phrase": "why gold price is falling hard - since jan 2026 -", "expect": ["mac market gold_regime_history"], "source": "transcript"},
+    {"phrase": "save this to apple notes", "expect": ["mac notes add"], "source": "transcript"},
+    {"phrase": "delete the one in Notes by title", "expect": ["mac notes delete"], "source": "transcript"},
+    {"phrase": "set a reminder to check the CDOE portal", "expect": ["mac reminders create"], "source": "transcript"},
+    {"phrase": "remove the reminders - thangamayil and enrin and hindcopper - i dont track them anymore", "expect": ["mac reminders delete"], "source": "transcript"},
+    {"phrase": "tick the MDB reminder and update its due date", "expect": ["mac reminders complete", "mac reminders update"], "source": "transcript"},
+    {"phrase": "check today's reminders", "expect": ["mac reminders list"], "source": "transcript"},
+    {"phrase": "check active page on safari", "expect": ["mac safari read"], "source": "transcript"},
+    {"phrase": "check live on NSE in Safari", "expect": ["mac safari open"], "source": "transcript"},
+    {"phrase": "append this to the gold vault note", "expect": ["mac vault append"], "source": "transcript"},
+    {"phrase": "check the obsidian vault daily note", "expect": ["mac vault daily_read"], "source": "transcript"},
+    {"phrase": "delete the test note in the vault", "expect": ["mac vault delete"], "source": "paraphrase"},
+    {"phrase": "move the note to Education/Coursera in the vault", "expect": ["mac vault move"], "source": "paraphrase"},
+    {"phrase": "save this summary in vault", "expect": ["mac vault write", "mac vault append"], "source": "transcript"},
+    {"phrase": "search axis customer id in vault", "expect": ["mac vault_rag fts_vault", "mac vault_rag smart_search"], "source": "transcript"},
+    {"phrase": "refresh the vault map and the index", "expect": ["mac vault_rag index_vault", "mac vault_rag unindexed_files"], "source": "transcript"},
+    {"phrase": "disconnect the vpn", "expect": ["mac vpn disconnect"], "source": "transcript"},
+    {"phrase": "check vpn status", "expect": ["mac vpn status"], "source": "paraphrase"}
+  ]
+}

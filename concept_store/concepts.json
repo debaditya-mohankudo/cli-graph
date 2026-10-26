@@ -6,7 +6,8 @@
         "find(task, graph, edges, limit=5, hops=2) -> {query, seeds: [{id, score, mode, desc, usage}], neighbours: [{id, via, dir, from, hop, mode, desc, usage}]}; seeds are best first, ties broken by id.",
         "neighbours: via is feeds/requires/prefer_over with dir out/in, or in_domain with dir sibling; hops 0 = seeds only, 1 = edge neighbours, 2 = second edge hop plus area siblings; hops above 2 act as 2.",
         "MAX_NODES=25 caps seeds plus neighbours only when limit <= 25; seeds alone follow the caller's limit.",
-        "The MCP server registers exactly one tool, `find_cli(task, limit, hops)`; its schema is ~190 tokens."
+        "The MCP server registers exactly one tool, `find_cli(task, limit, hops)`; its schema is ~190 tokens.",
+        "tests/eval_find_cli.py scores tests/eval_phrases.json (real transcript prompts -> list of acceptable command ids). A hit means any expected id is in seeds or neighbours. It prints subgraph and seed hit rates plus every miss with its subgraph, and exits 0 at or above THRESHOLD=0.9, 1 below it, 2 when the fixture names an id that is not in the graph."
       ],
       "created_at": "2026-10-26T13:18:06.872864+00:00",
       "description": "find_cli maps a plain-language task phrase to a small subgraph of `mac` commands. rank.py scores commands with stdlib BM25 over area + verb + desc + alias names to pick seeds. expand.py adds neighbours: hand-written edges at hops 1-2 plus up to 3 same-area siblings per seed. find() combines the two. server.py exposes it as the single MCP tool `find_cli`, run under local-mac's venv.",
@@ -18,15 +19,19 @@
         "find_cli/server.py:find_cli",
         "tests/test_find_cli.py:FindOnCommittedGraphTest",
         "tests/test_find_cli.py:ExpandTest",
-        "tests/test_find_cli.py:ServerTest"
+        "tests/test_find_cli.py:ServerTest",
+        "tests/eval_find_cli.py:score",
+        "tests/eval_find_cli.py:unknown_ids",
+        "tests/test_eval_fixture.py:FixtureTest"
       ],
       "invariants": [
         "Reads only the committed graph/cli_graph.json and graph/edges.json, never a live CLI.",
         "Every returned id is a command node (graph.validate_edges.command_ids); alias_of names only add BM25 text to their canonical command and are never returned or expanded.",
         "Output is a pure function of (task, graph, edges, limit, hops) and byte-identical across processes with different hash seeds: no ordering comes from sets.",
-        "rank.py and expand.py import no `mcp`, so the eval (597ac09d) and tests run under system python3."
+        "rank.py and expand.py import no `mcp`, so the eval (597ac09d) and tests run under system python3.",
+        "tests/test_eval_fixture.py asserts in the suite that the fixture's subgraph hit rate is >= 0.9 and that every expected id is a command node, so a rank/expand/edges change that lowers retrieval, or a regenerated graph that renames a verb, fails unittest discover (task:597ac09d). At the time of writing: 22/24 subgraph, 18/24 seed; the generic word 'check' is the main source of misses."
       ],
-      "last_validated": "2026-10-26T13:18:06.872875+00:00",
+      "last_validated": "2026-10-26T13:27:15.579214+00:00",
       "module": "find_cli/__init__.py",
       "name": "find-cli",
       "related": [
@@ -203,6 +208,6 @@
     }
   },
   "meta": {
-    "updated_at": "2026-10-26T13:18:06.872911+00:00"
+    "updated_at": "2026-10-26T13:27:15.579287+00:00"
   }
 }
