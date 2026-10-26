@@ -92,6 +92,11 @@ class AliasTest(unittest.TestCase):
         self.assertEqual(len(problems(edge("mac mail fetch", "alias_of", "mac vault read"))), 1)
         self.assertEqual(len(problems(edge("fetch", "alias_of", "mac vault read"))), 1)
 
+    def test_an_alias_must_not_be_an_existing_command(self):
+        found = problems(edge("mac vault outline", "alias_of", "mac vault read"))
+        self.assertEqual(len(found), 1)
+        self.assertIn("already a command", found[0])
+
     def test_the_canonical_end_must_be_a_node(self):
         self.assertEqual(len(problems(edge("mac vault fetch", "alias_of", "mac vault gone"))), 1)
 

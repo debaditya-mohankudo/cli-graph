@@ -72,6 +72,35 @@
         "mcp-handler-backend"
       ]
     },
+    "hand-written-edges": {
+      "confidence": 0.8,
+      "contracts": [
+        "File shape: {\"edges\": [{\"from\", \"type\", \"to\"}]} with exactly those three string keys; any other or misspelled key is rejected.",
+        "Types, all directed from -> to: feeds (from usually runs first and informs to; ordering hint, not data flow), requires (from may only run after to: a gate), alias_of (from is another name for to), prefer_over (choose from over to). in_domain is generated-only and rejected here.",
+        "Endpoints must be command nodes of the committed graph, never domain nodes. Exception: alias_of's `from` may be a non-node name sharing `to`'s `<cli> <area> ` prefix with a different verb, and one alias names one command.",
+        "validate() returns a list of problem strings, [] when valid; the CLI exits 1 and prints each problem."
+      ],
+      "created_at": "2026-10-26T13:08:54.831595+00:00",
+      "description": "graph/edges.json holds the hand-written edges the generated graph cannot carry (ordering, prerequisites, canonical choice). validate_edges.validate(edges, graph) checks them against the committed graph/cli_graph.json; tests/test_edges.py and `python -m graph.validate_edges` run it, so a regenerated graph that drops a used verb fails on the dangling edge.",
+      "evidence": [
+        "graph/validate_edges.py:validate",
+        "graph/validate_edges.py:command_ids",
+        "tests/test_edges.py:DanglingEndpointTest",
+        "tests/test_edges.py:AliasTest",
+        "tests/test_edges.py:ShapeRulesTest"
+      ],
+      "invariants": [
+        "Node ids come from the committed cli_graph.json, never a live CLI spawn; test_drift pins committed == live.",
+        "No self-loops and no duplicate (from, type, to) triples.",
+        "An alias_of `from` must not be an existing command id, so a real verb is never read as another name for a different command."
+      ],
+      "last_validated": "2026-10-26T13:09:35.660229+00:00",
+      "module": "graph/validate_edges.py",
+      "name": "hand-written-edges",
+      "related": [
+        "generated-command-graph"
+      ]
+    },
     "mcp-handler-backend": {
       "confidence": 0.8,
       "contracts": [
@@ -140,6 +169,6 @@
     }
   },
   "meta": {
-    "updated_at": "2026-10-26T13:01:06.907329+00:00"
+    "updated_at": "2026-10-26T13:09:35.660276+00:00"
   }
 }

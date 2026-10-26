@@ -22,7 +22,8 @@ Rules, each checked by validate():
   - the type is one of the four above (`in_domain` is generated only);
   - both endpoints are command nodes of the committed graph, never domain
     nodes. Exception: an alias_of `from` is a name the CLI may not have, so it
-    only has to share `to`'s "<cli> <area> " prefix with a different verb;
+    only has to share `to`'s "<cli> <area> " prefix with a different verb,
+    and it must not be a command the graph already has;
   - an alias names one canonical command;
   - no self-loops and no duplicate (from, type, to) triples.
 
@@ -73,6 +74,8 @@ def validate(edges, graph):
             verb = src[len(prefix):] if src.startswith(prefix) else ""
             if not verb or " " in verb or src == dst:
                 problems.append(f"{where}: alias must be `{prefix}<verb>` with a different verb")
+            elif src in commands:
+                problems.append(f"{where}: alias {src} is already a command in the graph")
             elif alias_targets.setdefault(src, dst) != dst:
                 problems.append(f"{where}: alias {src} already names {alias_targets[src]}")
         elif src not in commands:
