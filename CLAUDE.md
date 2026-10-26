@@ -20,4 +20,6 @@ uv run python -m graph.generate --check       # graph drift check
 
 `mac astrology`, `mac wyckoff` and `mac sysml` run a separate MCP server per call (`mac/groups/_mcp_proxy.py`): astrology-mcp's and stock-tracker-mcp's own venvs, and sysml-mcp's Node bundle. Their modules are generated from each server's `tools/list`; after a server's tools change, run `uv run python tools/gen_mcp_groups.py` (`--check` reports staleness, and `tests/test_parity_mcp_servers.py` fails on it).
 
+Claude Code permission rules for `mac` are generated: `uv run python tools/gen_permissions.py` writes one `Bash(mac <area> <verb> *)` rule per graph command into `~/.claude/settings.json`, `ask` for the outbound/destructive verbs in its hand-reviewed `ASK` table and `allow` for the rest. Rerun it after the graph gains or loses a verb; `tests/test_permissions.py` fails while the rules are stale.
+
 Plain `python3` (Homebrew 3.15) has no pydantic. The five parity modules then fail to import, each with one message pointing here. Live parity tests stay skipped unless `MAC_PARITY_LIVE=1` is set.
