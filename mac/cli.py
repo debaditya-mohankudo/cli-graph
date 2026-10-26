@@ -1,5 +1,6 @@
 """Argument handling, help and dispatch for `mac <area> <verb>`."""
 import argparse
+import json
 import sys
 
 from mac.contract import (
@@ -22,6 +23,17 @@ def _positive_int(text):
         raise argparse.ArgumentTypeError(f"not an integer: {text!r}")
     if value < 1:
         raise argparse.ArgumentTypeError("must be at least 1")
+    return value
+
+
+def json_object(text):
+    """argparse type for a dict parameter passed as a JSON string."""
+    try:
+        value = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise argparse.ArgumentTypeError(f"not valid JSON: {exc}")
+    if not isinstance(value, dict):
+        raise argparse.ArgumentTypeError("must be a JSON object")
     return value
 
 

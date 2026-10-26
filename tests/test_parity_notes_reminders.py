@@ -5,22 +5,22 @@ Offline tests stub the handlers and check the contract translation. Live tests
 list that the test creates and removes.
 """
 import importlib
-import io
 import json
 import os
 import sqlite3
 import subprocess
 import sys
 import tempfile
-import types
 import unittest
 from pathlib import Path
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from mac.cli import default_registry, describe, main
+from mac.cli import default_registry, describe
 from mac.groups import _backend
+from _helpers import run, stub_dispatcher
 
 SCRATCH = "mac-parity-scratch"
 
@@ -32,12 +32,6 @@ WRITE_VERBS = {
     "notes": {"add", "delete", "update"},
     "reminders": {"complete", "create", "delete", "update"},
 }
-
-
-def run(*argv):
-    out, err = io.StringIO(), io.StringIO()
-    status = main(list(argv), default_registry(), out, err)
-    return status, out.getvalue(), err.getvalue()
 
 
 class ModeTest(unittest.TestCase):
@@ -58,9 +52,7 @@ def _resolver(module):
 
 def handlers(module):
     """Stub the dispatcher: resolve to `module`'s mocks, invoke without logging."""
-    stub = types.SimpleNamespace(resolve=_resolver(module),
-                                 invoke=lambda area, action, handler, kwargs: handler(**kwargs))
-    return mock.patch("mac.groups._backend.dispatcher", return_value=stub)
+    return stub_dispatcher(_resolver(module))
 
 
 class TranslationTest(unittest.TestCase):

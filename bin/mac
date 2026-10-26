@@ -1,0 +1,10 @@
+#!/bin/sh
+# Runs `mac` under local-mac's venv: calendar's EventKit reads need its pyobjc
+# (task:315f6563). The venv is found next to MAC_MCP_SRC, the tree _backend
+# loads; MAC_PYTHON overrides it. Without a venv it falls back to python3 so
+# _backend reports what is missing as JSON.
+here=$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)
+src=${MAC_MCP_SRC:-$HOME/workspace/claude_for_mac_local/src}
+py=${MAC_PYTHON:-$src/../.venv/bin/python}
+[ -x "$py" ] || py=python3
+PYTHONPATH="$here${PYTHONPATH:+:$PYTHONPATH}" exec "$py" -m mac "$@"
