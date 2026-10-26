@@ -45,6 +45,7 @@ WRITE = {
     "mail": {"compose", "delete", "move", "add_local_mailbox"},
     "imessage": {"send"},
     "vault": {"write", "append", "delete", "move"},
+    "vault_rag": {"index_vault", "index_file", "remove_section"},
 }
 
 SAMPLE = {"int": "3", "float": "1.5", "list_int": "3"}
