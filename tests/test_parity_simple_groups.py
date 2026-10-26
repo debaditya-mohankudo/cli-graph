@@ -42,9 +42,11 @@ WRITE = {
               "play_playlist", "play_track"},
     "time": {"alarm", "wait", "play_sound"},
     "connector": {"execute_action"},
+    "mail": {"compose", "delete", "move", "add_local_mailbox"},
+    "imessage": {"send"},
 }
 
-SAMPLE = {"int": "3", "float": "1.5"}
+SAMPLE = {"int": "3", "float": "1.5", "list_int": "3"}
 
 
 def domain_map():

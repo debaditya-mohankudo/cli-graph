@@ -7,7 +7,8 @@
         "A verb's mode is 'write' if and only if (area, action) is in the hand-reviewed WRITE table; nothing is inferred",
         "A verb passes the handler only the arguments the user supplied: optional flags default to argparse.SUPPRESS and the call is `call(area, action, **given(ns, <handler param names>))`, so the handler's own defaults apply (task:2cea5538)",
         "A handler's `limit` is fed from the global --limit only when it was passed (given drops None)",
-        "Generated modules import only from mac.groups._backend (call, given) plus argparse and cli.json_object when needed; handlers still load lazily through dispatcher.resolve"
+        "Generated modules import only from mac.groups._backend (call, given) plus argparse and cli.json_object when needed; handlers still load lazily through dispatcher.resolve",
+        "A list[int] / list[str] parameter becomes nargs='+' (type=int for list[int]); kind() checks for list before unwrapping a Union, so list[int] is never read as int (task:babafba2)"
       ],
       "created_at": "2026-10-26T08:43:07.030455+00:00",
       "description": "Dev-time generator that writes mac/groups/<area>.py for the simple local-mac groups from DOMAIN_MAP and each handler's inspect.signature. The generated modules are committed so `mac` never imports handlers just to build its parser.",
@@ -19,16 +20,19 @@
         "tests/test_parity_simple_groups.py:LiveParityTest",
         "tools/gen_groups.py:_verb",
         "mac/groups/_backend.py:given",
-        "tests/test_parity_simple_groups.py:TranslationTest"
+        "tests/test_parity_simple_groups.py:TranslationTest",
+        "tools/gen_groups.py:kind",
+        "tests/test_parity_mail_imessage.py:GateTest"
       ],
       "invariants": [
         "Committed mac/groups/<area>.py must equal render() output for the current handlers; CoverageTest.test_generated_modules_are_current fails otherwise",
         "tests/test_parity_simple_groups.py keeps its own copy of WRITE, so a mode change needs both edits",
         "Generated modules contain no copied handler default values; a handler-side default change reaches `mac` without regeneration",
         "CLI rows in mcp_tool_calls log only supplied args (e.g. '{}'), so they differ in shape from MCP rows, which carry FastMCP-filled defaults; nothing reads args_json",
-        "Hand-written mac/groups/notes.py and reminders.py are outside the generator but follow the same rule by hand: SUPPRESS defaults plus given(), no copied handler defaults (task:906b962e); ForwardingTest in tests/test_parity_notes_reminders.py pins exact kwargs"
+        "Hand-written mac/groups/notes.py and reminders.py are outside the generator but follow the same rule by hand: SUPPRESS defaults plus given(), no copied handler defaults (task:906b962e); ForwardingTest in tests/test_parity_notes_reminders.py pins exact kwargs",
+        "AREAS includes mail and imessage; their gates (imessage send, mail delete) live in local-mac tool_hooks and are tested by tests/test_parity_mail_imessage.py GateTest with the real invoke and stubbed handlers"
       ],
-      "last_validated": "2026-10-26T09:23:20.866567+00:00",
+      "last_validated": "2026-10-26T10:02:59.006552+00:00",
       "module": "tools/gen_groups.py",
       "name": "generated-group-verbs",
       "related": [
@@ -44,7 +48,8 @@
         "call(area, action, /, **kw) resolves the handler via dispatcher.resolve (DOMAIN_MAP) and runs it via dispatcher.invoke, so the call is logged to mcp_tool_calls and passes the same gates as the MCP tool",
         "tool_hooks.Refused becomes Failure('blocked'); a raised ValueError/RuntimeError or an {'error': ...} result becomes Failure('tool_error'); other exceptions (including an OS PermissionError) reach cli.py as Failure('internal')",
         "A missing source tree (MAC_MCP_SRC or ~/workspace/claude_for_mac_local/src) or an unimportable dispatcher/tool_hooks raises Failure('backend_missing') — the call never runs without the gates",
-        "Results pass through unchanged; handlers return [] for empty results"
+        "Results pass through unchanged; handlers return [] for empty results",
+        "The first _src() call loads <MAC_MCP_SRC>/../.env with override=False, as mcp_server.py does, so handlers that read config from the environment at import (mail's MAIL_ACCOUNTS) see it regardless of CWD (task:babafba2)"
       ],
       "created_at": "2026-10-26T07:45:49.467358+00:00",
       "description": "Adapter that runs local-mac MCP tool handlers through local-mac's own dispatcher (resolve + invoke) and maps their results onto the mac JSON/error/exit-code contract. Group modules call handlers only through call(area, action, **kwargs).",
@@ -54,7 +59,9 @@
         "tests/test_parity_notes_reminders.py:TranslationTest",
         "tests/test_parity_notes_reminders.py:LiveParityTest",
         "mac/groups/_backend.py:dispatcher",
-        "tests/test_parity_notes_reminders.py:HookTest"
+        "tests/test_parity_notes_reminders.py:HookTest",
+        "mac/groups/_backend.py:_load_env",
+        "tests/test_parity_mail_imessage.py:EnvTest"
       ],
       "invariants": [
         "The MCP handler stays the single implementation; verbs never re-implement AppleScript",
@@ -62,13 +69,13 @@
         "The MCP handler stays the single implementation and DOMAIN_MAP the single routing table; verbs never re-implement AppleScript or copy the area→module mapping",
         "Offline tests stub _backend.dispatcher; HookTest uses the real invoke with only resolve stubbed and a scratch DB"
       ],
-      "last_validated": "2026-10-26T08:08:32.103418+00:00",
+      "last_validated": "2026-10-26T10:03:01.508499+00:00",
       "module": "mac/groups/_backend.py",
       "name": "mcp-handler-backend",
       "related": []
     }
   },
   "meta": {
-    "updated_at": "2026-10-26T09:23:20.866640+00:00"
+    "updated_at": "2026-10-26T10:03:01.508566+00:00"
   }
 }

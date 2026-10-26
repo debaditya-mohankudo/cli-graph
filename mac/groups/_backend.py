@@ -28,6 +28,21 @@ def _src():
         raise Failure("backend_missing", f"MCP source tree not found: {src} (set MAC_MCP_SRC)")
     if src not in sys.path:
         sys.path.insert(0, src)
+        _load_env(Path(src).parent / ".env")
+
+
+def _load_env(path):
+    """Load local-mac's .env the way mcp_server.py does, without overriding the environment.
+
+    Handlers read config such as MAIL_ACCOUNTS from the environment at import,
+    and the MCP server gets it from this file. Without it every `mac mail` verb
+    fails with 'No mail accounts configured' (task:babafba2).
+    """
+    try:
+        from dotenv import load_dotenv
+    except ImportError:  # not under local-mac's venv; handlers that need .env say so themselves
+        return
+    load_dotenv(path, override=False)
 
 
 def _load(name):
