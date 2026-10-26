@@ -116,7 +116,7 @@ class TranslationTest(unittest.TestCase):
         with handlers(notes):
             status, out, _ = run("notes", "add", "t", "--body", "<b>x</b>", "--tags", "a b")
         self.assertEqual((status, json.loads(out)), (0, added))
-        notes.handle_add.assert_called_once_with(title="t", body="<b>x</b>", folder="Notes", tags="a b")
+        notes.handle_add.assert_called_once_with(title="t", body="<b>x</b>", tags="a b")
 
     def test_string_results_pass_through(self):
         reminders = mock.Mock(handle_create=mock.Mock(return_value="Created reminder 'r' in 'L'"))
@@ -124,13 +124,56 @@ class TranslationTest(unittest.TestCase):
             status, out, _ = run("reminders", "create", "r", "--list", "L", "--due-date", "2026-11-01T09:00:00")
         self.assertEqual((status, json.loads(out)), (0, "Created reminder 'r' in 'L'"))
         reminders.handle_create.assert_called_once_with(
-            title="r", list="L", due_date="2026-11-01T09:00:00", notes=None, recurrence=None)
+            title="r", list="L", due_date="2026-11-01T09:00:00")
 
     def test_missing_source_tree_is_a_failure(self):
         with mock.patch.dict(os.environ, {"MAC_MCP_SRC": "/nonexistent/src"}):
             status, _, err = run("notes", "folders")
         self.assertEqual(status, 1)
         self.assertEqual(json.loads(err)["error"]["code"], "backend_missing")
+
+
+class ForwardingTest(unittest.TestCase):
+    """Only the arguments the user supplied reach the handler, so the handler's
+    own defaults apply and a local-mac default change reaches `mac` unchanged."""
+
+    CASES = [
+        # (area, argv after area, handler, exact kwargs)
+        ("notes", ["list"], "list", {}),
+        ("notes", ["list", "--limit", "5", "--folder", "F"], "list", {"limit": 5, "folder": "F"}),
+        ("notes", ["add", "t"], "add", {"title": "t"}),
+        ("notes", ["add", "t", "--folder", "F", "--body", ""], "add", {"title": "t", "folder": "F", "body": ""}),
+        ("notes", ["update", "n1", "--body", "b"], "update", {"id": "n1", "body": "b"}),
+        ("notes", ["update", "n1", "--body", "b", "--mode", "append", "--title", "T"], "update",
+         {"id": "n1", "body": "b", "mode": "append", "title": "T"}),
+        ("notes", ["delete", "t"], "delete", {"title": "t"}),
+        ("notes", ["delete", "t", "--folder", "F"], "delete", {"title": "t", "folder": "F"}),
+        ("reminders", ["list"], "list", {}),
+        ("reminders", ["list", "--list", "L", "--include-completed"], "list",
+         {"list": "L", "include_completed": True}),
+        ("reminders", ["create", "r"], "create", {"title": "r"}),
+        ("reminders", ["create", "r", "--list", "L", "--notes", "n", "--recurrence", "daily"], "create",
+         {"title": "r", "list": "L", "notes": "n", "recurrence": "daily"}),
+        ("reminders", ["update", "x"], "update", {"id": "x"}),
+        ("reminders", ["update", "x", "--title", "T", "--due-date", "2026-11-01T09:00:00"], "update",
+         {"id": "x", "title": "T", "due_date": "2026-11-01T09:00:00"}),
+    ]
+
+    def test_only_supplied_args_reach_the_handler(self):
+        for area, argv, action, kwargs in self.CASES:
+            with self.subTest(argv=[area, *argv]):
+                module = mock.Mock(**{f"handle_{action}.return_value": []})
+                with handlers(module):
+                    status, _, err = run(area, *argv)
+                self.assertEqual(status, 0, err)
+                getattr(module, f"handle_{action}").assert_called_once_with(**kwargs)
+
+    def test_choices_still_validate(self):
+        notes = mock.Mock()
+        with handlers(notes):
+            status, _, _ = run("notes", "update", "n1", "--body", "b", "--mode", "bogus")
+        self.assertNotEqual(status, 0)
+        notes.handle_update.assert_not_called()
 
 
 class HookTest(unittest.TestCase):
