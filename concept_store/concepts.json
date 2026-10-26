@@ -200,6 +200,42 @@
       "name": "mcp-handler-backend",
       "related": []
     },
+    "mcp-server-proxy-backend": {
+      "confidence": 0.8,
+      "contracts": [
+        "Text blocks are parsed as JSON (a block that is not JSON stays a string). One block becomes the result; several become a list.",
+        "isError, or a dict result with an 'error' key, becomes Failure('tool_error'). contract.raise_if_error is shared with _backend.",
+        "A missing interpreter or entry point, or a server that fails to start, becomes Failure('backend_missing') carrying the tail of the server's stderr.",
+        "The server's stderr goes to a temp file, never to mac's stderr.",
+        "PYTHONPATH, VIRTUAL_ENV and PYTHONHOME are removed from the server's environment.",
+        "Write mode, list-result coercion (as_list) and data-block extraction (data_block) come only from the hand-reviewed WRITE, LIST_RESULT and POST tables in gen_mcp_groups.py, never from inference."
+      ],
+      "created_at": "2026-10-26T16:40:56.442217+00:00",
+      "description": "Backend for `mac` verbs whose server cannot be imported in-process (astrology-mcp and stock-tracker-mcp each have their own venv; sysml-mcp is a Node bundle). Each call starts the server over stdio under its own interpreter, makes one tools/call and maps the result onto the mac contract. tools/gen_mcp_groups.py generates mac/groups/{astrology,wyckoff,sysml}.py from each server's live tools/list.",
+      "evidence": [
+        "mac/groups/_mcp_proxy.py:unwrap",
+        "mac/groups/_mcp_proxy.py:as_list",
+        "mac/groups/_mcp_proxy.py:data_block",
+        "mac/groups/_mcp_proxy.py:SERVERS",
+        "mac/contract.py:raise_if_error",
+        "tools/gen_mcp_groups.py:LIST_RESULT",
+        "tools/gen_mcp_groups.py:WRITE",
+        "tests/test_parity_mcp_servers.py"
+      ],
+      "invariants": [
+        "The MCP server stays the only implementation; verbs never re-implement a tool.",
+        "Committed group modules match gen_mcp_groups output for each server's live tools/list. tests/test_parity_mcp_servers.py fails when they go stale.",
+        "asyncio, tempfile and the mcp client import only when a proxied verb runs, so other mac verbs do not pay for them.",
+        "Each call is a new server process. A tool must not rely on state left by an earlier call in the same process (astrology planets_* once did)."
+      ],
+      "last_validated": "2026-10-26T16:40:56.442666+00:00",
+      "module": "mac/groups/_mcp_proxy.py",
+      "name": "mcp-server-proxy-backend",
+      "related": [
+        "mcp-handler-backend",
+        "generated-group-verbs"
+      ]
+    },
     "safari-tab-guard": {
       "confidence": 0.9,
       "contracts": [
@@ -233,6 +269,6 @@
     }
   },
   "meta": {
-    "updated_at": "2026-10-26T14:53:46.419867+00:00"
+    "updated_at": "2026-10-26T16:40:56.442770+00:00"
   }
 }
