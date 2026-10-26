@@ -1,5 +1,5 @@
 {
-  "about": "Hit-rate fixture for find_cli (task:597ac09d). Each phrase is a prompt from a Claude Code transcript that led to a local-mac tool call. source=transcript means it is verbatim apart from typos kept as typed; source=paraphrase means a name was removed or a reply that needed earlier context was made to stand alone. expect lists every command that would be a right answer; any one of them in the returned subgraph is a hit.",
+  "about": "Hit-rate fixture for find_cli (task:597ac09d). Each phrase is a prompt from a Claude Code transcript that led to a local-mac tool call. source=transcript means it is verbatim apart from typos kept as typed; source=paraphrase means a name was removed or a reply that needed earlier context was made to stand alone; source=synonym is a written phrase that names a command only by an alias_of synonym (graph/edges.json). expect lists every command that would be a right answer; any one of them in the returned subgraph is a hit.",
   "phrases": [
     {"phrase": "add a calendar event for 30-Sep recheck", "expect": ["mac calendar add_event"], "source": "transcript"},
     {"phrase": "send each section by message to my friend", "expect": ["mac imessage send"], "source": "paraphrase"},
@@ -24,6 +24,11 @@
     {"phrase": "search axis customer id in vault", "expect": ["mac vault_rag fts_vault", "mac vault_rag smart_search"], "source": "transcript"},
     {"phrase": "refresh the vault map and the index", "expect": ["mac vault_rag index_vault", "mac vault_rag unindexed_files"], "source": "transcript"},
     {"phrase": "disconnect the vpn", "expect": ["mac vpn disconnect"], "source": "transcript"},
-    {"phrase": "check vpn status", "expect": ["mac vpn status"], "source": "paraphrase"}
+    {"phrase": "check vpn status", "expect": ["mac vpn status"], "source": "paraphrase"},
+    {"phrase": "text someone", "expect": ["mac imessage send"], "source": "synonym"},
+    {"phrase": "ping my friend that I am late", "expect": ["mac imessage send"], "source": "synonym"},
+    {"phrase": "dm him the link", "expect": ["mac imessage send"], "source": "synonym"},
+    {"phrase": "remind me to pull participant OI after 7pm", "expect": ["mac reminders create"], "source": "synonym"},
+    {"phrase": "schedule the HDFC earnings date", "expect": ["mac calendar add_event"], "source": "synonym"}
   ]
 }

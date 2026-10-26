@@ -25,7 +25,7 @@ class FixtureTest(unittest.TestCase):
         for p in self.phrases:
             self.assertTrue(p["phrase"].strip())
             self.assertTrue(p["expect"], p["phrase"])
-            self.assertIn(p["source"], ("transcript", "paraphrase"))
+            self.assertIn(p["source"], ("transcript", "paraphrase", "synonym"))
 
     def test_every_expected_id_is_a_command_in_the_committed_graph(self):
         self.assertEqual(ev.unknown_ids(self.phrases, self.graph), [])
