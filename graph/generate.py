@@ -1,0 +1,109 @@
+"""Generate graph/cli_graph.json from each CLI's `--help --json` (task:980f10b3).
+
+The CLI is the single source of truth: every command node comes from a row of
+`<cli> --help --json`, which must be a list of {area, verb, mode, desc, usage}.
+Nothing in the output is hand-edited; hand-written edges live elsewhere.
+
+    python -m graph.generate          # rewrite graph/cli_graph.json
+    python -m graph.generate --check  # exit 1 if the committed file is stale
+
+Output shape:
+    nodes: command  {id: "<cli> <area> <verb>", kind: "command", cli, area,
+                     verb, mode, desc, usage, domain: "domain:<area>"}
+           domain   {id: "domain:<area>", kind: "domain", name: <area>}
+    edges: {from: <command id>, to: <domain id>, type: "in_domain"}
+
+The file is byte-stable: nodes sorted by id, edges by (from, type, to), keys
+sorted, one object per line, no timestamps or paths. Adding a verb changes
+only its node line and its edge line (plus a domain line for a new area).
+"""
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parent.parent
+GRAPH = REPO / "graph" / "cli_graph.json"
+
+# (cli name, argv that prints the --help --json rows). One CLI today.
+CLIS = [("mac", [str(REPO / "bin" / "mac"), "--help", "--json"])]
+
+FIELDS = ("area", "verb", "mode", "desc", "usage")
+
+
+def read_cli(argv):
+    """The `--help --json` rows of one CLI."""
+    out = subprocess.run(argv, check=True, capture_output=True, text=True).stdout
+    rows = json.loads(out)
+    for row in rows:
+        missing = [f for f in FIELDS if f not in row]
+        if missing:
+            raise ValueError(f"{argv[0]}: row {row!r} lacks {missing}")
+    return rows
+
+
+def build(clis=None):
+    """The graph dict for these CLIs, as {"nodes": [...], "edges": [...]}."""
+    nodes, edges = {}, []
+    for cli, argv in clis or CLIS:
+        for row in read_cli(argv):
+            domain = f"domain:{row['area']}"
+            cid = f"{cli} {row['area']} {row['verb']}"
+            nodes[cid] = {"id": cid, "kind": "command", "cli": cli,
+                          "domain": domain, **{f: row[f] for f in FIELDS}}
+            nodes[domain] = {"id": domain, "kind": "domain", "name": row["area"]}
+            edges.append({"from": cid, "to": domain, "type": "in_domain"})
+    return {"nodes": [nodes[k] for k in sorted(nodes)],
+            "edges": sorted(edges, key=lambda e: (e["from"], e["type"], e["to"]))}
+
+
+def render(graph):
+    """Serialise a graph so the same input always gives the same bytes."""
+    def line(obj):
+        return "    " + json.dumps(obj, sort_keys=True, ensure_ascii=False)
+
+    def array(name, items):
+        body = ",\n".join(line(i) for i in items)
+        return f'  "{name}": [\n{body}\n  ]' if items else f'  "{name}": []'
+
+    return "{\n" + array("edges", graph["edges"]) + ",\n" + array("nodes", graph["nodes"]) + "\n}\n"
+
+
+def drift(live, committed_text):
+    """Problems with the committed graph text against the live graph; [] when current.
+
+    Names CLI verbs missing from the graph and graph commands with no CLI verb
+    before falling back to "the file differs" for any other change.
+    """
+    def commands(graph):
+        return {n["id"] for n in graph["nodes"] if n["kind"] == "command"}
+
+    try:
+        committed = json.loads(committed_text)
+    except ValueError as exc:
+        return [f"graph is not valid JSON: {exc}"]
+    problems = [f"CLI verb missing from graph: {c}" for c in sorted(commands(live) - commands(committed))]
+    problems += [f"graph command has no CLI verb: {c}" for c in sorted(commands(committed) - commands(live))]
+    if not problems and committed_text != render(live):
+        problems.append("graph differs from the CLIs' --help (desc, usage, mode or layout)")
+    return problems
+
+
+def main(argv=None):
+    argv = sys.argv[1:] if argv is None else argv
+    live = build()
+    if "--check" in argv:
+        text = GRAPH.read_text() if GRAPH.exists() else '{"nodes": [], "edges": []}'
+        problems = drift(live, text)
+        for p in problems:
+            print(p, file=sys.stderr)
+        if problems:
+            print("run: python -m graph.generate", file=sys.stderr)
+        return 1 if problems else 0
+    text = render(live)
+    GRAPH.write_text(text)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
