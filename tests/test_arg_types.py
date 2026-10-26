@@ -69,6 +69,24 @@ class EveryDatedParameterIsCheckedTest(unittest.TestCase):
         self.assertGreaterEqual(checked, 9)  # calendar's 7 date parameters and reminders' 2
 
 
+class ProxiedSchemaFormatTest(unittest.TestCase):
+    """gen_mcp_groups reads a proxied server's JSON-schema `format` the way gen_groups reads
+    local-mac's annotation."""
+
+    def test_date_format_maps_to_the_cli_type(self):
+        from gen_mcp_groups import kind
+        date = {"type": "string", "format": "date"}
+        self.assertEqual(kind(date), ("iso_date", None))
+        self.assertEqual(kind({"anyOf": [date, {"type": "null"}], "default": None}), ("iso_date", None))
+        self.assertEqual(kind({"type": "string", "format": "date-or-datetime"}), ("iso_datetime", None))
+
+    def test_unknown_format_stops_the_generator(self):
+        from gen_mcp_groups import kind
+        for prop in ({"type": "string", "format": "date-time"}, {"type": "integer", "format": "date"}):
+            with self.subTest(prop=prop), self.assertRaises(SystemExit):
+                kind(prop)
+
+
 class RejectBeforeBackendTest(unittest.TestCase):
     CASES = [
         ("calendar", "add_event", "t", "2026-10-27 15:00"),
@@ -90,6 +108,21 @@ class RejectBeforeBackendTest(unittest.TestCase):
                 self.assertEqual(status, 2, err)
                 self.assertIn('"code": "usage"', err)
                 call.assert_not_called()
+
+    PROXIED = [
+        ("astrology", "mahadasha", "120.5", "2026-02-30"),
+        ("astrology", "aq_predict_events", "someone", "7", "--from-date", "next tuesday"),
+        ("astrology", "aq_predict_events_batch", "someone", "--to-date", "20291027"),
+    ]
+
+    def test_bad_dates_never_start_a_proxied_server(self):
+        for argv in self.PROXIED:
+            call_tool = mock.Mock(return_value="ok")
+            with self.subTest(argv=argv), mock.patch("mac.groups.astrology.call_tool", call_tool):
+                status, out, err = run(*argv)
+                self.assertEqual(status, 2, err)
+                self.assertIn('"code": "usage"', err)
+                call_tool.assert_not_called()
 
     def test_good_dates_reach_the_backend_unchanged(self):
         with mock.patch("mac.groups.reminders.call", return_value="ok") as call:

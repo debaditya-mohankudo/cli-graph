@@ -12,8 +12,11 @@ instead of a Python signature: a required property is positional, an optional
 one is a --flag defaulting to argparse.SUPPRESS (so the server's own default
 applies and none is copied here), a boolean is store_true, an enum becomes
 choices, an object takes a JSON object, an array of objects a JSON list, an
-array of scalars one or more values, and integer|string accepts either. Source
-text properties listed in FILE_ARGS also get a --<name>-file PATH flag.
+array of scalars one or more values, and integer|string accepts either. A
+string with a date `format` gets mac.cli's matching type (FORMAT_TYPES), so a
+bad date is a usage error before any server starts; any other format stops the
+generator rather than silently becoming a plain string. Source text properties
+listed in FILE_ARGS also get a --<name>-file PATH flag.
 """
 import re
 import sys
@@ -22,6 +25,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 
+from mac.cli import FORMAT_TYPES  # noqa: E402
 from mac.groups._mcp_proxy import SERVERS, list_tools  # noqa: E402
 
 # One area per server in _mcp_proxy.SERVERS, named after it. Every tool the server lists becomes a verb.
@@ -99,6 +103,11 @@ def kind(prop):
         raise SystemExit(f"unsupported schema: {prop!r}")
     v = variants[0]
     t = v.get("type")
+    if "format" in v:
+        if t != "string" or v["format"] not in FORMAT_TYPES:
+            raise SystemExit(f"no mac.cli type for format {v['format']!r} on {t}; add one to "
+                             f"mac.cli.FORMAT_TYPES: {prop!r}")
+        return FORMAT_TYPES[v["format"]], None
     if "enum" in v:
         return "str", tuple(v["enum"])
     if t == "array":
@@ -111,7 +120,8 @@ def kind(prop):
 
 
 TYPES = {"int": "type=int", "float": "type=float", "json": "type=json_object",
-         "json_list": "type=json_list", "int_or_str": "type=int_or_str"}
+         "json_list": "type=json_list", "int_or_str": "type=int_or_str",
+         **{t: f"type={t}" for t in FORMAT_TYPES.values()}}
 
 
 def _verb(area, tool):

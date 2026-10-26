@@ -277,9 +277,12 @@ class ServerTest(unittest.TestCase):
                 argv = []
                 for name in required:
                     prop = props[name]
-                    t = next((v.get("type") for v in prop.get("anyOf", [prop]) if v.get("type") != "null"), "string")
+                    v = next((v for v in prop.get("anyOf", [prop]) if v.get("type") != "null"), {})
+                    t = v.get("type", "string")
                     if name in file_args:
                         argv += [gen_mcp_groups.flag(name), "x"]
+                    elif "format" in v:  # a date format: "x" would be a usage error
+                        argv.append("2026-10-27")
                     else:
                         argv.append(sample.get(t, "x"))
                 verb = gen_mcp_groups.verb_name(area, tool.name)

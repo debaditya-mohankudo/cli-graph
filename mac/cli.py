@@ -81,6 +81,12 @@ def iso_datetime(text):
     return text
 
 
+# A date `format` (local-mac's IsoDate / IsoDateTime annotation, or a proxied
+# server's JSON schema) -> the argparse type above that checks it. Read by
+# tools/gen_groups.py and tools/gen_mcp_groups.py.
+FORMAT_TYPES = {"date": "iso_date", "date-or-datetime": "iso_datetime"}
+
+
 def int_or_str(text):
     """argparse type for an integer-or-string parameter: digits become an int."""
     return int(text) if text.lstrip("-").isdigit() else text

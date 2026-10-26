@@ -30,10 +30,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 
+from mac.cli import FORMAT_TYPES  # noqa: E402
 from mac.groups._backend import dispatcher  # noqa: E402
-
-# local-mac's annotated string formats -> the mac.cli argparse type checking the same thing.
-FORMAT_TYPES = {"date": "iso_date", "date-or-datetime": "iso_datetime"}
 
 AREAS = ["time", "vpn", "podcasts", "music", "sound", "contacts",
          "calendar", "system", "market", "connector", "mail", "imessage", "vault", "vault_rag"]
