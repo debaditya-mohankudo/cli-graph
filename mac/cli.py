@@ -26,15 +26,26 @@ def _positive_int(text):
     return value
 
 
-def json_object(text):
-    """argparse type for a dict parameter passed as a JSON string."""
-    try:
-        value = json.loads(text)
-    except json.JSONDecodeError as exc:
-        raise argparse.ArgumentTypeError(f"not valid JSON: {exc}")
-    if not isinstance(value, dict):
-        raise argparse.ArgumentTypeError("must be a JSON object")
-    return value
+def _json_of(pytype, label):
+    def parse(text):
+        try:
+            value = json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise argparse.ArgumentTypeError(f"not valid JSON: {exc}")
+        if not isinstance(value, pytype):
+            raise argparse.ArgumentTypeError(f"must be a JSON {label}")
+        return value
+    return parse
+
+
+# argparse types for a dict or list parameter passed as a JSON string.
+json_object = _json_of(dict, "object")
+json_list = _json_of(list, "array")
+
+
+def int_or_str(text):
+    """argparse type for an integer-or-string parameter: digits become an int."""
+    return int(text) if text.lstrip("-").isdigit() else text
 
 
 def build_parser(verb):

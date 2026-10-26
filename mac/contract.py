@@ -19,6 +19,13 @@ def error_object(code, message):
     return {"error": {"code": code, "message": message}}
 
 
+def raise_if_error(result):
+    """A tool result that is a dict with an "error" key is a failure, whichever backend ran it."""
+    if isinstance(result, dict) and "error" in result:
+        raise Failure("tool_error", str(result["error"]))
+    return result
+
+
 def apply_limit(data, limit):
     """Cut a list result to `limit` items; returns (data, truncation or None)."""
     if not isinstance(data, list):

@@ -18,7 +18,7 @@ import os
 import sys
 from pathlib import Path
 
-from mac.contract import Failure
+from mac.contract import Failure, raise_if_error
 
 DEFAULT_SRC = Path.home() / "workspace" / "claude_for_mac_local" / "src"
 
@@ -87,6 +87,4 @@ def call(area, action, /, **kwargs):
         raise Failure("blocked", str(exc))
     except (ValueError, RuntimeError) as exc:
         raise Failure("tool_error", str(exc))
-    if isinstance(result, dict) and "error" in result:
-        raise Failure("tool_error", str(result["error"]))
-    return result
+    return raise_if_error(result)
