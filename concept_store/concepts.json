@@ -1,5 +1,30 @@
 {
   "concepts": {
+    "bin-mac-interpreter-selection": {
+      "confidence": 0.8,
+      "contracts": [
+        "MAC_PYTHON, when set, overrides the interpreter.",
+        "Unset MAC_PYTHON runs $repo/.venv/bin/python, with the repo resolved through symlinks.",
+        "If that interpreter is not executable, it runs python3, and _backend reports missing dependencies as backend_missing JSON. It never falls back to claude_for_mac_local's venv.",
+        "The caller's PYTHONPATH is kept, after the repo root."
+      ],
+      "created_at": "2026-10-26T14:47:11.517743+00:00",
+      "description": "The `mac` launcher (also ~/bin/mac via symlink) chooses the Python interpreter that runs `python -m mac`. It defaults to cli-graph's own uv .venv, the same environment the test suite runs under, so a green suite speaks for the shipped CLI.",
+      "evidence": [
+        "bin/mac",
+        "tests/test_bin_mac_env.py:BinMacEnvironmentTest",
+        "mac/groups/_backend.py:_src",
+        "tests/test_backend_env.py:BackendEnvTest"
+      ],
+      "invariants": [
+        "bin/mac's default interpreter has the same sys.prefix as the interpreter running the suite under `uv run`.",
+        "The venv installs claude_for_mac_local in editable mode, so its src/ is already on sys.path at startup. _backend must not gate setup on 'src not in sys.path': local-mac's .env is loaded once per process regardless (task:2ee06de6)."
+      ],
+      "last_validated": "2026-10-26T14:53:46.419764+00:00",
+      "module": "bin/mac",
+      "name": "bin-mac-interpreter-selection",
+      "related": []
+    },
     "find-cli": {
       "confidence": 0.8,
       "contracts": [
@@ -208,6 +233,6 @@
     }
   },
   "meta": {
-    "updated_at": "2026-10-26T13:27:15.579287+00:00"
+    "updated_at": "2026-10-26T14:53:46.419867+00:00"
   }
 }

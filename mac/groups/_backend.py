@@ -12,6 +12,7 @@ or a raised ValueError/RuntimeError becomes Failure('tool_error'), and a
 tool_hooks.Refused (a gate, or a handler refusing a path) becomes
 Failure('blocked'). Both go to stderr as JSON with a non-zero exit.
 """
+import functools
 import importlib
 import os
 import sys
@@ -28,9 +29,12 @@ def _src():
         raise Failure("backend_missing", f"MCP source tree not found: {src} (set MAC_MCP_SRC)")
     if src not in sys.path:
         sys.path.insert(0, src)
-        _load_env(Path(src).parent / ".env")
+    # Not tied to the sys.path insert: cli-graph's venv installs local-mac in
+    # editable mode, so src is often on sys.path already (task:2ee06de6).
+    _load_env(Path(src).parent / ".env")
 
 
+@functools.cache  # once per process; _src runs on every call
 def _load_env(path):
     """Load local-mac's .env the way mcp_server.py does, without overriding the environment.
 
@@ -40,7 +44,7 @@ def _load_env(path):
     """
     try:
         from dotenv import load_dotenv
-    except ImportError:  # not under local-mac's venv; handlers that need .env say so themselves
+    except ImportError:  # no python-dotenv (e.g. plain python3); handlers that need .env say so themselves
         return
     load_dotenv(path, override=False)
 
