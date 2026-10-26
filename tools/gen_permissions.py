@@ -26,14 +26,15 @@ GRAPH = REPO / "graph" / "cli_graph.json"
 SETTINGS = Path.home() / ".claude" / "settings.json"
 
 # Outbound or destructive verbs: these prompt. Reviewed by hand (user decision,
-# 2026-10-26). Everything else, read or write, is allowed.
+# 2026-10-26; vault write added 2026-10-27, since it overwrites an existing
+# note). Everything else, read or write, is allowed.
 ASK = {
     "imessage": {"send"},
     "mail": {"compose", "delete", "move"},
     "calendar": {"delete_event"},
     "notes": {"delete"},
     "reminders": {"delete"},
-    "vault": {"delete", "move"},
+    "vault": {"delete", "move", "write"},
     "safari": {"close_all_tabs"},
     "system": {"process_kill", "sleep_now"},
     "connector": {"execute_action"},

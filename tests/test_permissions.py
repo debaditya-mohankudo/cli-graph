@@ -31,14 +31,14 @@ class RulesTest(unittest.TestCase):
     def test_the_user_ask_set_prompts(self):
         _, ask = gp.rules(GRAPH)
         for cmd in ("imessage send", "mail compose", "mail delete", "mail move", "calendar delete_event",
-                    "notes delete", "reminders delete", "vault delete", "vault move",
+                    "notes delete", "reminders delete", "vault delete", "vault move", "vault write",
                     "safari close_all_tabs", "system process_kill", "system sleep_now",
                     "connector execute_action", "vpn disconnect"):
             self.assertIn(f"Bash(mac {cmd} *)", ask)
 
     def test_reads_and_non_destructive_writes_are_allowed(self):
         allow, _ = gp.rules(GRAPH)
-        for cmd in ("mail read", "vault write", "vault append", "wyckoff db_init_state",
+        for cmd in ("mail read", "vault append", "wyckoff db_init_state",
                     "calendar add_event", "reminders create"):
             self.assertIn(f"Bash(mac {cmd} *)", allow)
 
