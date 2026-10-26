@@ -1,5 +1,5 @@
 """`mac reminders` — Reminders.app, wrapping the local-mac reminders__* handlers."""
-from mac.groups._backend import call, tools
+from mac.groups._backend import call
 
 
 def _items(result, key):
@@ -10,7 +10,7 @@ def _items(result, key):
 def register(registry):
     @registry.verb("reminders", "lists", mode="read", desc="list reminder lists with open counts")
     def lists(ns):
-        return _items(call(tools("reminders").handle_lists), "lists")
+        return _items(call("reminders", "lists"), "lists")
 
     def list_args(p):
         p.add_argument("--list", dest="list_name", default=None)
@@ -19,7 +19,7 @@ def register(registry):
     @registry.verb("reminders", "list", mode="read", desc="list reminders, optionally from one list",
                    args=list_args)
     def list_reminders(ns):
-        result = call(tools("reminders").handle_list, list=ns.list_name,
+        result = call("reminders", "list", list=ns.list_name,
                       include_completed=ns.include_completed)
         return _items(result, "reminders")
 
@@ -32,7 +32,7 @@ def register(registry):
 
     @registry.verb("reminders", "create", mode="write", desc="create a reminder", args=create_args)
     def create(ns):
-        return call(tools("reminders").handle_create, title=ns.title, list=ns.list_name,
+        return call("reminders", "create", title=ns.title, list=ns.list_name,
                     due_date=ns.due_date, notes=ns.notes, recurrence=ns.recurrence)
 
     def update_args(p):
@@ -44,15 +44,15 @@ def register(registry):
     @registry.verb("reminders", "update", mode="write", desc="edit a reminder in place by id",
                    args=update_args)
     def update(ns):
-        return call(tools("reminders").handle_update, id=ns.id, title=ns.title,
+        return call("reminders", "update", id=ns.id, title=ns.title,
                     due_date=ns.due_date, notes=ns.notes)
 
     @registry.verb("reminders", "complete", mode="write", desc="mark a reminder complete by id",
                    args=lambda p: p.add_argument("id"))
     def complete(ns):
-        return call(tools("reminders").handle_complete, id=ns.id)
+        return call("reminders", "complete", id=ns.id)
 
     @registry.verb("reminders", "delete", mode="write", desc="delete a reminder by id",
                    args=lambda p: p.add_argument("id"))
     def delete(ns):
-        return call(tools("reminders").handle_delete, id=ns.id)
+        return call("reminders", "delete", id=ns.id)
