@@ -12,6 +12,11 @@ Argument rules: a parameter without a default is positional; one with a default
 is a --flag; bool flags are store_true; a Literal becomes choices; a dict
 parameter takes a JSON string. A handler parameter named `limit` is fed from
 the global --limit, so it is not added twice.
+
+Optional flags default to argparse.SUPPRESS and a verb passes only the
+arguments the user gave, so the handler's own defaults apply. The generated
+modules never copy a handler default: a copy would go stale when the handler
+changes (task:2cea5538).
 """
 import importlib
 import inspect
@@ -68,18 +73,18 @@ def _first_line(fn):
 
 def _verb(area, action, fn):
     mode = "write" if action in WRITE.get(area, ()) else "read"
-    arg_lines, call_args, uses_json = [], [], False
+    arg_lines, names, uses_json = [], [], False
     for p in parameters(fn):
+        names.append(p.name)
         if p.name == "limit":
-            call_args.append(f"limit=ns.limit or {p.default!r}")
             continue
         k, choices = kind(p.annotation)
         required = p.default is inspect.Parameter.empty
         name = p.name if required else f"--{p.name.replace('_', '-')}"
+        opts = [] if required else ["default=argparse.SUPPRESS"]
         if k == "bool":
-            opts = ['action="store_true"']
+            opts.append('action="store_true"')
         else:
-            opts = [] if required else [f"default={p.default!r}"]
             if k in ("int", "float"):
                 opts.append(f"type={k}")
             elif k == "json":
@@ -88,7 +93,6 @@ def _verb(area, action, fn):
             if choices:
                 opts.append(f"choices={choices!r}")
         arg_lines.append(f'p.add_argument({", ".join([repr(name)] + opts)})')
-        call_args.append(f"{p.name}=ns.{p.name}")
 
     fname = f"{area}_{action}"
     lines = []
@@ -100,7 +104,8 @@ def _verb(area, action, fn):
     lines.append(f'    @registry.verb("{area}", "{action}", mode="{mode}",')
     lines.append(f'                   desc={_first_line(fn)!r}{args_kw})')
     lines.append(f"    def {fname}(ns):")
-    lines.append(f"        return call({', '.join([repr(area), repr(action)] + call_args)})")
+    given = f", **given(ns, {tuple(names)!r})" if names else ""
+    lines.append(f"        return call({area!r}, {action!r}{given})")
     lines.append("")
     return lines, uses_json
 
@@ -112,8 +117,10 @@ def render(area, module_path, actions):
         lines, json_arg = _verb(area, action, getattr(module, f"handle_{action}"))
         body += lines
         uses_json |= json_arg
-    imports = (["from mac.cli import json_object"] if uses_json else []) + \
-        ["from mac.groups._backend import call"]
+    text = "\n".join(body)
+    imports = (["import argparse", ""] if "argparse.SUPPRESS" in text else []) + \
+        (["from mac.cli import json_object"] if uses_json else []) + \
+        ["from mac.groups._backend import call" + (", given" if "**given(" in text else "")]
     return (HEADER.format(area=area) + "\n".join(imports) + "\n"
             + "\n\ndef register(registry):\n" + "\n".join(body).rstrip() + "\n")
 

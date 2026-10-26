@@ -43,6 +43,16 @@ def dispatcher():
     return _load("dispatcher")
 
 
+def given(ns, names):
+    """The handler arguments the user actually supplied: `names` present on ns and not None.
+
+    Optional flags default to argparse.SUPPRESS, so an omitted one is absent and
+    the handler's own default applies. The global --limit defaults to None, so
+    it reaches a handler's `limit` only when passed.
+    """
+    return {n: v for n in names if (v := getattr(ns, n, None)) is not None}
+
+
 def call(area, action, /, **kwargs):
     """Run the `<area>__<action>` handler through the dispatcher and translate its result."""
     d = dispatcher()

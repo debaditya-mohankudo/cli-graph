@@ -96,23 +96,32 @@ class TranslationTest(unittest.TestCase):
                     self.assertEqual((status, json.loads(out)), (0, "ok"), err)
                     fake.assert_called_once()
 
-    def test_flag_types_reach_the_handler(self):
+    def test_only_supplied_arguments_reach_the_handler(self):
+        # task:2cea5538: an omitted flag must not reach the handler, so the handler's
+        # own default applies. A copied default goes stale when the handler changes.
         fake = mock.Mock(return_value=[])
+        cases = [
+            (("podcasts", "recent"), {}),
+            (("podcasts", "recent", "--limit", "5"), {"limit": 5}),
+            (("podcasts", "episodes", "--podcast-title", "Odd", "--unplayed", "--limit", "5"),
+             {"podcast_title": "Odd", "unplayed": True, "limit": 5}),
+            (("calendar", "add_event", "t", "2026-11-01T09:00:00"),
+             {"title": "t", "start_date": "2026-11-01T09:00:00"}),
+            (("calendar", "add_event", "t", "2026-11-01T09:00:00", "--calendar", "Home"),
+             {"title": "t", "start_date": "2026-11-01T09:00:00", "calendar": "Home"}),
+            (("calendar", "delete_event", "t", "--days", "3"), {"title": "t", "days": 3}),
+            (("time", "wait", "2.5"), {"minutes": 2.5}),
+            (("system", "process_kill", "42"), {"pid": 42}),
+            (("system", "process_kill", "42", "--force"), {"pid": 42, "force": True}),
+            (("connector", "execute_action", "gmail.search", "--input", '{"q": "x"}'),
+             {"action_id": "gmail.search", "input": {"q": "x"}}),
+        ]
         with stub_dispatcher(lambda a, b: fake):
-            run("podcasts", "episodes", "--podcast-title", "Odd", "--unplayed", "--limit", "5")
-            fake.assert_called_with(podcast_title="Odd", podcast_uuid="", unplayed=True, limit=5)
-            run("podcasts", "recent")
-            fake.assert_called_with(new_only=False, limit=20)
-            run("calendar", "add_event", "t", "2026-11-01T09:00:00")
-            fake.assert_called_with(title="t", start_date="2026-11-01T09:00:00", calendar="Work",
-                                    end_date=None, notes=None)
-            run("time", "wait", "2.5")
-            fake.assert_called_with(minutes=2.5, label="Timer")
-            run("system", "process_kill", "42", "--force")
-            fake.assert_called_with(pid=42, force=True)
-            run("connector", "execute_action", "gmail.search", "--input", '{"q": "x"}')
-            fake.assert_called_with(action_id="gmail.search", input={"q": "x"},
-                                    idempotency_key="", alias="")
+            for argv, kwargs in cases:
+                with self.subTest(argv=argv):
+                    status, _, err = run(*argv)
+                    self.assertEqual(status, 0, err)
+                    fake.assert_called_with(**kwargs)
 
     def test_bad_arguments_are_usage_errors(self):
         fake = mock.Mock()
