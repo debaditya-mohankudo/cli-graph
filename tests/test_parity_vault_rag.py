@@ -66,8 +66,9 @@ class ImportCostTest(unittest.TestCase):
         src = os.environ.get("MAC_MCP_SRC", str(_backend.DEFAULT_SRC))
         if not Path(src).is_dir():
             self.skipTest(f"local-mac source tree not found: {src}")
-        # The interpreter bin/mac runs under: MAC_PYTHON, else the venv next to the source tree.
-        python = Path(os.environ.get("MAC_PYTHON", Path(src).parent / ".venv" / "bin" / "python"))
+        # The interpreter bin/mac runs under: MAC_PYTHON, else cli-graph's own venv.
+        repo = Path(__file__).resolve().parent.parent
+        python = Path(os.environ.get("MAC_PYTHON", repo / ".venv" / "bin" / "python"))
         if not python.exists():
             self.skipTest(f"bin/mac's interpreter not found: {python} (set MAC_PYTHON)")
         probe = ("import sys; sys.path.insert(0, sys.argv[1]); import tools.vault_rag; "

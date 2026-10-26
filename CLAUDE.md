@@ -16,4 +16,6 @@ uv run python tests/eval_find_cli.py          # find_cli hit-rate eval (90% gate
 uv run python -m graph.generate --check       # graph drift check
 ```
 
+`bin/mac` (and `~/bin/mac`, a symlink to it) runs under this same uv `.venv`, so the suite tests the `mac` users run. `MAC_PYTHON` overrides it. Without the `.venv` it falls back to `python3`, which reports `backend_missing` as JSON; it never falls back to local-mac's venv. `tests/test_bin_mac_env.py` fails if `bin/mac` and the suite pick different interpreters. The `find_cli` server runs the same way: `uv run --directory ~/workspace/cli-graph python -m find_cli.server`.
+
 Plain `python3` (Homebrew 3.15) has no pydantic. The five parity modules then fail to import, each with one message pointing here. Live parity tests stay skipped unless `MAC_PARITY_LIVE=1` is set.

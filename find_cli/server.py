@@ -1,10 +1,9 @@
 """The find_cli MCP server: one tool, `find_cli` (task:129f1bc3).
 
-Needs the `mcp` package, so run it under local-mac's venv, the same one bin/mac
-uses:
+Needs the `mcp` package, so run it under cli-graph's uv venv, the same one
+bin/mac and the suite use:
 
-    PYTHONPATH=~/workspace/cli-graph \
-        ~/workspace/claude_for_mac_local/.venv/bin/python -m find_cli.server
+    uv run --directory ~/workspace/cli-graph python -m find_cli.server
 
 The graph and edges are loaded once at start-up from the committed files.
 Not yet registered in ~/.claude.json; that happens at cutover (task:8cd14cfe).
