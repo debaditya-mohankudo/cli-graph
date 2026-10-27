@@ -76,6 +76,30 @@ class RankTest(unittest.TestCase):
     def test_no_query_terms_gives_no_seeds(self):
         self.assertEqual(rank.seeds("the a of", TOY), [])
 
+    def test_singular_query_finds_plural_text_and_back(self):
+        g = toy_graph(cmd("notes", "list", "list notes"), cmd("tabs", "close", "close a tab"))
+        self.assertEqual(rank.seeds("note", g)[0][0], "mac notes list")
+        self.assertEqual(rank.seeds("tabs", g)[0][0], "mac tabs close")
+
+    def test_exact_form_outranks_a_folded_one(self):
+        g = toy_graph(cmd("r", "lists", "show lists"), cmd("r", "list", "show list"))
+        self.assertEqual([c for c, _ in rank.seeds("list", g)], ["mac r list", "mac r lists"])
+        self.assertEqual([c for c, _ in rank.seeds("lists", g)], ["mac r lists", "mac r list"])
+
+    def test_short_words_do_not_fold(self):
+        # 'news' must not reach a command that only says 'new'.
+        g = toy_graph(cmd("mail", "add", "create a new mailbox"))
+        self.assertEqual(rank.seeds("news", g), [])
+
+    def test_generic_word_does_not_pick_the_seed(self):
+        # 'check' is rare in command text, so at full weight it would outrank 'tab'.
+        g = toy_graph(cmd("x", "verify", "check if a section is present"),
+                      cmd("safari", "read", "read the front tab text"),
+                      cmd("safari", "open", "open a url in a new tab"),
+                      cmd("safari", "close", "close the front tab"))
+        self.assertEqual(rank.seeds("check front tab", g)[0][0], "mac safari close")
+        self.assertTrue(rank.seeds("check", g), "a generic word still scores, just lower")
+
 
 class ExpandTest(unittest.TestCase):
     def ids(self, out):
@@ -123,7 +147,18 @@ class ExpandTest(unittest.TestCase):
 class FindOnCommittedGraphTest(unittest.TestCase):
     PHRASES = ["send a message to a contact", "read a note in my vault",
                "find calendar events", "delete an email", "play a song",
-               "what is my battery level", "", "zzzz nonsense qqq"]
+               "what is my battery level", "check if the note shows up",
+               "list my reminders", "", "zzzz nonsense qqq"]
+
+    # Phrases outside the eval fixture whose seeds a ranking change must keep
+    # (task:2dcdba79): the fixture alone let a candidate trade these away.
+    GUARDS = [
+        ("check sleep schedule", "mac system sleep_status", 3),
+        ("get today's events", "mac calendar get_upcoming_events", 1),
+        ("check spring or sos for deepak", "mac wyckoff check_spring_or_sos", 1),
+        ("check status of vpn", "mac vpn status", 1),
+        ("list my reminders", "mac reminders list", 1),
+    ]
 
     @classmethod
     def setUpClass(cls):
@@ -149,6 +184,24 @@ class FindOnCommittedGraphTest(unittest.TestCase):
             self.assertLessEqual(set(ids), self.commands, phrase)
             self.assertEqual(len(ids), len(set(ids)), phrase)
             self.assertLessEqual(len(ids), expand.MAX_NODES, phrase)
+
+    def test_guard_phrases_keep_their_seeds(self):
+        for phrase, want, within in self.GUARDS:
+            got = [c for c, _ in rank.seeds(phrase, self.graph, self.edges)][:within]
+            self.assertIn(want, got, phrase)
+
+    def test_news_does_not_seed_a_create_command(self):
+        got = rank.seeds("check for news on tata", self.graph, self.edges)
+        self.assertNotIn(self.graph_nodes()[got[0][0]]["verb"], ("add", "create", "new"))
+        self.assertNotIn("new", self.graph_nodes()[got[0][0]]["desc"].split())
+
+    def test_reply_alias_seeds_mail_read_and_reaches_compose(self):
+        r = find_cli.find("reply to the bank email", self.graph, self.edges)
+        self.assertEqual(r["seeds"][0]["id"], "mac mail read")
+        self.assertIn("mac mail compose", [n["id"] for n in r["neighbours"]])
+
+    def graph_nodes(self):
+        return {n["id"]: n for n in self.graph["nodes"] if n["kind"] == "command"}
 
     def test_empty_and_unmatched_queries_return_nothing(self):
         for phrase in ("", "zzzz nonsense qqq"):

@@ -4,6 +4,7 @@
     {"from": "mac imessage dm", "type": "alias_of", "to": "mac imessage send"},
     {"from": "mac imessage ping", "type": "alias_of", "to": "mac imessage send"},
     {"from": "mac imessage text", "type": "alias_of", "to": "mac imessage send"},
+    {"from": "mac mail reply", "type": "alias_of", "to": "mac mail read"},
     {"from": "mac reminders remind", "type": "alias_of", "to": "mac reminders create"},
     {"from": "mac reminders tick", "type": "alias_of", "to": "mac reminders complete"},
     {"from": "mac imessage send", "type": "requires", "to": "mac contacts search"},
