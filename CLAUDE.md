@@ -1,25 +1,63 @@
 # cli-graph
 
-## Epic status
+## The idea
 
-The work here is tracked under taskfw epic `9839b040` (replace ~300 MCP tools with a `mac` CLI plus one graph-backed `find_cli` MCP tool).
+One minimal MCP tool replaces all the others.
 
-A snapshot of open and done tasks, the suggested next step and the epic's completion criteria is in [`epic-9839b040-status.md`](epic-9839b040-status.md). It was taken on 2026-10-26 and is not updated automatically: run `tasks__list(parent="9839b040", status="")` for the live state, and refresh the file when tasks close.
+Every MCP server loads its full tool list into every session, whether the
+session uses it or not. With a few servers that comes to hundreds of tool
+schemas. The cost is context, attention and start-up time, and it grows
+with every capability added.
 
-## Running the suite
+This project inverts that. Each capability becomes a plain shell command.
+A single MCP tool, `find_cli`, answers one question: *which command does
+this task need?* The agent describes the task in plain words, gets back a
+handful of matching commands with their usage, and runs one through the
+shell. Adding a capability then adds a command, not a schema in every
+session.
 
-The Python environment is managed with uv (`pyproject.toml`, `uv.lock`, Python 3.12). The `mac` backend runs local-mac's handlers in-process, so the project takes local-mac's dependencies from `../claude_for_mac_local` as a path dependency.
+## How it works, in outline
 
-```bash
-uv run python -m unittest discover -s tests   # whole suite
-uv run python tests/eval_find_cli.py          # find_cli hit-rate eval (90% gate)
-uv run python -m graph.generate --check       # graph drift check
-```
+- **One CLI, `mac`.** Every capability is `mac <area> <verb>`. Output and
+  failures follow one contract, so any verb reads the same way. The CLI
+  wraps the existing implementations rather than rewriting them, so there
+  is still one code path per capability.
 
-`bin/mac` (and `~/bin/mac`, a symlink to it) runs under this same uv `.venv`, so the suite tests the `mac` users run. `MAC_PYTHON` overrides it. Without the `.venv` it falls back to `python3`, which reports `backend_missing` as JSON; it never falls back to local-mac's venv. `tests/test_bin_mac_env.py` fails if `bin/mac` and the suite pick different interpreters. The `find_cli` server runs the same way: `uv run --directory ~/workspace/cli-graph python -m find_cli.server`.
+- **A command graph.** The CLI describes itself, and the graph of commands
+  is generated from that description, never written by hand. A small
+  hand-written layer adds the relations a description can't express: which
+  command must come first, which feeds another, which words are aliases.
 
-`mac astrology`, `mac wyckoff` and `mac sysml` run a separate MCP server per call (`mac/groups/_mcp_proxy.py`): astrology-mcp's and stock-tracker-mcp's own venvs, and sysml-mcp's Node bundle. Their modules are generated from each server's `tools/list`; after a server's tools change, run `uv run python tools/gen_mcp_groups.py` (`--check` reports staleness, and `tests/test_parity_mcp_servers.py` fails on it).
+- **`find_cli`.** It searches the graph and returns the best matches plus
+  their close neighbours. The search is plain and deterministic, with no
+  model inside. A fixed set of real task phrases measures whether it finds
+  the right command.
 
-Claude Code permission rules for `mac` are generated: `uv run python tools/gen_permissions.py` writes one `Bash(mac <area> <verb> *)` rule per graph command into `~/.claude/settings.json`, `ask` for the outbound/destructive verbs in its hand-reviewed `ASK` table and `allow` for the rest. Rerun it after the graph gains or loses a verb; `tests/test_permissions.py` fails while the rules are stale.
+- **Safety moves with the command.** Confirmation rules and guards that
+  used to hang on MCP tool names now attach to command prefixes, so
+  outbound or destructive actions still ask first.
 
-Plain `python3` (Homebrew 3.15) has no pydantic. The five parity modules then fail to import, each with one message pointing here. Live parity tests stay skipped unless `MAC_PARITY_LIVE=1` is set.
+## Principles
+
+- **Context is the budget.** Prefer anything that keeps the always-loaded
+  surface small. A capability should cost nothing until a task needs it.
+
+- **Generate, don't maintain.** Anything that can be derived from the CLI
+  is derived, and a check fails when the derived copy is out of date.
+
+- **One implementation.** Wrap existing tools, don't fork them. A command
+  and the tool it replaced must give the same answer.
+
+- **Measure discovery.** Judge `find_cli` on real phrasing against a fixed
+  bar. If the bar slips, fix the search or the graph; don't add a
+  workaround.
+
+- **Keep what doesn't fit.** Servers whose value depends on staying
+  resident stay MCP. Migrate only what a command does better.
+
+## Where things are
+
+`README.md` covers the layout, the CLI contract, setup, tests and what to
+regenerate after a change. The work is tracked under taskfw epic
+`9839b040`, and `epic-9839b040-status.md` is a dated snapshot of it.
+Always run Python through `uv run`.
