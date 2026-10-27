@@ -1,19 +1,21 @@
-# Epic 9839b040 — status (2026-10-26)
+# Epic 9839b040 — status (2026-10-27)
 
 **cli-graph: replace ~300 MCP tools with a `mac` CLI plus one graph-backed `find_cli` MCP tool**
 
-4 of 22 tasks still open. All 6 of the epic's own completion criteria are still unticked on the epic, though done tasks now cover criteria 2, 3 and 4.
+4 of 26 tasks are still open. None of the epic's 6 completion criteria are ticked on the epic itself, but done tasks now cover criteria 1–4, and criterion 5 is partly done.
 
 ## Open tasks (suggested order)
 
 | # | Task | Title | Checklist |
 |---|---|---|---|
-| 1 | `0aa96180` | Move permissions, hooks and tool hints from MCP tool names to Bash command prefixes | 0/4 |
+| 1 | `0aa96180` | Move permissions, hooks and tool-hint injection from MCP tool names to Bash command prefixes | 4/7 |
 | 2 | `2dcdba79` | Widen find_cli's one-phrase margin over the 90% gate: both misses are "check ..." phrases where the generic word "check" ranks the wrong commands first | 0/4 |
 | 3 | `e0ce873e` | `mac time cancel <pid>` stops a time wait/alarm timer, so the live parity test stops killing timer process groups itself | 0/4 |
 | 4 | `8cd14cfe` | Cutover: turn off the migrated MCP servers and keep a rollback path | 0/3 |
 
-## Done (18)
+`0aa96180`: done are the event log recording `mac` calls by area and verb, Suggested tools pointing at `find_cli` / `mac`, no hook naming a removed MCP tool, and vault reindex on `mac vault write|append|move|delete`. Open are the permission rules (`tools/gen_permissions.py` exists and `tests/test_permissions.py` guards it, but the item isn't ticked), a live check that an `ask` rule on a `mac` write verb prompts under auto mode, and the two suite baselines.
+
+## Done (22)
 
 | Task | Title |
 |---|---|
@@ -26,26 +28,33 @@
 | `babafba2` | Migrate local-mac mail and imessage groups with the send/delete gates |
 | `0c64fa90` | Migrate local-mac vault and safari groups; `mac safari` enforces the tab guard with --expect-host |
 | `73cbda5d` | `mac vault_rag` migrated (llama_index now lazy-loaded, fts_vault ~0.26s); code_rag and ollama_agent dropped (0 calls) |
-| `980f10b3` | `graph/cli_graph.json` generated from `mac --help --json` (121 commands, 17 domains); `python -m graph.generate --check` and tests/test_drift.py fail on drift |
-| `821c2f7e` | `graph/edges.json` holds hand-written feeds/requires/alias_of/prefer_over edges (3 seed edges); `validate_edges` fails on any endpoint that is not a command node |
-| `129f1bc3` | `find_cli` package: hand-written BM25 seeds plus edge and area-sibling expansion (≤25 ids), deterministic across processes; one-tool FastMCP server (~186 schema tokens), not yet registered |
+| `980f10b3` | `graph/cli_graph.json` generated from `mac --help --json`; `python -m graph.generate --check` and tests/test_drift.py fail on drift |
+| `821c2f7e` | `graph/edges.json` holds hand-written feeds/requires/alias_of/prefer_over edges; `validate_edges` fails on any endpoint that is not a command node |
+| `129f1bc3` | `find_cli` package: BM25 seeds plus edge and area-sibling expansion (≤25 ids), deterministic across processes; one-tool FastMCP server (~186 schema tokens) |
 | `597ac09d` | Hit-rate eval: 22/24 = 92% of real transcript phrases land in the subgraph (seed-only 75%); `tests/eval_find_cli.py` reports, `tests/test_eval_fixture.py` keeps the 90% gate in the suite; no inner LLM needed |
-| `2b1844d7` | cli-graph has its own uv environment (pyproject.toml + uv.lock, local-mac as a path dependency); `uv run python -m unittest discover -s tests` is the suite, and plain python3 fails once per parity module naming that command |
+| `2b1844d7` | cli-graph has its own uv environment (pyproject.toml + uv.lock, local-mac as a path dependency) |
 | `924bfec4` | local-mac's venv resolves the same package versions as cli-graph's (mcp 1.30, pydantic 2.14, fastmcp 3.4), with mcp pinned below 2 |
 | `d30c0330` | `bin/mac` runs under cli-graph's uv `.venv`, the one the suite runs under; `tests/test_bin_mac_env.py` fails if the two ever differ |
 | `2ee06de6` | `bin/mac` loads local-mac's `.env` under cli-graph's venv, so mail verbs work again; `tests/test_backend_env.py` guards it |
-| `8bf3185f` | The live time wait/alarm parity test matches the pid-based timers and leaves no `mac-parity` timer behind, even when it fails |
-| `25e053bc` | `mac astrology`, `mac wyckoff` and `mac sysml` (52 verbs) run each MCP server's tools through a stdio MCP-client proxy, generated from tools/list with parity tests; taskfw and claude-hooks stay MCP (user decision) |
+| `8bf3185f` | The live time wait/alarm parity test matches the pid-based timers and leaves no `mac-parity` timer behind |
+| `25e053bc` | `mac astrology`, `mac wyckoff` and `mac sysml` run each MCP server's tools through a stdio MCP-client proxy, generated from tools/list with parity tests; taskfw and claude-hooks stay MCP (user decision) |
+| `6f4eb62c` | `mac` and the local-mac MCP tools reject malformed date arguments (`YYYY-MM-DD`; date-times joined with `T`) before a handler runs |
+| `c5a222dc` | `find_cli` results carry each command's run count and `last_used`, read-only from `~/.claude/tool_hints.sqlite`; `find()` stays pure |
+| `cf5d016d` | Real-use hit rate: claude-hooks logs each `find_cli` query with its seeds to `find_cli_queries` and links it to the next `mac` call in the session (seed / neighbour / miss), with a report |
 
 ## Where things stand
 
-All the done tasks are migrations to `mac` commands. Every local-mac group is now migrated or deliberately dropped: `73cbda5d` migrated vault_rag and dropped code_rag and ollama_agent, which disappear at cutover (noted on `8cd14cfe`). The generated graph (`980f10b3`), the edges file (`821c2f7e`) and `find_cli` (`129f1bc3`) are done. The hit-rate eval (`597ac09d`) passed at 92% with no change to ranking, so the no-inner-LLM design stands. The margin is one phrase, and the remaining misses come from the generic word "check"; `2dcdba79` tracks widening it. `2b1844d7` gave the repo its own uv environment, so the suite and the eval run the same way everywhere; `d30c0330` and `924bfec4` made `bin/mac` run under that same environment, and `2ee06de6` restored the `.env` loading that move broke for mail. `8bf3185f` fixed the live time parity test, which surfaced that no timer can be cancelled through `mac`; `e0ce873e` adds `mac time cancel` and needs a new handler in local-mac first. `25e053bc` moved astrology, wyckoff-analyzer and sysml-mcp to `mac` through `mac/groups/_mcp_proxy.py`, which starts the server for each call (about 0.4–2s); taskfw and claude-hooks stay MCP servers. Next: `0aa96180` (permissions and hooks on Bash prefixes); `2dcdba79` is independent of it. `8cd14cfe` (cutover) can now disable astrology, wyckoff-analyzer and sysml-mcp as well as local-mac, but must keep taskfw and claude-hooks; sysml-mcp's gitignored `dist` bundle must be rebuilt from source on a fresh checkout, and `uv run python tests/eval_find_cli.py` can serve as a gate.
+Migration is complete: `mac` now has 173 commands across 20 areas, covering every local-mac group plus astrology, wyckoff and sysml. The graph, edges file and `find_cli` are built, and the phrase eval passes at 92%, one phrase above the gate. Since the last snapshot, `find_cli` has gained real-use telemetry. Each answer carries usage counts (`c5a222dc`), and claude-hooks now records whether the command actually run was one `find_cli` suggested (`cf5d016d`). That gives a second measure of quality beyond the fixed phrase set. Date arguments are now validated up front, in both `mac` and the MCP tools (`6f4eb62c`).
 
-## Epic completion criteria (all open)
+The repo docs were rewritten on 2026-10-27. `CLAUDE.md` is now the project brief, and `README.md` covers layout, contract, setup and the regenerate-on-change table.
 
-- [ ] A `mac <area> <verb> --json` dispatcher runs the migrated local-mac tool groups
-- [ ] A generated command graph plus hand-written edges file exists, with a drift check that fails on any command missing from the graph or the reverse
-- [ ] `find_cli(task)` returns a subgraph (seeds, neighbours, usage lines, read/write mode) and never a command absent from the graph
-- [ ] At least 90% of ~20 real task phrases land the right command in the returned subgraph
-- [ ] Permissions and hooks work on Bash command prefixes instead of MCP tool names
-- [ ] Migrated MCP servers are removed from config and computer-use, claude-in-chrome and hosted connectors are untouched
+Next: finish `0aa96180`. Its remaining work is ticking the permission-rules item, the live auto-mode prompt check and confirming the two suite baselines. `2dcdba79` is independent of it, and the `find_cli_queries` misses can now feed it alongside the phrase eval. `e0ce873e` still needs a cancel handler in local-mac first. The cutover, `8cd14cfe`, comes last. It disables local-mac, astrology, wyckoff-analyzer and sysml-mcp and keeps taskfw and claude-hooks. It must also drop the ~100 migrated `mcp__` allow rules, and on a fresh checkout it must rebuild sysml-mcp's gitignored `dist` bundle. `uv run python tests/eval_find_cli.py` can serve as its gate.
+
+## Epic completion criteria (none ticked on the epic)
+
+- [ ] A `mac <area> <verb> --json` dispatcher runs the migrated local-mac tool groups — *covered by done tasks*
+- [ ] A generated command graph plus hand-written edges file exists, with a drift check that fails on any command missing from the graph or the reverse — *covered*
+- [ ] `find_cli(task)` returns a subgraph (seeds, neighbours, usage lines, read/write mode) and never a command absent from the graph — *covered*
+- [ ] At least 90% of ~20 real task phrases land the right command in the returned subgraph — *covered (92%)*
+- [ ] Permissions and hooks work on Bash command prefixes instead of MCP tool names — *in progress (`0aa96180`, 4/7)*
+- [ ] Migrated MCP servers are removed from config and computer-use, claude-in-chrome and hosted connectors are untouched — *open (`8cd14cfe`)*

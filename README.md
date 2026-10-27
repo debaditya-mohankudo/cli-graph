@@ -140,7 +140,7 @@ hand-reviewed `ASK` table get an `ask` rule; every other verb gets `allow`.
 
 This work is tracked under taskfw epic `9839b040`.
 [`epic-9839b040-status.md`](epic-9839b040-status.md) is a snapshot from
-2026-10-26; for the live state, run `tasks__list(parent="9839b040")`. The
+2026-10-27; for the live state, run `tasks__list(parent="9839b040")`. The
 remaining work moves permissions and hooks from MCP tool names to Bash
 prefixes, widens the eval margin, adds `mac time cancel`, and turns off the
 migrated MCP servers (taskfw and claude-hooks stay as MCP servers).
