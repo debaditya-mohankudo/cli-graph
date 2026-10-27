@@ -38,7 +38,7 @@ AREAS = ["time", "vpn", "podcasts", "music", "sound", "contacts",
 
 # Verbs that change something. Reviewed by hand; everything else is read.
 WRITE = {
-    "time": {"alarm", "wait", "play_sound"},
+    "time": {"alarm", "wait", "cancel", "play_sound"},
     "vpn": {"connect", "disconnect", "pause"},
     "music": {"play", "pause", "next", "previous", "volume", "search_play",
               "play_playlist", "play_track"},

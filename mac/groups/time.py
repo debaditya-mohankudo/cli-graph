@@ -29,6 +29,14 @@ def register(registry):
     def time_wait(ns):
         return call('time', 'wait', **given(ns, ('minutes', 'label')))
 
+    def time_cancel_args(p):
+        p.add_argument('pid', type=int)
+
+    @registry.verb("time", "cancel", mode="write",
+                   desc='cancel a wait/alarm timer by the pid it reported. Stops its whole process group', args=time_cancel_args)
+    def time_cancel(ns):
+        return call('time', 'cancel', **given(ns, ('pid',)))
+
     def time_play_sound_args(p):
         p.add_argument('seconds', type=float)
         p.add_argument('--sound', default=argparse.SUPPRESS)

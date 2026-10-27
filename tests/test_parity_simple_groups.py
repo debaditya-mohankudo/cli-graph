@@ -15,7 +15,6 @@ import importlib
 import json
 import os
 import re
-import signal
 import subprocess
 import sys
 import time
@@ -42,7 +41,7 @@ WRITE = {
     "sound": {"set_output", "set_volume", "mute", "unmute"},
     "music": {"play", "pause", "next", "previous", "volume", "search_play",
               "play_playlist", "play_track"},
-    "time": {"alarm", "wait", "play_sound"},
+    "time": {"alarm", "wait", "cancel", "play_sound"},
     "connector": {"execute_action"},
     "mail": {"compose", "delete", "move", "add_local_mailbox"},
     "imessage": {"send"},
@@ -217,23 +216,22 @@ class LiveParityTest(unittest.TestCase):
         self.assertIn("Notification sent", self.cli("system", "notify", "mac parity", "--body", "live test"))
 
     def test_wait_and_alarm_schedule_timers_that_are_removed(self):
-        # time_tools runs each timer as a detached `sh` that leads its own
-        # process group, and reports it as "(pid N)"; older builds queued an
-        # at job ("job N at"). Cleanup is registered before any assertion,
-        # so a failing run still leaves no timer behind. Cleanups run last-in
-        # first-out, so the leftover check registered here runs after the kills.
+        # Each timer reports "(pid N)" and is stopped with `mac time cancel`.
+        # Cleanup is registered before any assertion, so a failing run still
+        # leaves no timer behind. Cleanups run last-in first-out, so the
+        # leftover check registered here runs after the cancels.
         self.addCleanup(self.assertNoParityTimers)
         for argv in (("time", "wait", "600", "--label", "mac-parity"),
                      ("time", "alarm", "23:59", "--label", "mac-parity")):
             message = self.cli(*argv)
             pid = re.search(r"\(pid (\d+)\)", message)
-            job = re.search(r"job (\d+) at", message)
-            if pid:
-                self.addCleanup(_kill_group, int(pid.group(1)))
-            if job:
-                self.addCleanup(subprocess.run, ["atrm", job.group(1)])
             self.assertIsNotNone(pid, message)
+            self.addCleanup(self.cancel_timer, pid.group(1))
             self.assertIn("mac-parity", message)
+
+    def cancel_timer(self, pid):
+        self.assertIn(self.cli("time", "cancel", pid), (f"Timer {pid} cancelled",
+                                                       f"Timer {pid} already finished"))
 
     def assertNoParityTimers(self):
         for _ in range(20):
@@ -242,13 +240,6 @@ class LiveParityTest(unittest.TestCase):
                 break
             time.sleep(0.1)
         self.assertEqual(left, [], "mac-parity timer still running")
-
-
-def _kill_group(pid):
-    try:
-        os.killpg(pid, signal.SIGTERM)
-    except ProcessLookupError:
-        pass
 
 
 if __name__ == "__main__":
