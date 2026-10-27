@@ -1,4 +1,35 @@
 {
+  "groups": {
+    "communication": ["contacts", "imessage", "mail"],
+    "knowledge": ["sysml", "vault", "vault_rag"],
+    "markets": ["market", "wyckoff"],
+    "media": ["music", "podcasts", "sound"],
+    "productivity": ["calendar", "notes", "reminders", "time"],
+    "system": ["system", "vpn"],
+    "web": ["connector", "safari"]
+  },
+  "domains": {
+    "astrology": {"group": null, "verbs": ["aq_aspects_on_house", "aq_bhava_chalit", "aq_current_dasha", "aq_dasha_timeline", "aq_navamsha", "aq_neecha_bhanga", "aq_pd_timeline", "aq_planets", "aq_predict_events", "aq_predict_events_batch", "aq_pushkar_navamsa", "aq_strength_summary", "aq_upcoming_transitions", "aq_vargottama", "aq_yogas", "d10", "d12", "d9", "gochar_dasha_tally", "gochar_house", "gochar_summary", "mahadasha", "panchang_date", "panchang_rahukaal", "panchang_today", "planets_date", "planets_lagna", "planets_today", "tarabala"]},
+    "calendar": {"group": "productivity", "verbs": ["add_event", "delete_event", "get_events_by_date", "get_noise_summary", "get_upcoming_events", "list_events"]},
+    "connector": {"group": "web", "verbs": ["execute_action", "health", "list_actions"]},
+    "contacts": {"group": "communication", "verbs": ["search"]},
+    "imessage": {"group": "communication", "verbs": ["read", "send"]},
+    "mail": {"group": "communication", "verbs": ["add_local_mailbox", "compose", "delete", "get", "list_drafts", "list_mailboxes", "move", "read", "search"]},
+    "market": {"group": "markets", "verbs": ["gold_regime_history", "gold_regime_projection"]},
+    "music": {"group": "media", "verbs": ["list_playlists", "list_tracks", "next", "now_playing", "pause", "play", "play_playlist", "play_track", "previous", "search_play", "volume"]},
+    "notes": {"group": "productivity", "verbs": ["add", "delete", "folders", "list", "read", "update"]},
+    "podcasts": {"group": "media", "verbs": ["episodes", "in_progress", "list", "recent"]},
+    "reminders": {"group": "productivity", "verbs": ["complete", "create", "delete", "list", "lists", "update"]},
+    "safari": {"group": "web", "verbs": ["back", "close_all_tabs", "close_tab", "current_title", "current_url", "forward", "js", "list_tabs", "navigate", "open", "read", "reload", "screenshot"]},
+    "sound": {"group": "media", "verbs": ["get_output", "get_volume", "list_devices", "mute", "set_output", "set_volume", "unmute"]},
+    "sysml": {"group": "knowledge", "verbs": ["get_complexity", "get_definition", "get_diagnostics", "get_hierarchy", "get_model_summary", "get_references", "get_symbols", "parse", "preview", "validate"]},
+    "system": {"group": "system", "verbs": ["battery_status", "clipboard_read", "clipboard_write", "cpu_status", "foundation_models_query", "icloud_list", "memory_status", "notify", "process_kill", "process_list", "sleep_cancel", "sleep_in", "sleep_now", "sleep_status", "sleep_winddown", "spotlight_search"]},
+    "time": {"group": "productivity", "verbs": ["alarm", "cancel", "now", "play_sound", "wait"]},
+    "vault": {"group": "knowledge", "verbs": ["append", "backlinks", "daily_read", "delete", "filename_search", "folder_search", "links", "list", "move", "outline", "read", "section_search", "stats", "tags", "tags_search", "tasks", "vault_keyword_hints", "write"]},
+    "vault_rag": {"group": "knowledge", "verbs": ["contains_section", "fts_vault", "index_file", "index_status", "index_vault", "query_vault", "remove_section", "smart_search", "unindexed_files"]},
+    "vpn": {"group": "system", "verbs": ["connect", "disconnect", "pause", "status"]},
+    "wyckoff": {"group": "markets", "verbs": ["analyze_accumulation", "check_spring_or_sos", "classify_announcements", "db_init_state", "get_support_resistance", "next_step", "plot_sr_chart", "sector_relative_strength", "signal_weight_table", "update_delivery", "update_fno", "update_run", "update_short_volume"]}
+  },
   "edges": [
     {"from": "domain:calendar", "to": "group:productivity", "type": "in_group"},
     {"from": "domain:connector", "to": "group:web", "type": "in_group"},

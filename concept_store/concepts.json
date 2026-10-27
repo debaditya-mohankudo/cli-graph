@@ -79,10 +79,11 @@
       "contracts": [
         "Input contract per CLI: `<cli> --help --json` prints a JSON list of rows, each with area, verb, mode, desc and usage. The generator runs it as a subprocess and does not import the CLI. A row missing a field raises ValueError.",
         "Command node: id `<cli> <area> <verb>` (the Bash prefix that hooks and permissions match on), kind `command`, cli, area, verb, mode, desc, usage (verbatim) and domain `domain:<area>`. Domain node: id `domain:<area>`, kind `domain`, name. Edge: {from: command id, to: domain id, type: in_domain}.",
-        "drift(live, committed_text) returns [] when the file is current. Otherwise it names each CLI verb missing from the graph and each graph command with no CLI verb, and only when there are none of those does it report a generic 'differs'. --check exits 1 on any problem."
+        "drift(live, committed_text) returns [] when the file is current. Otherwise it names each CLI verb missing from the graph and each graph command with no CLI verb, and only when there are none of those does it report a generic 'differs'. --check exits 1 on any problem.",
+        "Top-level key order is groups, domains, edges, nodes. groups and domains are derived views of the nodes and edges (same facts, one place to read the shape); every reader indexes only `nodes`/`edges`, so the overview is invisible to them (task:c849c020)."
       ],
       "created_at": "2026-10-26T13:01:06.907266+00:00",
-      "description": "graph/cli_graph.json is generated from each CLI's `--help --json` and never edited by hand. It holds a command node per verb, a domain node per area, and in_domain edges. A drift check (`python -m graph.generate --check`, or tests/test_drift.py, which share generate.drift) fails when the committed file no longer matches the live CLIs.",
+      "description": "graph/cli_graph.json is generated from each CLI's `--help --json` and graph/groups.json, and never edited by hand. It opens with an overview (`groups`: group -> areas; `domains`: area -> group or null, plus its verbs), then the flat `edges` and `nodes` lists find_cli reads: a command node per verb, a domain node per area, a group node per group, with in_domain and in_group edges. A drift check (`python -m graph.generate --check`, or tests/test_drift.py, which share generate.drift) fails when the committed file no longer matches the live CLIs.",
       "evidence": [
         "graph/generate.py:build",
         "graph/generate.py:render",
@@ -92,9 +93,9 @@
       ],
       "invariants": [
         "Regenerating with no CLI change gives a byte-identical file: nodes sorted by id, edges by (from, type, to), sort_keys, one object per line, a trailing newline, and no timestamps or paths.",
-        "Adding a verb changes only its node line and its edge line, plus a domain line for a new area. The exception is a verb that sorts last in an array: the previous last line also changes, because it gains a comma."
+        "Adding a verb changes its node line, its edge line and its domain's `domains` overview line (verbs are inline, one line per domain), plus a domain line for a new area. The exception is a verb that sorts last in an array: the previous last line also changes, because it gains a comma."
       ],
-      "last_validated": "2026-10-26T13:01:06.907289+00:00",
+      "last_validated": "2026-10-27T13:37:29.613650+00:00",
       "module": "graph/generate.py",
       "name": "generated-command-graph",
       "related": [
@@ -336,6 +337,6 @@
     }
   },
   "meta": {
-    "updated_at": "2026-10-27T05:33:31.505484+00:00"
+    "updated_at": "2026-10-27T13:37:29.613726+00:00"
   }
 }

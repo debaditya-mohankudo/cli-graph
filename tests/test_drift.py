@@ -79,17 +79,20 @@ class ShapeTest(unittest.TestCase):
     def test_regeneration_is_byte_identical(self):
         self.assertEqual(generate.render(generate.build()), generate.render(LIVE))
 
-    def test_one_new_verb_adds_only_its_node_and_edge_lines(self):
+    def test_one_new_verb_adds_its_node_edge_and_domain_lines(self):
         node = next(n for n in LIVE["nodes"] if n["kind"] == "command")
         new_id = node["id"] + "_x"
-        grown = {"nodes": sorted(LIVE["nodes"] + [dict(node, id=new_id, verb=node["verb"] + "_x")],
+        domains = {a: dict(d, verbs=list(d["verbs"])) for a, d in LIVE["domains"].items()}
+        domains[node["area"]]["verbs"].append(node["verb"] + "_x")
+        grown = {"groups": LIVE["groups"], "domains": domains,
+                 "nodes": sorted(LIVE["nodes"] + [dict(node, id=new_id, verb=node["verb"] + "_x")],
                                  key=lambda n: n["id"]),
                  "edges": sorted(LIVE["edges"] + [{"from": new_id, "to": node["domain"], "type": "in_domain"}],
                                  key=lambda e: (e["from"], e["type"], e["to"]))}
         before = generate.render(LIVE).splitlines()
         after = generate.render(grown).splitlines()
-        self.assertEqual(len(set(after) - set(before)), 2)
-        self.assertEqual(set(before) - set(after), set())
+        self.assertEqual(len(set(after) - set(before)), 3)
+        self.assertEqual(len(set(before) - set(after)), 1)  # the domain's old overview line
 
 
 if __name__ == "__main__":

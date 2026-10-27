@@ -7,7 +7,10 @@ Nothing in the output is hand-edited; hand-written edges live elsewhere.
     python -m graph.generate          # rewrite graph/cli_graph.json
     python -m graph.generate --check  # exit 1 if the committed file is stale
 
-Output shape:
+Output shape (groups and domains come first, as an overview; nodes and edges
+carry the same facts in the form find_cli reads):
+    groups:  {<group>: [<area>, ...]}
+    domains: {<area>: {group: <group> | null, verbs: [<verb>, ...]}}
     nodes: command  {id: "<cli> <area> <verb>", kind: "command", cli, area,
                      verb, mode, desc, usage, domain: "domain:<area>"}
            domain   {id: "domain:<area>", kind: "domain", name: <area>}
@@ -57,7 +60,7 @@ def build(clis=None, groups=None):
     """
     if groups is None and clis is None:
         groups = _groups.load()
-    nodes, edges = {}, []
+    nodes, edges, domains, group_areas = {}, [], {}, {}
     for cli, argv in clis or CLIS:
         for row in read_cli(argv):
             domain = f"domain:{row['area']}"
@@ -66,6 +69,7 @@ def build(clis=None, groups=None):
                           "domain": domain, **{f: row[f] for f in FIELDS}}
             nodes[domain] = {"id": domain, "kind": "domain", "name": row["area"]}
             edges.append({"from": cid, "to": domain, "type": "in_domain"})
+            domains.setdefault(row["area"], {"group": None, "verbs": []})["verbs"].append(row["verb"])
     if groups is not None:
         areas = sorted(n["name"] for n in nodes.values() if n["kind"] == "domain")
         problems = _groups.validate(groups, areas)
@@ -75,8 +79,15 @@ def build(clis=None, groups=None):
             gid = f"group:{group}"
             nodes[gid] = {"id": gid, "kind": "group", "name": group}
             edges.append({"from": f"domain:{area}", "to": gid, "type": "in_group"})
-    return {"nodes": [nodes[k] for k in sorted(nodes)],
-            "edges": sorted(edges, key=lambda e: (e["from"], e["type"], e["to"]))}
+            domains[area]["group"] = group
+            group_areas.setdefault(group, []).append(area)
+    edges.sort(key=lambda e: (e["from"], e["type"], e["to"]))
+    for d in domains.values():
+        d["verbs"].sort()
+    for areas in group_areas.values():
+        areas.sort()
+    return {"groups": group_areas, "domains": domains,
+            "nodes": [nodes[k] for k in sorted(nodes)], "edges": edges}
 
 
 def render(graph):
@@ -88,7 +99,14 @@ def render(graph):
         body = ",\n".join(line(i) for i in items)
         return f'  "{name}": [\n{body}\n  ]' if items else f'  "{name}": []'
 
-    return "{\n" + array("edges", graph["edges"]) + ",\n" + array("nodes", graph["nodes"]) + "\n}\n"
+    def mapping(name, items):
+        body = ",\n".join(f"    {json.dumps(k)}: {json.dumps(v, sort_keys=True, ensure_ascii=False)}"
+                          for k, v in sorted(items.items()))
+        return f'  "{name}": {{\n{body}\n  }}' if items else f'  "{name}": {{}}'
+
+    return ("{\n" + mapping("groups", graph["groups"]) + ",\n"
+            + mapping("domains", graph["domains"]) + ",\n"
+            + array("edges", graph["edges"]) + ",\n" + array("nodes", graph["nodes"]) + "\n}\n")
 
 
 def drift(live, committed_text):
