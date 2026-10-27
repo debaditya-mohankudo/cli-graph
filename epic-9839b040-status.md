@@ -2,17 +2,15 @@
 
 **cli-graph: replace ~300 MCP tools with a `mac` CLI plus one graph-backed `find_cli` MCP tool**
 
-3 of 26 tasks are still open. None of the epic's 6 completion criteria are ticked on the epic itself, but done tasks now cover criteria 1–5.
+1 of 27 tasks is still open. None of the epic's 6 completion criteria are ticked on the epic itself, but done tasks now cover all 6.
 
-## Open tasks (suggested order)
+## Open tasks
 
 | # | Task | Title | Checklist |
 |---|---|---|---|
-| 1 | `2dcdba79` | Widen find_cli's one-phrase margin over the 90% gate: both misses are "check ..." phrases where the generic word "check" ranks the wrong commands first | 0/4 |
-| 2 | `e0ce873e` | `mac time cancel <pid>` stops a time wait/alarm timer, so the live parity test stops killing timer process groups itself | 0/4 |
-| 3 | `8cd14cfe` | Cutover: turn off the migrated MCP servers and keep a rollback path | 0/3 |
+| 1 | `e0ce873e` | `mac time cancel <pid>` stops a time wait/alarm timer, so the live parity test stops killing timer process groups itself | 0/4 |
 
-## Done (23)
+## Done (26)
 
 | Task | Title |
 |---|---|
@@ -39,20 +37,23 @@
 | `c5a222dc` | `find_cli` results carry each command's run count and `last_used`, read-only from `~/.claude/tool_hints.sqlite`; `find()` stays pure |
 | `cf5d016d` | Real-use hit rate: claude-hooks logs each `find_cli` query with its seeds to `find_cli_queries` and links it to the next `mac` call in the session (seed / neighbour / miss), with a report |
 | `0aa96180` | Permissions, hooks and tool hints keyed on `mac <area> <verb>` Bash prefixes: `tools/gen_permissions.py` writes one allow/ask rule per command; event log, Suggested tools and vault reindex see `mac` calls. Live check 2026-10-27 under auto mode: an allowed verb ran unprompted, and `reminders delete` prompted both as `mac` and as `~/bin/mac`. Suites: cli-graph 185 OK / 20 skipped, claude-hooks 602 passed / 1 skipped |
+| `2dcdba79` | find_cli down-weights generic query words, folds plurals into one BM25 term, aliases `mail reply` to `mail read`; eval 51/51 subgraph, 42/51 seed |
+| `e3553f62` | Skills and docs in ~/.claude, stock-tracker-mcp and cas-trading-research repointed from migrated MCP tools to `mac` verbs (23 files) |
+| `8cd14cfe` | Cutover: local-mac, astrology, wyckoff-analyzer and sysml-mcp removed from user config with their 99 allow rules; a fresh session lists 67 stdio tools instead of 245. `tools/cutover.py rollback` restores both from `~/.claude/cutover-9839b040-backup.json` (round trip tested). local-mac stays loaded in `claude_for_mac_local` through its `.mcp.json` |
 
 ## Where things stand
 
-Migration is complete: `mac` now has 173 commands across 20 areas, covering every local-mac group plus astrology, wyckoff and sysml. The graph, edges file and `find_cli` are built, and the phrase eval passes at 92%, one phrase above the gate. Since the last snapshot, `find_cli` has gained real-use telemetry. Each answer carries usage counts (`c5a222dc`), and claude-hooks now records whether the command actually run was one `find_cli` suggested (`cf5d016d`). That gives a second measure of quality beyond the fixed phrase set. Date arguments are now validated up front, in both `mac` and the MCP tools (`6f4eb62c`).
+Migration is complete: `mac` now has 173 commands across 20 areas, covering every local-mac group plus astrology, wyckoff and sysml. The graph, edges file and `find_cli` are built, and the phrase eval passes at 51/51. Since the last snapshot, `find_cli` has gained real-use telemetry. Each answer carries usage counts (`c5a222dc`), and claude-hooks now records whether the command actually run was one `find_cli` suggested (`cf5d016d`). That gives a second measure of quality beyond the fixed phrase set. Date arguments are now validated up front, in both `mac` and the MCP tools (`6f4eb62c`).
 
 The repo docs were rewritten on 2026-10-27. `CLAUDE.md` is now the project brief, and `README.md` covers layout, contract, setup and the regenerate-on-change table.
 
-`0aa96180` closed on 2026-10-27 after a live check: under auto mode, an `ask` rule on a `mac` write verb still prompts. Next: `2dcdba79`, which can now draw on the `find_cli_queries` misses as well as the phrase eval. `e0ce873e` still needs a cancel handler in local-mac first. The cutover, `8cd14cfe`, comes last. It disables local-mac, astrology, wyckoff-analyzer and sysml-mcp and keeps taskfw and claude-hooks. It must also drop the ~100 migrated `mcp__` allow rules, and on a fresh checkout it must rebuild sysml-mcp's gitignored `dist` bundle. `uv run python tests/eval_find_cli.py` can serve as its gate.
+The cutover (`8cd14cfe`) ran on 2026-10-27. Sessions now load claude-hooks, taskfw and `find_cli` (67 tools, down from 245), and every migrated capability goes through `mac`. After the cutover, the suite is green, the eval holds at 51/51, and a read verb through each of `mac wyckoff`, `mac astrology` and `mac sysml` works. Only `e0ce873e` (a cancel handler in local-mac) remains. On a fresh checkout, `mac sysml` still needs sysml-mcp's gitignored `dist` bundle rebuilt.
 
 ## Epic completion criteria (none ticked on the epic)
 
 - [ ] A `mac <area> <verb> --json` dispatcher runs the migrated local-mac tool groups — *covered by done tasks*
 - [ ] A generated command graph plus hand-written edges file exists, with a drift check that fails on any command missing from the graph or the reverse — *covered*
 - [ ] `find_cli(task)` returns a subgraph (seeds, neighbours, usage lines, read/write mode) and never a command absent from the graph — *covered*
-- [ ] At least 90% of ~20 real task phrases land the right command in the returned subgraph — *covered (92%)*
+- [ ] At least 90% of ~20 real task phrases land the right command in the returned subgraph — *covered (51/51)*
 - [ ] Permissions and hooks work on Bash command prefixes instead of MCP tool names — *covered (`0aa96180`)*
-- [ ] Migrated MCP servers are removed from config and computer-use, claude-in-chrome and hosted connectors are untouched — *open (`8cd14cfe`)*
+- [ ] Migrated MCP servers are removed from config and computer-use, claude-in-chrome and hosted connectors are untouched — *covered (`8cd14cfe`)*
