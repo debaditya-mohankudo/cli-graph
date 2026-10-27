@@ -141,6 +141,34 @@
         "mcp-handler-backend"
       ]
     },
+    "generated-permission-rules": {
+      "confidence": 0.8,
+      "contracts": [
+        "One allow rule per graph command, `Bash(mac <area> <verb> *)`. Never one blanket `Bash(mac *)`.",
+        "ASK verbs get ask rules under every launcher spelling (mac, ~/bin/mac, absolute ~/bin/mac, absolute repo bin/mac, bin/mac, ./bin/mac).",
+        "--check exits non-zero when settings.json differs from what the generator would write. The suite runs it (LiveSettingsTest).",
+        "Ownership is decided by shape: any allow/ask rule shaped `Bash(<launcher> <area> <verb> *)` belongs to the generator and is replaced, including a rule for a verb since removed from the graph. Rules of any other shape, and the deny list, are left in place."
+      ],
+      "created_at": "2026-10-27T03:55:26.792405+00:00",
+      "description": "Generates Claude Code Bash permission rules for every `mac <area> <verb>` command in graph/cli_graph.json and merges them into ~/.claude/settings.json. A hand-reviewed ASK table names the outbound or destructive verbs, which prompt. Every other verb gets an allow rule.",
+      "evidence": [
+        "tools/gen_permissions.py:rules",
+        "tools/gen_permissions.py:owned",
+        "tools/gen_permissions.py:apply",
+        "tests/test_permissions.py:RulesTest",
+        "tests/test_permissions.py:ApplyTest",
+        "tests/test_permissions.py:LiveSettingsTest"
+      ],
+      "invariants": [
+        "The ASK set is reviewed by hand and is never inferred from the graph's read/write mode.",
+        "A verb added to the graph without regenerating gets no allow rule, so it falls to the auto-mode classifier rather than being silently allowed.",
+        "The user runs the write. An auto-mode session that writes settings.json is refused as self-modification."
+      ],
+      "last_validated": "2026-10-27T03:55:42.530117+00:00",
+      "module": "tools/gen_permissions.py",
+      "name": "generated-permission-rules",
+      "related": []
+    },
     "hand-written-edges": {
       "confidence": 0.8,
       "contracts": [
@@ -274,6 +302,6 @@
     }
   },
   "meta": {
-    "updated_at": "2026-10-27T03:24:41.450269+00:00"
+    "updated_at": "2026-10-27T03:55:42.530168+00:00"
   }
 }
