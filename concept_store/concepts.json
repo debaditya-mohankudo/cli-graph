@@ -203,6 +203,35 @@
         "generated-command-graph"
       ]
     },
+    "mcp-cutover": {
+      "confidence": 0.8,
+      "contracts": [
+        "`status` exits 0 only when none of the four servers is in user-scope mcpServers and no migrated allow rule remains",
+        "`apply` writes ~/.claude/cutover-9839b040-backup.json before removing anything; `rollback` restores every saved server and rule from it and is a no-op for ones already present",
+        "`count` lists tools per user-scope stdio server, started through mac's _mcp_proxy._session"
+      ],
+      "created_at": "2026-10-27T05:33:31.505420+00:00",
+      "description": "Turns the MCP servers that `mac` replaced (local-mac, astrology, wyckoff-analyzer, sysml-mcp) off or back on: their user-scope ~/.claude.json entries and their mcp__<server>__* allow rules in ~/.claude/settings.json, with a backup beside the live files.",
+      "evidence": [
+        "tools/cutover.py:strip_rules",
+        "tools/cutover.py:restore_rules",
+        "tools/cutover.py:apply",
+        "tools/cutover.py:rollback",
+        "tests/test_cutover.py:CutoverRulesTest"
+      ],
+      "invariants": [
+        "Servers are removed and added only via `claude mcp remove/add-json -s user`, never by writing ~/.claude.json, because running sessions rewrite that file",
+        "Never touches the `mac` rules (gen_permissions.py owns them), per-project disabledMcpServers, hosted connectors or claude-in-chrome",
+        "A second apply never overwrites the existing backup; it refuses if the backup lacks a server or rule it would remove",
+        "settings.json is written with gen_permissions.render, so the two scripts never fight over layout"
+      ],
+      "last_validated": "2026-10-27T05:33:31.505440+00:00",
+      "module": "tools/cutover.py",
+      "name": "mcp-cutover",
+      "related": [
+        "generated-permission-rules"
+      ]
+    },
     "mcp-handler-backend": {
       "confidence": 0.8,
       "contracts": [
@@ -307,6 +336,6 @@
     }
   },
   "meta": {
-    "updated_at": "2026-10-27T04:10:21.172972+00:00"
+    "updated_at": "2026-10-27T05:33:31.505484+00:00"
   }
 }
