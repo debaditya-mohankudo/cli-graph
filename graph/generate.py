@@ -7,16 +7,11 @@ Nothing in the output is hand-edited; hand-written edges live elsewhere.
     python -m graph.generate          # rewrite graph/cli_graph.json
     python -m graph.generate --check  # exit 1 if the committed file is stale
 
-Output shape (groups and domains come first, as an overview; nodes and edges
-carry the same facts in the form find_cli reads):
+Output shape:
     groups:  {<group>: [<area>, ...]}
     domains: {<area>: {group: <group> | null, verbs: [<verb>, ...]}}
-    nodes: command  {id: "<cli> <area> <verb>", kind: "command", cli, area,
-                     verb, mode, desc, usage, domain: "domain:<area>"}
-           domain   {id: "domain:<area>", kind: "domain", name: <area>}
-           group    {id: "group:<name>", kind: "group", name: <name>}
-    edges: {from: <command id>, to: <domain id>, type: "in_domain"}
-           {from: <domain id>, to: <group id>, type: "in_group"}
+    nodes:   one per command  {id: "<cli> <area> <verb>", kind: "command", cli,
+                               area, verb, mode, desc, usage}
 
 Groups come from the hand-written graph/groups.json (see graph/groups.py);
 an area listed as ungrouped has no in_group edge.
@@ -53,41 +48,31 @@ def read_cli(argv):
 
 
 def build(clis=None, groups=None):
-    """The graph dict for these CLIs, as {"nodes": [...], "edges": [...]}.
+    """The graph dict for these CLIs, as {"groups", "domains", "nodes"}.
 
     groups is a graph/groups.json spec; it defaults to that file for the real
     CLIs and to none for clis passed in. An invalid spec raises ValueError.
     """
     if groups is None and clis is None:
         groups = _groups.load()
-    nodes, edges, domains, group_areas = {}, [], {}, {}
+    nodes, domains, group_areas = {}, {}, {}
     for cli, argv in clis or CLIS:
         for row in read_cli(argv):
-            domain = f"domain:{row['area']}"
             cid = f"{cli} {row['area']} {row['verb']}"
-            nodes[cid] = {"id": cid, "kind": "command", "cli": cli,
-                          "domain": domain, **{f: row[f] for f in FIELDS}}
-            nodes[domain] = {"id": domain, "kind": "domain", "name": row["area"]}
-            edges.append({"from": cid, "to": domain, "type": "in_domain"})
+            nodes[cid] = {"id": cid, "kind": "command", "cli": cli, **{f: row[f] for f in FIELDS}}
             domains.setdefault(row["area"], {"group": None, "verbs": []})["verbs"].append(row["verb"])
     if groups is not None:
-        areas = sorted(n["name"] for n in nodes.values() if n["kind"] == "domain")
-        problems = _groups.validate(groups, areas)
+        problems = _groups.validate(groups, sorted(domains))
         if problems:
             raise ValueError("graph/groups.json: " + "; ".join(problems))
         for area, group in _groups.area_groups(groups).items():
-            gid = f"group:{group}"
-            nodes[gid] = {"id": gid, "kind": "group", "name": group}
-            edges.append({"from": f"domain:{area}", "to": gid, "type": "in_group"})
             domains[area]["group"] = group
             group_areas.setdefault(group, []).append(area)
-    edges.sort(key=lambda e: (e["from"], e["type"], e["to"]))
     for d in domains.values():
         d["verbs"].sort()
     for areas in group_areas.values():
         areas.sort()
-    return {"groups": group_areas, "domains": domains,
-            "nodes": [nodes[k] for k in sorted(nodes)], "edges": edges}
+    return {"groups": group_areas, "domains": domains, "nodes": [nodes[k] for k in sorted(nodes)]}
 
 
 def render(graph):
@@ -106,7 +91,7 @@ def render(graph):
 
     return ("{\n" + mapping("groups", graph["groups"]) + ",\n"
             + mapping("domains", graph["domains"]) + ",\n"
-            + array("edges", graph["edges"]) + ",\n" + array("nodes", graph["nodes"]) + "\n}\n")
+            + array("nodes", graph["nodes"]) + "\n}\n")
 
 
 def drift(live, committed_text):
@@ -134,7 +119,7 @@ def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     live = build()
     if "--check" in argv:
-        text = GRAPH.read_text() if GRAPH.exists() else '{"nodes": [], "edges": []}'
+        text = GRAPH.read_text() if GRAPH.exists() else '{"nodes": []}'
         problems = drift(live, text)
         for p in problems:
             print(p, file=sys.stderr)

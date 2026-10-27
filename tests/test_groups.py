@@ -22,8 +22,8 @@ SPEC = {"groups": {"communication": ["contacts", "imessage", "mail"]},
 def with_groups(graph, area_to_group):
     g = copy.deepcopy(graph)
     for area, group in area_to_group.items():
-        g["nodes"].append({"id": f"group:{group}", "kind": "group", "name": group})
-        g["edges"].append({"from": f"domain:{area}", "to": f"group:{group}", "type": "in_group"})
+        g["domains"][area]["group"] = group
+        g["groups"].setdefault(group, []).append(area)
     return g
 
 

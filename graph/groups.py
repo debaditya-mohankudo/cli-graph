@@ -3,8 +3,8 @@
     {"groups": {"<group>": ["<area>", ...], ...}, "ungrouped": ["<area>", ...]}
 
 A group gathers related areas (mail, imessage and contacts are all
-communication). graph/generate.py turns it into `group:<name>` nodes and
-`domain:<area> -> group:<name>` edges of type `in_group`; find_cli uses it to
+communication). graph/generate.py turns it into the `groups` and `domains`
+sections of cli_graph.json; find_cli uses them to
 reach verbs in neighbouring areas and to favour a group a query names.
 
 Rules, each checked by validate():
@@ -56,9 +56,7 @@ def area_groups(spec):
 
 
 def command_groups(graph):
-    """{command id: group name} from a graph's in_group edges; ungrouped
-    commands are absent."""
-    of_domain = {e["from"]: e["to"].split(":", 1)[1]
-                 for e in graph["edges"] if e["type"] == "in_group"}
-    return {n["id"]: of_domain[n["domain"]] for n in graph["nodes"]
-            if n["kind"] == "command" and n["domain"] in of_domain}
+    """{command id: group name} from a graph's domains; ungrouped commands
+    are absent."""
+    return {n["id"]: graph["domains"][n["area"]]["group"] for n in graph["nodes"]
+            if n["kind"] == "command" and graph["domains"][n["area"]]["group"]}

@@ -25,9 +25,9 @@ so a CLI call and an MCP call share one code path.
 | `mac/` | The dispatcher: argument parsing, help, the output/error contract (`contract.py`), and one module per area under `mac/groups/`. |
 | `mac/groups/_backend.py` | Runs local-mac's handlers in-process through its own `dispatcher.resolve` / `invoke`, so the same logging and safety gates apply. |
 | `mac/groups/_mcp_proxy.py` | Starts a separate MCP server over stdio for each call (`astrology`, `wyckoff`, `sysml`). These servers have their own venvs or are Node bundles. |
-| `graph/cli_graph.json` | Command graph **generated** from `mac --help --json`: one node per command, one per area. Never hand-edited. |
+| `graph/cli_graph.json` | Command graph **generated** from `mac --help --json`: a `groups` and a `domains` overview first, then one node per command. Never hand-edited. |
 | `graph/edges.json` | Hand-written edges between commands: `alias_of`, `requires`, `feeds`, `prefer_over`. |
-| `graph/groups.json` | Hand-written groups of areas (communication, productivity, ...). `graph/generate.py` adds them to the graph as `group:` nodes. |
+| `graph/groups.json` | Hand-written groups of areas (communication, productivity, ...). `graph/generate.py` adds them to the graph's `groups` and `domains` sections. |
 | `find_cli/` | The MCP server (`server.py`): BM25 ranking (`rank.py`), edge and sibling expansion (`expand.py`), usage counts (`usage.py`). |
 | `tools/` | Generators: `gen_groups.py` (local-mac group modules), `gen_mcp_groups.py` (proxy group modules), `gen_permissions.py` (Claude Code permission rules). `cutover.py` turns the migrated MCP servers off or back on. |
 | `tests/` | Unit, drift and parity tests, plus the `find_cli` hit-rate eval. |

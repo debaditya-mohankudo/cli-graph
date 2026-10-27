@@ -31,7 +31,6 @@ class DriftTest(unittest.TestCase):
         stale = copy.deepcopy(LIVE)
         gone = next(n for n in stale["nodes"] if n["kind"] == "command")
         stale["nodes"].remove(gone)
-        stale["edges"] = [e for e in stale["edges"] if e["from"] != gone["id"]]
         self.assertEqual(generate.drift(LIVE, generate.render(stale)),
                          [f"CLI verb missing from graph: {gone['id']}"])
 
@@ -50,48 +49,47 @@ class DriftTest(unittest.TestCase):
 
 
 class ShapeTest(unittest.TestCase):
-    def test_every_command_has_its_fields_and_an_in_domain_edge(self):
-        ids = {n["id"] for n in LIVE["nodes"]}
-        edges = {(e["from"], e["type"], e["to"]) for e in LIVE["edges"]}
-        commands = [n for n in LIVE["nodes"] if n["kind"] == "command"]
-        self.assertTrue(commands)
-        for node in commands:
-            for field in ("cli", "area", "verb", "mode", "desc", "usage", "domain"):
+    def test_the_graph_is_groups_domains_and_command_nodes_only(self):
+        self.assertEqual(list(LIVE), ["groups", "domains", "nodes"])
+        self.assertEqual({n["kind"] for n in LIVE["nodes"]}, {"command"})
+
+    def test_every_command_has_its_fields(self):
+        self.assertTrue(LIVE["nodes"])
+        for node in LIVE["nodes"]:
+            self.assertEqual(set(node), {"id", "kind", "cli", "area", "verb", "mode", "desc", "usage"})
+            for field in ("cli", "area", "verb", "mode", "desc", "usage"):
                 self.assertTrue(node[field], f"{node['id']}: empty {field}")
             self.assertIn(node["mode"], {"read", "write"}, node["id"])
             self.assertEqual(node["id"], f"{node['cli']} {node['area']} {node['verb']}")
-            self.assertEqual(node["domain"], f"domain:{node['area']}")
-            self.assertIn((node["id"], "in_domain", node["domain"]), edges)
-        self.assertEqual(sum(1 for e in edges if e[1] == "in_domain"), len(commands))
-        for src, _, dst in edges:
-            self.assertIn(src, ids)
-            self.assertIn(dst, ids)
 
-    def test_every_grouped_area_has_one_in_group_edge(self):
+    def test_every_area_lists_exactly_its_verbs(self):
+        want = {}
+        for n in LIVE["nodes"]:
+            want.setdefault(n["area"], []).append(n["verb"])
+        self.assertEqual({a: d["verbs"] for a, d in LIVE["domains"].items()},
+                         {a: sorted(v) for a, v in want.items()})
+
+    def test_groups_and_domain_groups_match_the_spec(self):
         spec = groups.load()
-        got = {e["from"]: e["to"] for e in LIVE["edges"] if e["type"] == "in_group"}
-        want = {f"domain:{a}": f"group:{g}" for a, g in groups.area_groups(spec).items()}
-        self.assertEqual(got, want)
+        self.assertEqual(LIVE["groups"], {g: sorted(a) for g, a in spec["groups"].items()})
+        for area, domain in LIVE["domains"].items():
+            self.assertEqual(domain["group"], groups.area_groups(spec).get(area), area)
         for area in spec["ungrouped"]:
-            self.assertNotIn(f"domain:{area}", got)
-        self.assertEqual({e["type"] for e in LIVE["edges"]}, {"in_domain", "in_group"})
+            self.assertIsNone(LIVE["domains"][area]["group"])
 
     def test_regeneration_is_byte_identical(self):
         self.assertEqual(generate.render(generate.build()), generate.render(LIVE))
 
-    def test_one_new_verb_adds_its_node_edge_and_domain_lines(self):
+    def test_one_new_verb_adds_its_node_and_domain_lines(self):
         node = next(n for n in LIVE["nodes"] if n["kind"] == "command")
-        new_id = node["id"] + "_x"
         domains = {a: dict(d, verbs=list(d["verbs"])) for a, d in LIVE["domains"].items()}
         domains[node["area"]]["verbs"].append(node["verb"] + "_x")
         grown = {"groups": LIVE["groups"], "domains": domains,
-                 "nodes": sorted(LIVE["nodes"] + [dict(node, id=new_id, verb=node["verb"] + "_x")],
-                                 key=lambda n: n["id"]),
-                 "edges": sorted(LIVE["edges"] + [{"from": new_id, "to": node["domain"], "type": "in_domain"}],
-                                 key=lambda e: (e["from"], e["type"], e["to"]))}
+                 "nodes": sorted(LIVE["nodes"] + [dict(node, id=node["id"] + "_x", verb=node["verb"] + "_x")],
+                                 key=lambda n: n["id"])}
         before = generate.render(LIVE).splitlines()
         after = generate.render(grown).splitlines()
-        self.assertEqual(len(set(after) - set(before)), 3)
+        self.assertEqual(len(set(after) - set(before)), 2)
         self.assertEqual(len(set(before) - set(after)), 1)  # the domain's old overview line
 
 

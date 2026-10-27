@@ -21,15 +21,14 @@ from graph.validate_edges import command_ids
 def cmd(area, verb, desc, mode="read"):
     cid = f"mac {area} {verb}"
     return {"id": cid, "kind": "command", "cli": "mac", "area": area, "verb": verb,
-            "mode": mode, "desc": desc, "usage": cid, "domain": f"domain:{area}"}
+            "mode": mode, "desc": desc, "usage": cid}
 
 
 def toy_graph(*commands):
-    nodes = list(commands)
-    for area in sorted({c["area"] for c in commands}):
-        nodes.append({"id": f"domain:{area}", "kind": "domain", "name": area})
-    return {"nodes": nodes, "edges": [
-        {"from": c["id"], "to": c["domain"], "type": "in_domain"} for c in commands]}
+    domains = {}
+    for c in commands:
+        domains.setdefault(c["area"], {"group": None, "verbs": []})["verbs"].append(c["verb"])
+    return {"groups": {}, "domains": domains, "nodes": list(commands)}
 
 
 TOY = toy_graph(

@@ -1,6 +1,6 @@
 """Validate graph/edges.json against the generated command graph (task:821c2f7e).
 
-graph/cli_graph.json is generated and holds only `in_domain` edges. The edges
+graph/cli_graph.json is generated and holds no edges. The edges
 that descriptions cannot carry (ordering, prerequisites, the canonical choice
 among duplicates) are hand-written in graph/edges.json:
 
@@ -19,9 +19,8 @@ Every edge is directed from -> to, and its type is one of:
 
 Rules, each checked by validate():
   - an edge has exactly the keys from, type, to, all strings;
-  - the type is one of the four above (`in_domain` is generated only);
-  - both endpoints are command nodes of the committed graph, never domain
-    nodes. Exception: an alias_of `from` is a name the CLI may not have, so it
+  - the type is one of the four above;
+  - both endpoints are command nodes of the committed graph. Exception: an alias_of `from` is a name the CLI may not have, so it
     only has to share `to`'s "<cli> <area> " prefix with a different verb,
     and it must not be a command the graph already has;
   - an alias names one canonical command;
