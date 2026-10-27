@@ -7,6 +7,8 @@ neighbours  [{id, via, dir, from, hop, mode, desc, usage}]  reached from a seed
             via a hand-written edge (dir "out"/"in") or as an area sibling
             (via "in_domain", dir "sibling")
 
+With a usage map, each seed and neighbour also carries count and last_used.
+
 It reads only the committed graph/cli_graph.json and graph/edges.json, never a
 live CLI, and every id it returns is a command node of that graph. The output
 is a pure function of its inputs; server.py only loads the files once and
@@ -33,8 +35,15 @@ def load(graph_path=GRAPH, edges_path=EDGES):
     return graph, edges
 
 
-def find(task, graph, edges=(), limit=DEFAULT_LIMIT, hops=2):
-    """Seeds and neighbours for task. See the module docstring for the shape."""
+def find(task, graph, edges=(), limit=DEFAULT_LIMIT, hops=2, usage=None):
+    """Seeds and neighbours for task. See the module docstring for the shape.
+
+    usage ({id: {"count", "last_used"}}, see find_cli.usage) is passed in by
+    the caller, so find() stays a pure function of its arguments. When given,
+    every returned command gets count and last_used (0 / None if it has no
+    row); it never changes ranking or order. When None, the output is
+    exactly what it was without usage.
+    """
     commands = command_ids(graph)
     nodes = {n["id"]: n for n in graph["nodes"] if n["id"] in commands}
     scores = _rank.scores(task, _rank.documents(graph, edges))
@@ -45,7 +54,12 @@ def find(task, graph, edges=(), limit=DEFAULT_LIMIT, hops=2):
 
     def info(cid):
         n = nodes[cid]
-        return {"mode": n["mode"], "desc": n["desc"], "usage": n["usage"]}
+        out = {"mode": n["mode"], "desc": n["desc"], "usage": n["usage"]}
+        if usage is not None:
+            u = usage.get(cid) or {}
+            out["count"] = u.get("count", 0)
+            out["last_used"] = u.get("last_used")
+        return out
 
     return {
         "query": task,

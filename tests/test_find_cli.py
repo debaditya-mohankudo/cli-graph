@@ -177,6 +177,62 @@ except ImportError:
 
 
 @unittest.skipUnless(HAVE_MCP, "needs the mcp package (run under `uv run`)")
+class UsageTest(unittest.TestCase):
+    """Usage counts are an input to find(), never read by it (task:c5a222dc)."""
+
+    COUNTS = {"mac vault read": {"count": 7, "last_used": "2026-10-27 01:00:00"}}
+
+    def test_without_usage_the_output_has_no_usage_fields(self):
+        got = find_cli.find("read vault note", TOY, TOY_EDGES)
+        for row in got["seeds"] + got["neighbours"]:
+            self.assertNotIn("count", row)
+            self.assertNotIn("last_used", row)
+
+    def test_usage_adds_fields_and_never_changes_order(self):
+        plain = find_cli.find("read vault note", TOY, TOY_EDGES)
+        got = find_cli.find("read vault note", TOY, TOY_EDGES, usage=self.COUNTS)
+        self.assertEqual([r["id"] for r in got["seeds"]], [r["id"] for r in plain["seeds"]])
+        self.assertEqual([r["id"] for r in got["neighbours"]],
+                         [r["id"] for r in plain["neighbours"]])
+        by_id = {r["id"]: r for r in got["seeds"] + got["neighbours"]}
+        self.assertEqual(by_id["mac vault read"]["count"], 7)
+        self.assertEqual(by_id["mac vault read"]["last_used"], "2026-10-27 01:00:00")
+        others = [r for cid, r in by_id.items() if cid != "mac vault read"]
+        self.assertTrue(others)
+        self.assertTrue(all(r["count"] == 0 and r["last_used"] is None for r in others))
+
+    def test_loader_reads_mac_rows_only(self):
+        import sqlite3
+        import tempfile
+        from find_cli import usage
+        with tempfile.TemporaryDirectory() as d:
+            db = Path(d) / "hints.sqlite"
+            conn = sqlite3.connect(db)
+            conn.execute("CREATE TABLE mcp_tool_hints (tool_name TEXT PRIMARY KEY, "
+                         "count INTEGER, last_used TIMESTAMP)")
+            conn.executemany("INSERT INTO mcp_tool_hints VALUES (?, ?, ?)", [
+                ("mac vault read", 7, "2026-10-27 01:00:00"),
+                ("mac vault tags", None, None),
+                ("mcp__find_cli__find_cli", 8, "2026-10-26 23:10:25"),
+            ])
+            conn.commit()
+            conn.close()
+            self.assertEqual(usage.load(db), {
+                "mac vault read": {"count": 7, "last_used": "2026-10-27 01:00:00"},
+                "mac vault tags": {"count": 0, "last_used": None},
+            })
+
+    def test_loader_gives_empty_map_for_missing_file_or_table(self):
+        import sqlite3
+        import tempfile
+        from find_cli import usage
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual(usage.load(Path(d) / "absent.sqlite"), {})
+            empty = Path(d) / "empty.sqlite"
+            sqlite3.connect(empty).close()
+            self.assertEqual(usage.load(empty), {})
+
+
 class ServerTest(unittest.TestCase):
     def test_server_exposes_exactly_one_small_tool(self):
         import asyncio
@@ -188,10 +244,13 @@ class ServerTest(unittest.TestCase):
         self.assertLess(len(schema) / 4, 400)  # ~tokens, chars/4
 
     def test_tool_call_returns_the_pure_result(self):
-        import asyncio
+        from unittest import mock
         from find_cli import server
-        self.assertEqual(server.find_cli("play a song"),
-                         find_cli.find("play a song", server.GRAPH, server.EDGES))
+        counts = {"mac music play": {"count": 3, "last_used": "2026-10-27 03:00:00"}}
+        with mock.patch.object(server._usage, "load", return_value=counts):
+            got = server.find_cli("play a song")
+        self.assertEqual(got, find_cli.find("play a song", server.GRAPH, server.EDGES,
+                                            usage=counts))
 
 
 if __name__ == "__main__":
