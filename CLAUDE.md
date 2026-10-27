@@ -55,6 +55,15 @@ session.
 - **Keep what doesn't fit.** Servers whose value depends on staying
   resident stay MCP. Migrate only what a command does better.
 
+## Before every commit
+
+This repo is public. Scan the staged diff (`git diff --cached`) for
+personal data before committing: names, emails, phone numbers,
+addresses, account or ID numbers, home-directory paths
+(`/Users/<name>/...`), vault/notes content, portfolio or financial
+details, and secrets (API keys, tokens, passwords). Replace any hit with
+a placeholder or generic example, or leave the file out; never commit it.
+
 ## Where things are
 
 `README.md` covers the layout, the CLI contract, setup, tests and what to
