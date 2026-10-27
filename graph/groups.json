@@ -1,0 +1,12 @@
+{
+  "groups": {
+    "communication": ["contacts", "imessage", "mail"],
+    "knowledge": ["sysml", "vault", "vault_rag"],
+    "markets": ["market", "wyckoff"],
+    "media": ["music", "podcasts", "sound"],
+    "productivity": ["calendar", "notes", "reminders", "time"],
+    "system": ["system", "vpn"],
+    "web": ["connector", "safari"]
+  },
+  "ungrouped": ["astrology"]
+}

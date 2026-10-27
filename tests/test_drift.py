@@ -13,7 +13,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 
-from graph import generate
+from graph import generate, groups
 
 LIVE = generate.build()
 
@@ -62,10 +62,19 @@ class ShapeTest(unittest.TestCase):
             self.assertEqual(node["id"], f"{node['cli']} {node['area']} {node['verb']}")
             self.assertEqual(node["domain"], f"domain:{node['area']}")
             self.assertIn((node["id"], "in_domain", node["domain"]), edges)
-        self.assertEqual(len(edges), len(commands))
+        self.assertEqual(sum(1 for e in edges if e[1] == "in_domain"), len(commands))
         for src, _, dst in edges:
             self.assertIn(src, ids)
             self.assertIn(dst, ids)
+
+    def test_every_grouped_area_has_one_in_group_edge(self):
+        spec = groups.load()
+        got = {e["from"]: e["to"] for e in LIVE["edges"] if e["type"] == "in_group"}
+        want = {f"domain:{a}": f"group:{g}" for a, g in groups.area_groups(spec).items()}
+        self.assertEqual(got, want)
+        for area in spec["ungrouped"]:
+            self.assertNotIn(f"domain:{area}", got)
+        self.assertEqual({e["type"] for e in LIVE["edges"]}, {"in_domain", "in_group"})
 
     def test_regeneration_is_byte_identical(self):
         self.assertEqual(generate.render(generate.build()), generate.render(LIVE))

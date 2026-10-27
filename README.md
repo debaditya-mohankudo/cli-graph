@@ -27,6 +27,7 @@ so a CLI call and an MCP call share one code path.
 | `mac/groups/_mcp_proxy.py` | Starts a separate MCP server over stdio for each call (`astrology`, `wyckoff`, `sysml`). These servers have their own venvs or are Node bundles. |
 | `graph/cli_graph.json` | Command graph **generated** from `mac --help --json`: one node per command, one per area. Never hand-edited. |
 | `graph/edges.json` | Hand-written edges between commands: `alias_of`, `requires`, `feeds`, `prefer_over`. |
+| `graph/groups.json` | Hand-written groups of areas (communication, productivity, ...). `graph/generate.py` adds them to the graph as `group:` nodes. |
 | `find_cli/` | The MCP server (`server.py`): BM25 ranking (`rank.py`), edge and sibling expansion (`expand.py`), usage counts (`usage.py`). |
 | `tools/` | Generators: `gen_groups.py` (local-mac group modules), `gen_mcp_groups.py` (proxy group modules), `gen_permissions.py` (Claude Code permission rules). `cutover.py` turns the migrated MCP servers off or back on. |
 | `tests/` | Unit, drift and parity tests, plus the `find_cli` hit-rate eval. |
@@ -81,7 +82,26 @@ override the path.
   `prefer_over` edge.
 
 - **hops 2**: follows those edges once more, then adds up to 3 other commands
-  from each seed's area.
+  from each seed's area, then up to 2 matching commands from the other areas
+  in the seed's group.
+
+**Groups.** `graph/groups.json` gathers related areas into groups:
+
+| Group | Areas |
+|---|---|
+| communication | contacts, imessage, mail |
+| productivity | calendar, notes, reminders, time |
+| knowledge | sysml, vault, vault_rag |
+| media | music, podcasts, sound |
+| markets | market, wyckoff |
+| system | system, vpn |
+| web | connector, safari |
+
+`astrology` belongs to no group. Every area has to be listed once, either in
+a group or under `ungrouped`, so a new area can't be left out by accident. A
+query word that names a group ("communication") ranks that group's matching
+commands higher. Neither the boost nor the group neighbours can add a
+command the rest of the query didn't match.
 
 The result is capped at 25 commands and only names commands that exist in
 the graph. The `alias_of` edges add their alias words to the target's search
@@ -131,6 +151,7 @@ Each has a test that fails while its output is out of date.
 | Any verb added or removed | `uv run python -m graph.generate` | `tests/test_drift.py` |
 | Any verb added or removed | `uv run python tools/gen_permissions.py` | `tests/test_permissions.py` |
 | Hand-written edges | edit `graph/edges.json` | `graph/validate_edges.py`, `tests/test_edges.py` |
+| An area added, or its group changed | edit `graph/groups.json`, then `uv run python -m graph.generate` | `tests/test_groups.py`, `tests/test_drift.py` |
 
 `gen_permissions.py` writes one `Bash(mac <area> <verb> *)` rule per command
 into `~/.claude/settings.json`. Outbound or destructive verbs listed in its

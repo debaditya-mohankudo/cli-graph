@@ -11,7 +11,12 @@ Output shape:
     nodes: command  {id: "<cli> <area> <verb>", kind: "command", cli, area,
                      verb, mode, desc, usage, domain: "domain:<area>"}
            domain   {id: "domain:<area>", kind: "domain", name: <area>}
+           group    {id: "group:<name>", kind: "group", name: <name>}
     edges: {from: <command id>, to: <domain id>, type: "in_domain"}
+           {from: <domain id>, to: <group id>, type: "in_group"}
+
+Groups come from the hand-written graph/groups.json (see graph/groups.py);
+an area listed as ungrouped has no in_group edge.
 
 The file is byte-stable: nodes sorted by id, edges by (from, type, to), keys
 sorted, one object per line, no timestamps or paths. Adding a verb changes
@@ -21,6 +26,8 @@ import json
 import subprocess
 import sys
 from pathlib import Path
+
+from graph import groups as _groups
 
 REPO = Path(__file__).resolve().parent.parent
 GRAPH = REPO / "graph" / "cli_graph.json"
@@ -42,8 +49,14 @@ def read_cli(argv):
     return rows
 
 
-def build(clis=None):
-    """The graph dict for these CLIs, as {"nodes": [...], "edges": [...]}."""
+def build(clis=None, groups=None):
+    """The graph dict for these CLIs, as {"nodes": [...], "edges": [...]}.
+
+    groups is a graph/groups.json spec; it defaults to that file for the real
+    CLIs and to none for clis passed in. An invalid spec raises ValueError.
+    """
+    if groups is None and clis is None:
+        groups = _groups.load()
     nodes, edges = {}, []
     for cli, argv in clis or CLIS:
         for row in read_cli(argv):
@@ -53,6 +66,15 @@ def build(clis=None):
                           "domain": domain, **{f: row[f] for f in FIELDS}}
             nodes[domain] = {"id": domain, "kind": "domain", "name": row["area"]}
             edges.append({"from": cid, "to": domain, "type": "in_domain"})
+    if groups is not None:
+        areas = sorted(n["name"] for n in nodes.values() if n["kind"] == "domain")
+        problems = _groups.validate(groups, areas)
+        if problems:
+            raise ValueError("graph/groups.json: " + "; ".join(problems))
+        for area, group in _groups.area_groups(groups).items():
+            gid = f"group:{group}"
+            nodes[gid] = {"id": gid, "kind": "group", "name": group}
+            edges.append({"from": f"domain:{area}", "to": gid, "type": "in_group"})
     return {"nodes": [nodes[k] for k in sorted(nodes)],
             "edges": sorted(edges, key=lambda e: (e["from"], e["type"], e["to"]))}
 
@@ -85,7 +107,8 @@ def drift(live, committed_text):
     problems = [f"CLI verb missing from graph: {c}" for c in sorted(commands(live) - commands(committed))]
     problems += [f"graph command has no CLI verb: {c}" for c in sorted(commands(committed) - commands(live))]
     if not problems and committed_text != render(live):
-        problems.append("graph differs from the CLIs' --help (desc, usage, mode or layout)")
+        problems.append("graph differs from the CLIs' --help or graph/groups.json "
+                        "(desc, usage, mode, groups or layout)")
     return problems
 
 

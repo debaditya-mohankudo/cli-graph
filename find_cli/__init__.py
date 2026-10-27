@@ -4,8 +4,9 @@
 
 seeds       [{id, score, mode, desc, usage}]  BM25 hits, best first
 neighbours  [{id, via, dir, from, hop, mode, desc, usage}]  reached from a seed
-            via a hand-written edge (dir "out"/"in") or as an area sibling
-            (via "in_domain", dir "sibling")
+            via a hand-written edge (dir "out"/"in"), as an area sibling
+            (via "in_domain", dir "sibling") or from another area of the
+            seed's group (via "in_group", dir "group")
 
 With a usage map, each seed and neighbour also carries count and last_used.
 
@@ -18,6 +19,7 @@ MCP dependency.
 import json
 
 from graph.generate import GRAPH
+from graph.groups import command_groups
 from graph.validate_edges import EDGES, command_ids
 
 from . import expand as _expand
@@ -46,7 +48,7 @@ def find(task, graph, edges=(), limit=DEFAULT_LIMIT, hops=2, usage=None):
     """
     commands = command_ids(graph)
     nodes = {n["id"]: n for n in graph["nodes"] if n["id"] in commands}
-    scores = _rank.scores(task, _rank.documents(graph, edges))
+    scores = _rank.scores(task, _rank.documents(graph, edges), command_groups(graph))
     seed_pairs = [(cid, s) for cid, s in _rank.seeds(task, graph, edges, limit)
                   if cid in commands]
     neighbours = _expand.expand([cid for cid, _ in seed_pairs], graph, edges,

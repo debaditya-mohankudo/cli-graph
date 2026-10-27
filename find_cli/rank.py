@@ -17,9 +17,17 @@ Two query-side adjustments (task:2dcdba79); documents are indexed unchanged:
   - A query word also matches its plural/singular (forms()). The word and its
     forms count as one term: one df, with a non-exact form adding
     VARIANT_WEIGHT to tf, so an exact match still beats a folded one.
+
+Group boost: a query word that names an area group (graph/groups.json, e.g.
+"communication") multiplies the score of that group's commands by
+GROUP_BOOST. Only scores already above 0 are boosted, so the group word
+reorders matches but never admits a command the rest of the query missed.
+Group names are not added to documents.
 """
 import math
 import re
+
+from graph.groups import command_groups
 
 K1 = 1.5
 B = 0.75
@@ -32,6 +40,7 @@ STOPWORDS = frozenset(
 GENERIC = frozenset("check if any now show shows".split())
 GENERIC_WEIGHT = 0.25
 VARIANT_WEIGHT = 0.8
+GROUP_BOOST = 1.5
 
 
 def tokens(text):
@@ -64,9 +73,16 @@ def documents(graph, edges=()):
     return docs
 
 
-def scores(query, docs):
-    """{command id: BM25 score} for every document, rounded to 3 places."""
+def scores(query, docs, groups=None):
+    """{command id: BM25 score} for every document, rounded to 3 places.
+
+    groups ({command id: group name}, see graph.groups.command_groups) turns
+    on the group boost: a query word naming a group multiplies the positive
+    scores of that group's commands by GROUP_BOOST.
+    """
     terms = list(dict.fromkeys(tokens(query)))
+    named = {g for g in set((groups or {}).values())
+             if any(g in forms(t) or t in forms(g) for t in terms)}
     n = len(docs)
     avgdl = sum(len(d) for d in docs.values()) / n if n else 0.0
     tforms = {t: forms(t) for t in terms}
@@ -82,6 +98,8 @@ def scores(query, docs):
             idf = math.log(1 + (n - df[t] + 0.5) / (df[t] + 0.5))
             w = GENERIC_WEIGHT if t in GENERIC else 1.0
             s += w * idf * tf * (K1 + 1) / (tf + K1 * (1 - B + B * dl / avgdl))
+        if s and groups and groups.get(cid) in named:
+            s *= GROUP_BOOST
         out[cid] = round(s, 3)
     return out
 
@@ -93,5 +111,5 @@ def ordered(score_map):
 
 def seeds(query, graph, edges=(), limit=5):
     """The top `limit` commands with a positive score, as (id, score) pairs."""
-    s = scores(query, documents(graph, edges))
+    s = scores(query, documents(graph, edges), command_groups(graph))
     return [(cid, s[cid]) for cid in ordered(s) if s[cid] > 0][:max(limit, 0)]
