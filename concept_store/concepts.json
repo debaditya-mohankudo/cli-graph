@@ -34,7 +34,9 @@
         "tests/eval_find_cli.py scores tests/eval_phrases.json (real transcript prompts -> list of acceptable command ids). A hit means any expected id is in seeds or neighbours. It prints subgraph and seed hit rates plus every miss with its subgraph, and exits 0 at or above THRESHOLD=0.9, 1 below it, 2 when the fixture names an id that is not in the graph.",
         "find(..., usage=None): usage is {id: {count, last_used}} supplied by the caller. When given, every seed and neighbour gains count and last_used (0 / None for an id with no row); ranking and order never change. When None, the output has no usage fields (task:c5a222dc).",
         "find_cli/usage.py load(path) reads mac rows of mcp_tool_hints in ~/.claude/tool_hints.sqlite (FIND_CLI_USAGE_DB overrides) read-only via mode=ro; a missing file/table or any sqlite3.Error gives {}. server.find_cli calls it on every request, not at start-up, because the server lives for a whole Claude session.",
-        "find(task, graph, edges, limit=5, hops=2, usage=None) -> {query, seeds: [{id, score, mode, desc, usage[, count, last_used]}], neighbours: [{id, via, dir, from, hop, mode, desc, usage[, count, last_used]}]}; seeds are best first, ties broken by id."
+        "find(task, graph, edges, limit=5, hops=2, usage=None) -> {query, seeds: [{id, score, mode, desc, usage[, count, last_used]}], neighbours: [{id, via, dir, from, hop, mode, desc, usage[, count, last_used]}]}; seeds are best first, ties broken by id.",
+        "rank.scores applies two query-side adjustments; documents are indexed unchanged (task:2dcdba79). GENERIC words (check if any now show shows) score at GENERIC_WEIGHT=0.25 rather than being stopworded, so commands whose own text uses them keep some credit. 'get' is deliberately not GENERIC: it is the verb of get_* commands.",
+        "rank.forms(term): a query word also matches term+'s', and term minus a trailing 's' when longer than 4 letters and not '-ss' (so 'news' never folds to 'new'). The word and its forms are ONE BM25 term: one df over docs holding any form, non-exact forms add VARIANT_WEIGHT=0.8 to tf, so an exact match beats a folded one. Per-variant idf was rejected: the rarer form outranked the exact one."
       ],
       "created_at": "2026-10-26T13:18:06.872864+00:00",
       "description": "find_cli maps a plain-language task phrase to a small subgraph of `mac` commands. rank.py scores commands with stdlib BM25 over area + verb + desc + alias names to pick seeds. expand.py adds neighbours: hand-written edges at hops 1-2 plus up to 3 same-area siblings per seed. find() combines the two. server.py exposes it as the single MCP tool `find_cli`, run under local-mac's venv.",
@@ -51,17 +53,20 @@
         "tests/eval_find_cli.py:unknown_ids",
         "tests/test_eval_fixture.py:FixtureTest",
         "find_cli/usage.py:load",
-        "tests/test_find_cli.py:UsageTest"
+        "tests/test_find_cli.py:UsageTest",
+        "find_cli/rank.py:forms",
+        "find_cli/rank.py:scores"
       ],
       "invariants": [
         "Reads only the committed graph/cli_graph.json and graph/edges.json, never a live CLI.",
         "Every returned id is a command node (graph.validate_edges.command_ids); alias_of names only add BM25 text to their canonical command and are never returned or expanded.",
         "rank.py and expand.py import no `mcp`, so the eval (597ac09d) and tests run under system python3.",
-        "tests/test_eval_fixture.py asserts in the suite that the fixture's subgraph hit rate is >= 0.9 and that every expected id is a command node, so a rank/expand/edges change that lowers retrieval, or a regenerated graph that renames a verb, fails unittest discover (task:597ac09d). At the time of writing: 22/24 subgraph, 18/24 seed; the generic word 'check' is the main source of misses.",
         "find() never opens the usage DB: usage counts are an argument, so find() stays a pure function and the eval/tests run without ~/.claude.",
-        "Output is a pure function of (task, graph, edges, limit, hops, usage) and byte-identical across processes with different hash seeds: no ordering comes from sets."
+        "Output is a pure function of (task, graph, edges, limit, hops, usage) and byte-identical across processes with different hash seeds: no ordering comes from sets.",
+        "tests/test_eval_fixture.py asserts in the suite that the fixture's subgraph hit rate is >= 0.9 and that every expected id is a command node, so a rank/expand/edges change that lowers retrieval, or a regenerated graph that renames a verb, fails unittest discover (task:597ac09d). As of 2026-10-27: 51/51 subgraph, 42/51 seed (task:2dcdba79).",
+        "Off-fixture guard phrases in tests/test_find_cli.py (GUARDS, test_news_does_not_seed_a_create_command) pin seeds outside the eval fixture, so a ranking change that trades unseen phrasing for fixture wins fails the suite. eval_find_cli.py does not report them; run the suite, not only the eval."
       ],
-      "last_validated": "2026-10-27T03:24:41.450221+00:00",
+      "last_validated": "2026-10-27T04:10:21.172972+00:00",
       "module": "find_cli/__init__.py",
       "name": "find-cli",
       "related": [
@@ -302,6 +307,6 @@
     }
   },
   "meta": {
-    "updated_at": "2026-10-27T03:55:42.530168+00:00"
+    "updated_at": "2026-10-27T04:10:21.172972+00:00"
   }
 }
