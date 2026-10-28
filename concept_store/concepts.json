@@ -203,6 +203,35 @@
         "generated-command-graph"
       ]
     },
+    "hooks-subprocess-backend": {
+      "confidence": 0.8,
+      "contracts": [
+        "call(module, action, /, **kwargs) runs python -I _hooks_runner.py tools.<module> <action> with kwargs as JSON on stdin, cwd=claude-hooks root, PYTHONPATH/VIRTUAL_ENV/PYTHONHOME stripped from the subprocess env.",
+        "The reply's last stdout line is parsed as JSON; an 'exception' key becomes Failure('tool_error'); otherwise the 'result' key goes through raise_if_error, same mapping as _backend's.",
+        "A missing claude-hooks .venv/bin/python (or MAC_HOOKS_ROOT override) becomes Failure('backend_missing') before any subprocess runs.",
+        "Handlers return str in every case including failures (e.g. 'Code RAG index not found ...'), never a dict with 'error', so raise_if_error passes that text through unchanged — only a raised ValueError inside the handler becomes a tool_error (task:eaca1271)."
+      ],
+      "created_at": "2026-10-28T15:18:11.519634+00:00",
+      "description": "Adapter that runs claude-hooks' src/tools/<module>.handle_<action> handlers as a subprocess of claude-hooks' own interpreter (via _hooks_runner.py), skipping the claude-hooks MCP server's Ollama/tool_hints bootstrap. Backs memory, vault_map, hooks (task:5ab623ca) and, as of task:eaca1271, code_rag and diff_rag.",
+      "evidence": [
+        "mac/groups/_hooks.py:call",
+        "mac/groups/_hooks_runner.py",
+        "mac/groups/code_rag.py:query",
+        "mac/groups/diff_rag.py:query",
+        "tests/test_parity_hooks.py:ForwardingTest"
+      ],
+      "invariants": [
+        "Per-call cost is dominated by interpreter/import startup, not the work itself: memory/vault_map/hooks ~0.2-0.6s; code_rag/diff_rag ~1.4s because importing them pulls in llama_index + numpy in claude-hooks' venv (embedding call itself is ~0.1-0.3s).",
+        "Accepted cold-start precedent: task:25e053bc's _mcp_proxy servers (0.4-2s) and this module's own code_rag/diff_rag numbers both sit inside what the epic already tolerates, so cold start alone is not a reason to keep a capability on MCP (Keep what doesn't fit)."
+      ],
+      "last_validated": "2026-10-28T15:18:11.519677+00:00",
+      "module": "mac/groups/_hooks.py",
+      "name": "hooks-subprocess-backend",
+      "related": [
+        "mcp-handler-backend",
+        "mcp-server-proxy-backend"
+      ]
+    },
     "mcp-cutover": {
       "confidence": 0.8,
       "contracts": [
@@ -336,6 +365,6 @@
     }
   },
   "meta": {
-    "updated_at": "2026-10-27T13:43:35.071901+00:00"
+    "updated_at": "2026-10-28T15:18:11.519728+00:00"
   }
 }
