@@ -36,6 +36,18 @@ class CutoverRulesTest(unittest.TestCase):
         self.assertEqual(out["permissions"]["ask"], SETTINGS["permissions"]["ask"])
         self.assertEqual(out["other"], SETTINGS["other"])
 
+    def test_claude_hooks_cutover_strips_only_claude_hooks_rules(self):
+        servers = cutover.CUTOVERS["299daf58"]
+        out, removed = cutover.strip_rules(SETTINGS, servers)
+        self.assertEqual(removed, ["mcp__claude-hooks__memory__add"])
+        self.assertIn("mcp__astrology__chart", out["permissions"]["allow"])
+        self.assertNotIn("mcp__claude-hooks__memory__add", out["permissions"]["allow"])
+
+    def test_each_cutover_has_its_own_backup(self):
+        paths = {cutover.backup_path(c) for c in cutover.CUTOVERS}
+        self.assertEqual(len(paths), len(cutover.CUTOVERS))
+        self.assertEqual(cutover.backup_path("9839b040").name, "cutover-9839b040-backup.json")
+
     def test_strip_does_not_mutate_input(self):
         before = cutover.render(SETTINGS)
         cutover.strip_rules(SETTINGS)

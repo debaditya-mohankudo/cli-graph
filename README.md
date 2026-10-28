@@ -30,7 +30,7 @@ so a CLI call and an MCP call share one code path.
 | `graph/edges.json` | Hand-written edges between commands: `alias_of`, `requires`, `feeds`, `prefer_over`. |
 | `graph/groups.json` | Hand-written groups of areas (communication, productivity, ...). `graph/generate.py` adds them to the graph's `groups` and `domains` sections. |
 | `find_cli/` | The MCP server (`server.py`): BM25 ranking (`rank.py`), edge and sibling expansion (`expand.py`), usage counts (`usage.py`). |
-| `tools/` | Generators: `gen_groups.py` (local-mac group modules), `gen_mcp_groups.py` (proxy group modules), `gen_permissions.py` (Claude Code permission rules). `cutover.py` turns the migrated MCP servers off or back on. |
+| `tools/` | Generators: `gen_groups.py` (local-mac group modules), `gen_mcp_groups.py` (proxy group modules), `gen_permissions.py` (Claude Code permission rules). `cutover.py` turns the migrated MCP servers off or back on (one backup per cutover; pass `299daf58` for the claude-hooks one). |
 | `tests/` | Unit, drift and parity tests, plus the `find_cli` hit-rate eval. |
 | `concept_store/concepts.json` | Architectural notes and invariants for the repo. |
 

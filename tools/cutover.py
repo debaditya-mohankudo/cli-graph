@@ -1,14 +1,18 @@
-"""Turn the migrated MCP servers off, or back on (task:8cd14cfe).
+"""Turn the migrated MCP servers off, or back on (task:8cd14cfe, task:299daf58).
 
 The servers local-mac, astrology, wyckoff-analyzer and sysml-mcp are replaced
 by `mac` commands. Cutover removes them from the user scope of ~/.claude.json
 and removes their mcp__<server>__* allow rules from ~/.claude/settings.json.
 Rollback puts both back from a backup saved beside those files.
 
-    uv run python tools/cutover.py status     # exit 0 if cut over, 1 if not
-    uv run python tools/cutover.py apply      # back up, then remove
-    uv run python tools/cutover.py rollback   # restore from the backup
-    uv run python tools/cutover.py count      # tools each configured server lists
+claude-hooks is a second cutover with its own backup file, so its rollback
+restores only claude-hooks. The cutover name is an optional second argument;
+omitted, it is the first (9839b040).
+
+    uv run python tools/cutover.py status [299daf58]   # exit 0 if cut over, 1 if not
+    uv run python tools/cutover.py apply [299daf58]    # back up, then remove
+    uv run python tools/cutover.py rollback [299daf58] # restore from the backup
+    uv run python tools/cutover.py count               # tools each configured server lists
 
 Servers are added and removed with `claude mcp add-json/remove -s user`, not by
 editing ~/.claude.json, because running Claude Code sessions rewrite that file.
@@ -30,26 +34,38 @@ sys.path.insert(0, str(REPO / "tools"))
 from gen_permissions import render  # noqa: E402  (same settings.json layout)
 from mac.groups._mcp_proxy import Server, _session  # noqa: E402
 
-SERVERS = ("local-mac", "astrology", "wyckoff-analyzer", "sysml-mcp")
 CLAUDE_JSON = Path.home() / ".claude.json"
 SETTINGS = Path.home() / ".claude" / "settings.json"
-BACKUP = Path.home() / ".claude" / "cutover-9839b040-backup.json"
 
-_MIGRATED = re.compile(r"mcp__(%s)__" % "|".join(map(re.escape, SERVERS)))
+# cutover name -> servers it removes. Each has its own backup file, so a
+# rollback restores only that cutover's servers and rules.
+CUTOVERS = {
+    "9839b040": ("local-mac", "astrology", "wyckoff-analyzer", "sysml-mcp"),
+    "299daf58": ("claude-hooks",),
+}
+DEFAULT = "9839b040"
+SERVERS = CUTOVERS[DEFAULT]
 
 
-def migrated(rule):
-    """True for a permission rule naming a tool of a migrated server."""
-    return _MIGRATED.match(rule) is not None
+def backup_path(cutover=DEFAULT):
+    return Path.home() / ".claude" / f"cutover-{cutover}-backup.json"
 
 
-def strip_rules(settings):
-    """(settings without migrated allow rules, the rules removed in order)."""
+BACKUP = backup_path()
+
+
+def migrated(rule, servers=SERVERS):
+    """True for a permission rule naming a tool of one of `servers`."""
+    return re.match(r"mcp__(%s)__" % "|".join(map(re.escape, servers)), rule) is not None
+
+
+def strip_rules(settings, servers=SERVERS):
+    """(settings without `servers`' allow rules, the rules removed in order)."""
     out = json.loads(json.dumps(settings))
     allow = out.get("permissions", {}).get("allow", [])
-    removed = [r for r in allow if migrated(r)]
+    removed = [r for r in allow if migrated(r, servers)]
     if allow:
-        out["permissions"]["allow"] = [r for r in allow if not migrated(r)]
+        out["permissions"]["allow"] = [r for r in allow if not migrated(r, servers)]
     return out, removed
 
 
@@ -65,12 +81,13 @@ def user_servers():
     return json.loads(CLAUDE_JSON.read_text()).get("mcpServers", {})
 
 
-def status():
-    present = [s for s in SERVERS if s in user_servers()]
-    rules = strip_rules(json.loads(SETTINGS.read_text()))[1]
+def status(cutover=DEFAULT):
+    servers, backup = CUTOVERS[cutover], backup_path(cutover)
+    present = [s for s in servers if s in user_servers()]
+    rules = strip_rules(json.loads(SETTINGS.read_text()), servers)[1]
     print(f"servers still configured: {', '.join(present) or 'none'}")
     print(f"migrated allow rules: {len(rules)}")
-    print(f"backup: {BACKUP if BACKUP.exists() else 'none'}")
+    print(f"backup: {backup if backup.exists() else 'none'}")
     return 0 if not present and not rules else 1
 
 
@@ -78,32 +95,34 @@ def claude(*args):
     subprocess.run(["claude", "mcp", *args], check=True, capture_output=True, text=True)
 
 
-def apply():
-    servers = {s: d for s, d in user_servers().items() if s in SERVERS}
+def apply(cutover=DEFAULT):
+    backup = backup_path(cutover)
+    servers = {s: d for s, d in user_servers().items() if s in CUTOVERS[cutover]}
     settings = json.loads(SETTINGS.read_text())
-    stripped, removed = strip_rules(settings)
-    if BACKUP.exists():
+    stripped, removed = strip_rules(settings, CUTOVERS[cutover])
+    if backup.exists():
         # A second apply after a rollback: keep the first backup, it is the
         # pre-cutover state. Refuse if it would lose something new.
-        saved = json.loads(BACKUP.read_text())
+        saved = json.loads(backup.read_text())
         extra = set(servers) - set(saved["servers"]) or set(removed) - set(saved["rules"])
         if extra:
-            raise SystemExit(f"{BACKUP} lacks {sorted(extra)}; move it aside before applying")
+            raise SystemExit(f"{backup} lacks {sorted(extra)}; move it aside before applying")
     else:
-        BACKUP.write_text(json.dumps({"servers": servers, "rules": removed}, indent=2) + "\n")
-        print(f"backed up {len(servers)} servers and {len(removed)} rules to {BACKUP}")
+        backup.write_text(json.dumps({"servers": servers, "rules": removed}, indent=2) + "\n")
+        print(f"backed up {len(servers)} servers and {len(removed)} rules to {backup}")
     for name in servers:
         claude("remove", "-s", "user", name)
     if removed:
         SETTINGS.write_text(render(stripped))
     print(f"removed servers: {', '.join(servers) or 'none'}; removed {len(removed)} allow rules")
-    return status()
+    return status(cutover)
 
 
-def rollback():
-    if not BACKUP.exists():
-        raise SystemExit(f"no backup at {BACKUP}; nothing to roll back to")
-    saved = json.loads(BACKUP.read_text())
+def rollback(cutover=DEFAULT):
+    backup = backup_path(cutover)
+    if not backup.exists():
+        raise SystemExit(f"no backup at {backup}; nothing to roll back to")
+    saved = json.loads(backup.read_text())
     present = user_servers()
     for name, definition in saved["servers"].items():
         if name not in present:
@@ -113,7 +132,7 @@ def rollback():
     if restored != current:
         SETTINGS.write_text(restored)
     print(f"restored servers: {', '.join(saved['servers'])}; {len(saved['rules'])} allow rules present")
-    return 0 if status() == 1 else 1
+    return 0 if status(cutover) == 1 else 1
 
 
 def _tool_count(definition):
@@ -147,10 +166,16 @@ def count():
 
 def main(argv):
     verbs = {"status": status, "apply": apply, "rollback": rollback, "count": count}
-    if len(argv) != 1 or argv[0] not in verbs:
+    if not argv or argv[0] not in verbs or len(argv) > 2:
         print(__doc__, file=sys.stderr)
         return 2
-    return verbs[argv[0]]()
+    if argv[0] == "count":
+        return count() if len(argv) == 1 else 2
+    cutover = argv[1] if len(argv) == 2 else DEFAULT
+    if cutover not in CUTOVERS:
+        print(f"unknown cutover {cutover}; known: {', '.join(CUTOVERS)}", file=sys.stderr)
+        return 2
+    return verbs[argv[0]](cutover)
 
 
 if __name__ == "__main__":
