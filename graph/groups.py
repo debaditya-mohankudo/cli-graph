@@ -11,7 +11,7 @@ Rules, each checked by validate():
   - every area of the CLI is listed exactly once, either in one group or in
     `ungrouped` (so a new area cannot be left out by accident);
   - no group or `ungrouped` names an area the CLI does not have;
-  - a group has at least two areas, and its name is a lowercase word.
+  - a group has at least one area, and its name is a lowercase word.
 """
 import json
 import re
@@ -36,8 +36,8 @@ def validate(spec, areas):
         if name is not None:
             if not re.fullmatch(r"[a-z]+", name):
                 problems.append(f"{where}: name must be a lowercase word")
-            if len(members) < 2:
-                problems.append(f"{where}: needs at least two areas")
+            if not members:
+                problems.append(f"{where}: needs at least one area")
         for area in members:
             if area not in areas:
                 problems.append(f"{where}: {area!r} is not a CLI area")

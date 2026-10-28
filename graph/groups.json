@@ -1,5 +1,6 @@
 {
   "groups": {
+    "astrology": ["astrology"],
     "communication": ["contacts", "imessage", "mail"],
     "knowledge": ["sysml", "vault", "vault_rag"],
     "markets": ["market", "wyckoff"],
@@ -8,5 +9,5 @@
     "system": ["system", "vpn"],
     "web": ["connector", "safari"]
   },
-  "ungrouped": ["astrology"]
+  "ungrouped": []
 }

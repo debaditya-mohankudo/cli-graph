@@ -53,10 +53,15 @@ class ValidateTest(unittest.TestCase):
         spec["groups"]["communication"].append("fax")
         self.assertEqual(groups.validate(spec, AREAS), ["group 'communication': 'fax' is not a CLI area"])
 
-    def test_a_one_area_group_and_a_bad_name_fail(self):
-        spec = {"groups": {"Comms": ["contacts"], "messaging": ["imessage", "mail"]},
+    def test_an_empty_group_and_a_bad_name_fail(self):
+        spec = {"groups": {"Comms": ["contacts"], "messaging": ["imessage", "mail"], "none": []},
                 "ungrouped": ["astrology"]}
         self.assertEqual(len(groups.validate(spec, AREAS)), 2)
+
+    def test_a_one_area_group_is_valid(self):
+        spec = {"groups": {"stars": ["astrology"], "messaging": ["contacts", "imessage", "mail"]},
+                "ungrouped": []}
+        self.assertEqual(groups.validate(spec, ["astrology", "contacts", "imessage", "mail"]), [])
 
     def test_command_groups_skips_ungrouped_areas(self):
         got = groups.command_groups(GROUPED)

@@ -1,5 +1,6 @@
 {
   "groups": {
+    "astrology": ["astrology"],
     "communication": ["contacts", "imessage", "mail"],
     "knowledge": ["sysml", "vault", "vault_rag"],
     "markets": ["market", "wyckoff"],
@@ -9,7 +10,7 @@
     "web": ["connector", "safari"]
   },
   "domains": {
-    "astrology": {"group": null, "verbs": ["aq_aspects_on_house", "aq_bhava_chalit", "aq_current_dasha", "aq_dasha_timeline", "aq_navamsha", "aq_neecha_bhanga", "aq_pd_timeline", "aq_planets", "aq_predict_events", "aq_predict_events_batch", "aq_pushkar_navamsa", "aq_strength_summary", "aq_upcoming_transitions", "aq_vargottama", "aq_yogas", "d10", "d12", "d9", "gochar_dasha_tally", "gochar_house", "gochar_summary", "mahadasha", "panchang_date", "panchang_rahukaal", "panchang_today", "planets_date", "planets_lagna", "planets_today", "tarabala"]},
+    "astrology": {"group": "astrology", "verbs": ["aq_aspects_on_house", "aq_bhava_chalit", "aq_current_dasha", "aq_dasha_timeline", "aq_navamsha", "aq_neecha_bhanga", "aq_pd_timeline", "aq_planets", "aq_predict_events", "aq_predict_events_batch", "aq_pushkar_navamsa", "aq_strength_summary", "aq_upcoming_transitions", "aq_vargottama", "aq_yogas", "d10", "d12", "d9", "gochar_dasha_tally", "gochar_house", "gochar_summary", "mahadasha", "panchang_date", "panchang_rahukaal", "panchang_today", "planets_date", "planets_lagna", "planets_today", "tarabala"]},
     "calendar": {"group": "productivity", "verbs": ["add_event", "delete_event", "get_events_by_date", "get_noise_summary", "get_upcoming_events", "list_events"]},
     "connector": {"group": "web", "verbs": ["execute_action", "health", "list_actions"]},
     "contacts": {"group": "communication", "verbs": ["search"]},

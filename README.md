@@ -89,6 +89,7 @@ override the path.
 
 | Group | Areas |
 |---|---|
+| astrology | astrology |
 | communication | contacts, imessage, mail |
 | productivity | calendar, notes, reminders, time |
 | knowledge | sysml, vault, vault_rag |
@@ -97,7 +98,7 @@ override the path.
 | system | system, vpn |
 | web | connector, safari |
 
-`astrology` belongs to no group. Every area has to be listed once, either in
+Every area has to be listed once, either in
 a group or under `ungrouped`, so a new area can't be left out by accident. A
 query word that names a group ("communication") ranks that group's matching
 commands higher. Neither the boost nor the group neighbours can add a
