@@ -2,11 +2,11 @@
   "groups": {
     "astrology": ["astrology"],
     "communication": ["contacts", "imessage", "mail"],
-    "knowledge": ["sysml", "vault", "vault_rag"],
+    "knowledge": ["memory", "sysml", "vault", "vault_map", "vault_rag"],
     "markets": ["market", "wyckoff"],
     "media": ["music", "podcasts", "sound"],
     "productivity": ["calendar", "notes", "reminders", "time"],
-    "system": ["system", "vpn"],
+    "system": ["hooks", "system", "vpn"],
     "web": ["connector", "safari"]
   },
   "ungrouped": []

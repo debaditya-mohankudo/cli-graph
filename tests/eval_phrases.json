@@ -51,6 +51,10 @@
     {"phrase": "dm him the link", "expect": ["mac imessage send"], "source": "synonym"},
     {"phrase": "remind me to pull participant OI after 7pm", "expect": ["mac reminders create"], "source": "synonym"},
     {"phrase": "schedule the HDFC earnings date", "expect": ["mac calendar add_event"], "source": "synonym"},
-    {"phrase": "did the bank reply yet", "expect": ["mac mail read", "mac mail search"], "source": "synonym"}
+    {"phrase": "did the bank reply yet", "expect": ["mac mail read", "mac mail search"], "source": "synonym"},
+    {"phrase": "save this as a memory for next time", "expect": ["mac memory add"], "source": "paraphrase"},
+    {"phrase": "search my memory for what I decided about this", "expect": ["mac memory search"], "source": "paraphrase"},
+    {"phrase": "find which vault folder holds my notes on this topic", "expect": ["mac vault_map find"], "source": "paraphrase"},
+    {"phrase": "what was I working on, recent session activity", "expect": ["mac hooks server_memory"], "source": "paraphrase"}
   ]
 }

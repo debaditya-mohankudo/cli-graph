@@ -24,6 +24,7 @@ so a CLI call and an MCP call share one code path.
 | `bin/mac` | Launcher. Runs `python -m mac` under this repo's uv `.venv` (`~/bin/mac` is a symlink to it). |
 | `mac/` | The dispatcher: argument parsing, help, the output/error contract (`contract.py`), and one module per area under `mac/groups/`. |
 | `mac/groups/_backend.py` | Runs local-mac's handlers in-process through its own `dispatcher.resolve` / `invoke`, so the same logging and safety gates apply. |
+| `mac/groups/_hooks.py` | Runs claude-hooks' `src/tools` handlers (`memory`, `vault_map`, `hooks`) in a subprocess of claude-hooks' own interpreter, via `_hooks_runner.py`. No MCP server and no Ollama start-up; about 0.3s a call. |
 | `mac/groups/_mcp_proxy.py` | Starts a separate MCP server over stdio for each call (`astrology`, `wyckoff`, `sysml`). These servers have their own venvs or are Node bundles. |
 | `graph/cli_graph.json` | Command graph **generated** from `mac --help --json`: a `groups` and a `domains` overview first, then one node per command. Never hand-edited. |
 | `graph/edges.json` | Hand-written edges between commands: `alias_of`, `requires`, `feeds`, `prefer_over`. |
@@ -42,10 +43,12 @@ mac <area> --help          # verbs, read/write mode, usage lines
 mac --help --json          # every command as JSON rows (feeds graph/generate.py)
 ```
 
-There are about 170 verbs across 20 areas: `astrology`, `calendar`, `connector`, `contacts`,
-`imessage`, `mail`, `market`, `music`, `notes`, `podcasts`, `reminders`,
-`safari`, `sound`, `sysml`, `system`, `time`, `vault`, `vault_rag`, `vpn`,
-`wyckoff`.
+There are about 190 verbs across 23 areas: `astrology`, `calendar`, `connector`, `contacts`,
+`hooks`, `imessage`, `mail`, `market`, `memory`, `music`, `notes`, `podcasts`, `reminders`,
+`safari`, `sound`, `sysml`, `system`, `time`, `vault`, `vault_map`, `vault_rag`, `vpn`,
+`wyckoff`. `memory`, `vault_map` and `hooks` wrap claude-hooks; `memory add` takes
+`--links` as a JSON list and `--body-file -` for long text. `scratch` and `think`
+were not ported (task:5ab623ca).
 
 **Contract.** Results go to stdout as JSON. Failures go to stderr as
 `{"error": {"code": ..., "message": ...}}`, with exit code 1, or 2 for usage
@@ -92,10 +95,10 @@ override the path.
 | astrology | astrology |
 | communication | contacts, imessage, mail |
 | productivity | calendar, notes, reminders, time |
-| knowledge | sysml, vault, vault_rag |
+| knowledge | memory, sysml, vault, vault_map, vault_rag |
 | media | music, podcasts, sound |
 | markets | market, wyckoff |
-| system | system, vpn |
+| system | hooks, system, vpn |
 | web | connector, safari |
 
 Every area has to be listed once, either in
