@@ -2,7 +2,7 @@
   "groups": {
     "astrology": ["astrology"],
     "communication": ["contacts", "imessage", "mail"],
-    "knowledge": ["memory", "sysml", "vault", "vault_map", "vault_rag"],
+    "knowledge": ["code_rag", "diff_rag", "memory", "sysml", "vault", "vault_map", "vault_rag"],
     "markets": ["market", "wyckoff"],
     "media": ["music", "podcasts", "sound"],
     "productivity": ["calendar", "notes", "reminders", "time"],

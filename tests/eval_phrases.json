@@ -55,6 +55,10 @@
     {"phrase": "save this as a memory for next time", "expect": ["mac memory add"], "source": "paraphrase"},
     {"phrase": "search my memory for what I decided about this", "expect": ["mac memory search"], "source": "paraphrase"},
     {"phrase": "find which vault folder holds my notes on this topic", "expect": ["mac vault_map find"], "source": "paraphrase"},
-    {"phrase": "what was I working on, recent session activity", "expect": ["mac hooks server_memory"], "source": "paraphrase"}
+    {"phrase": "what was I working on, recent session activity", "expect": ["mac hooks server_memory"], "source": "paraphrase"},
+    {"phrase": "semantic search the claude-hooks code for where tool handlers are dispatched", "expect": ["mac code_rag query", "mac code_rag smart_search"], "source": "paraphrase"},
+    {"phrase": "find the function that builds the dispatcher in the repo code", "expect": ["mac code_rag smart_search", "mac code_rag query"], "source": "paraphrase"},
+    {"phrase": "which commit changed the memory loader", "expect": ["mac diff_rag query", "mac diff_rag smart_search"], "source": "paraphrase"},
+    {"phrase": "what did I change in src/tools last month, by commit diff", "expect": ["mac diff_rag smart_search", "mac diff_rag query"], "source": "paraphrase"}
   ]
 }
