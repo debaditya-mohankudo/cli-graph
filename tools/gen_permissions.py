@@ -39,6 +39,7 @@ ASK = {
     "system": {"process_kill", "sleep_now"},
     "connector": {"execute_action"},
     "vpn": {"disconnect"},
+    "git": {"commit", "push"},
 }
 
 # Ways a shell command can name the launcher: the bare name on PATH, the

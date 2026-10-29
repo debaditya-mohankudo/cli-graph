@@ -9,6 +9,9 @@
     {"from": "mac reminders tick", "type": "alias_of", "to": "mac reminders complete"},
     {"from": "mac imessage send", "type": "requires", "to": "mac contacts search"},
     {"from": "mac mail delete", "type": "requires", "to": "mac mail read"},
-    {"from": "mac vault outline", "type": "feeds", "to": "mac vault read"}
+    {"from": "mac vault outline", "type": "feeds", "to": "mac vault read"},
+    {"from": "mac git status", "type": "feeds", "to": "mac git add"},
+    {"from": "mac git add", "type": "feeds", "to": "mac git commit"},
+    {"from": "mac git commit", "type": "feeds", "to": "mac git push"}
   ]
 }

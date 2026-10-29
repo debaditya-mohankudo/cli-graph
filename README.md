@@ -43,12 +43,14 @@ mac <area> --help          # verbs, read/write mode, usage lines
 mac --help --json          # every command as JSON rows (feeds graph/generate.py)
 ```
 
-There are about 196 verbs across 25 areas: `astrology`, `calendar`, `code_rag`, `connector`, `contacts`,
-`diff_rag`, `hooks`, `imessage`, `mail`, `market`, `memory`, `music`, `notes`, `podcasts`, `reminders`,
+There are about 204 verbs across 26 areas: `astrology`, `calendar`, `code_rag`, `connector`, `contacts`,
+`diff_rag`, `git`, `hooks`, `imessage`, `mail`, `market`, `memory`, `music`, `notes`, `podcasts`, `reminders`,
 `safari`, `sound`, `sysml`, `system`, `time`, `vault`, `vault_map`, `vault_rag`, `vpn`,
 `wyckoff`. `memory`, `vault_map` and `hooks` wrap claude-hooks; `memory add` takes
 `--links` as a JSON list and `--body-file -` for long text. `scratch` and `think`
-were not ported (task:5ab623ca).
+were not ported (task:5ab623ca). `git` runs `git` directly: `add` takes explicit paths only,
+`commit` takes the staged files (or only the paths listed) and refuses a message without a
+`task:<id>`, and `commit` and `push` ask before running (task:fcc92c98).
 
 **Contract.** Results go to stdout as JSON. Failures go to stderr as
 `{"error": {"code": ..., "message": ...}}`, with exit code 1, or 2 for usage
@@ -94,6 +96,7 @@ override the path.
 |---|---|
 | astrology | astrology |
 | communication | contacts, imessage, mail |
+| development | git |
 | productivity | calendar, notes, reminders, time |
 | knowledge | code_rag, diff_rag, memory, sysml, vault, vault_map, vault_rag |
 | media | music, podcasts, sound |
