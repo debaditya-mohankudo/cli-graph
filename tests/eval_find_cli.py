@@ -15,8 +15,14 @@ The held-out set (eval_heldout.json, task:9d42faae) is real logged queries,
 never tuned on; it is printed after the tuning set and never changes the exit
 code, since a handful of phrases moves its rate too far per phrase to gate on.
 
-Exit codes: 0 when the tuning set's subgraph hit rate is at least --threshold
-and its seed hit rate at least --seed-threshold, 1 when either is below, 2 when
+A confident wrong answer (task:e720fe9a) is a phrase find_cli answers at high
+confidence with none of the expected commands among the seeds; for a negative,
+any seed at high confidence. Both sets list them with the wrong top command and
+its score; only the tuning set's count is gated, against CONFIDENT_WRONG_CEILING.
+
+Exit codes: 0 when the tuning set's subgraph hit rate is at least --threshold,
+its seed hit rate at least --seed-threshold and its confident-wrong count at
+most the ceiling, 1 when any is breached, 2 when
 either fixture names a command that is not in the committed graph (the fixture
 is stale, so no rate is computed).
 
@@ -39,6 +45,9 @@ HELDOUT = REPO / "tests" / "eval_heldout.json"
 THRESHOLD = 0.9
 # A ratchet at the current 53/63: raise it when seed hits rise, never lower it.
 SEED_THRESHOLD = 0.84
+# A ratchet at the current 7 (1 negative + 6 positives): lower it when a
+# confident wrong answer is fixed, never raise it (task:e720fe9a).
+CONFIDENT_WRONG_CEILING = 7
 
 
 def load_fixture(path=FIXTURE):
@@ -98,7 +107,18 @@ def rates(rows):
         "low_top1_hits": sum(r["low"] and r["rank"] == 1 for r in pos),
         "low_top1_misses": sum(r["low"] and r["rank"] != 1 for r in pos),
         "low_negatives": sum(r["low"] for r in neg),
+        "confident_wrong": len(confident_wrong(rows)),
     }
+
+
+def confident_wrong(rows):
+    """Rows find_cli answered at high confidence without any expected command in the seeds.
+
+    A negative counts when it returned any seed at high confidence. Rank 2-5
+    hits are not counted: the agent still sees the expected command.
+    """
+    return [r for r in rows
+            if not r["low"] and (r["result"]["seeds"] if not r["expect"] else not r["rank"])]
 
 
 def _mark(r):
@@ -125,7 +145,13 @@ def report(rows, out=None):
               + (f", {s['low_negatives']}/{s['negatives']} negatives" if s["negatives"] else ""),
               file=out)
     for r in rows:
-        print(f"  {_mark(r):7} {r['phrase']}", file=out)
+        print(f"  {_mark(r):7} {'low ' if r['low'] else 'high'} {r['phrase']}", file=out)
+    wrong = confident_wrong(rows)
+    print(f"confident wrong    {len(wrong)}", file=out)
+    for r in wrong:
+        top = r["result"]["seeds"][0] if r["result"]["seeds"] else None
+        print(f"  {r['phrase']!r} -> {top['id']}  {top['score']}" if top
+              else f"  {r['phrase']!r} -> (no seeds)", file=out)
     for r in rows:
         if _mark(r) != "MISS":
             continue
@@ -145,6 +171,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--threshold", type=float, default=THRESHOLD)
     ap.add_argument("--seed-threshold", type=float, default=SEED_THRESHOLD)
+    ap.add_argument("--confident-wrong-ceiling", type=int, default=CONFIDENT_WRONG_CEILING)
     ap.add_argument("--limit", type=int, default=find_cli.DEFAULT_LIMIT)
     ap.add_argument("--hops", type=int, default=2)
     args = ap.parse_args(argv)
@@ -162,7 +189,8 @@ def main(argv=None):
     if heldout:
         print("\n== held-out: logged real queries, never tuned on, reported not gated ==")
         report(score(heldout, graph, edges, args.limit, args.hops))
-    ok = s["subgraph_rate"] >= args.threshold and s["seed_rate"] >= args.seed_threshold
+    ok = (s["subgraph_rate"] >= args.threshold and s["seed_rate"] >= args.seed_threshold
+          and s["confident_wrong"] <= args.confident_wrong_ceiling)
     return 0 if ok else 1
 
 

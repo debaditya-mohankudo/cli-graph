@@ -88,6 +88,59 @@ class AbstainTest(unittest.TestCase):
         self.assertEqual(ev.rates(rows)["abstained"], 0)
 
 
+def _row(phrase, expect, rank, seeds, low=False):
+    return {"phrase": phrase, "expect": expect, "hit": bool(rank), "seed_hit": bool(rank),
+            "rank": rank, "abstained": not seeds, "low": low,
+            "result": {"seeds": [{"id": i, "score": 5.0} for i in seeds], "neighbours": []}}
+
+
+class ConfidentWrongTest(unittest.TestCase):
+    """task:e720fe9a: hand-built rows, so the count never depends on the live graph's scores."""
+
+    def setUp(self):
+        self.rows = [
+            _row("right", ["a"], 1, ["a", "b"]),
+            _row("rank two", ["a"], 2, ["b", "a"]),            # expected command is in the seeds
+            _row("wrong", ["a"], None, ["b", "c"]),            # counted
+            _row("wrong but low", ["a"], None, ["b"], low=True),
+            _row("negative, seeds", [], None, ["b"]),          # counted
+            _row("negative, low", [], None, ["b"], low=True),
+            _row("negative, none", [], None, []),
+        ]
+
+    def test_counts_only_high_confidence_rows_without_an_expected_seed(self):
+        self.assertEqual([r["phrase"] for r in ev.confident_wrong(self.rows)],
+                         ["wrong", "negative, seeds"])
+        self.assertEqual(ev.rates(self.rows)["confident_wrong"], 2)
+
+    def test_report_names_the_wrong_top_command_and_marks_confidence(self):
+        import io
+        buf = io.StringIO()
+        ev.report(self.rows, out=buf)
+        out = buf.getvalue()
+        self.assertIn("confident wrong    2", out)
+        self.assertIn("'wrong' -> b  5.0", out)
+        self.assertRegex(out, r"seed#1\s+high right")
+        self.assertRegex(out, r"MISS\s+low  wrong but low")
+
+    def test_ceiling_gates_the_tuning_set_only(self):
+        import io
+        import contextlib
+        from unittest import mock
+        rows = self.rows
+        with mock.patch.object(ev, "score", return_value=rows), \
+                contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(ev.main(["--threshold", "0", "--seed-threshold", "0",
+                                      "--confident-wrong-ceiling", "2"]), 0)
+            self.assertEqual(ev.main(["--threshold", "0", "--seed-threshold", "0",
+                                      "--confident-wrong-ceiling", "1"]), 1)
+
+    def test_committed_ceiling_holds_on_the_live_tuning_set(self):
+        graph, edges = find_cli.load()
+        s = ev.rates(ev.score(ev.load_fixture(), graph, edges))
+        self.assertLessEqual(s["confident_wrong"], ev.CONFIDENT_WRONG_CEILING)
+
+
 class MainTest(unittest.TestCase):
     def test_exit_code_follows_the_threshold(self):
         import io

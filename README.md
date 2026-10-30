@@ -138,7 +138,7 @@ repo.
 ```bash
 uv sync
 uv run python -m unittest discover -s tests   # whole suite
-uv run python tests/eval_find_cli.py          # find_cli hit-rate eval (90% subgraph + 84% seed gate)
+uv run python tests/eval_find_cli.py          # find_cli hit-rate eval (90% subgraph + 84% seed + confident-wrong ceiling)
 uv run python -m graph.generate --check       # graph drift check
 ```
 
@@ -149,7 +149,12 @@ for personal data before they're copied in. That set is never used for
 tuning and never changes the exit code. A phrase with `expect: []` means no
 command fits, and it counts as correct only when `find_cli` returns no seeds.
 The eval also reports how often `low` confidence falls on top-1 hits, top-1
-misses and negatives, so the level is measured rather than assumed.
+misses and negatives, so the level is measured rather than assumed. It
+names each confident wrong answer: a phrase answered at `high` confidence
+with no expected command among the seeds (for a negative, any seed). The
+tuning set fails the eval when their count passes
+`CONFIDENT_WRONG_CEILING` (7 today); the ceiling only goes down. The
+held-out set lists them but is not gated.
 
 Run everything through `uv run`. Plain `python3` lacks pydantic, so the
 parity modules fail to import. Live parity tests, which really call the
