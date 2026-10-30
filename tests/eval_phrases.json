@@ -67,11 +67,16 @@
     {"phrase": "push this branch to the remote", "expect": ["mac git push"], "source": "paraphrase"},
     {"phrase": "what files changed in the repo", "expect": ["mac git status", "mac git diff"], "source": "paraphrase"},
     {"phrase": "show the recent commits", "expect": ["mac git log"], "source": "paraphrase"},
+    {"phrase": "calender events next week", "expect": ["mac calendar get_upcoming_events", "mac calendar list_events", "mac calendar get_events_by_date"], "source": "synonym"},
+    {"phrase": "msg mom", "expect": ["mac imessage send"], "source": "synonym"},
+    {"phrase": "txt my friend", "expect": ["mac imessage send"], "source": "synonym"},
+    {"phrase": "evnts tomorow", "expect": ["mac calendar get_events_by_date"], "source": "synonym"},
     {"phrase": "book a flight to delhi", "expect": [], "source": "negative"},
     {"phrase": "order a pizza", "expect": [], "source": "negative"},
     {"phrase": "what is the weather in pune", "expect": [], "source": "negative"},
     {"phrase": "what is nifty doing", "expect": [], "source": "negative"},
     {"phrase": "nse top gainers today", "expect": [], "source": "negative"},
-    {"phrase": "option chain for banknifty", "expect": [], "source": "negative"}
+    {"phrase": "option chain for banknifty", "expect": [], "source": "negative"},
+    {"phrase": "mom birthday plan", "expect": [], "source": "negative"}
   ]
 }

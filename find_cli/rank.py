@@ -17,6 +17,9 @@ Two query-side adjustments (task:2dcdba79); documents are indexed unchanged:
   - A query word also matches its plural/singular (forms()). The word and its
     forms count as one term: one df, with a non-exact form adding
     VARIANT_WEIGHT to tf, so an exact match still beats a folded one.
+  - A long query word found in no document in any form is tried as a typo:
+    vocabulary words one edit away join its forms at FUZZY_WEIGHT (fuzzy()).
+    Short words never fuzz; "msg" and "txt" are alias_of words instead.
 
 Group boost: a query word that names an area group (graph/groups.json, e.g.
 "communication") multiplies the score of that group's commands by
@@ -40,6 +43,11 @@ STOPWORDS = frozenset(
 GENERIC = frozenset("check if any now show shows".split())
 GENERIC_WEIGHT = 0.25
 VARIANT_WEIGHT = 0.8
+# Typo fallback (task:82640303): a query word of FUZZY_MIN_LEN+ letters that has
+# no exact or plural/singular form in the vocabulary matches vocabulary words
+# one edit away, at FUZZY_WEIGHT (below VARIANT_WEIGHT, so never above exact).
+FUZZY_MIN_LEN = 5
+FUZZY_WEIGHT = 0.6
 GROUP_BOOST = 1.5
 # confidence() thresholds, measured on the eval (task:d08ebd55).
 LOW_COVERAGE = 0.3
@@ -59,6 +67,32 @@ def forms(term):
     if len(term) > 4 and term.endswith("s") and not term.endswith("ss"):
         out.append(term[:-1])
     return out
+
+
+def one_edit(a, b):
+    """True when a and b differ by exactly one insertion, deletion, substitution
+    or adjacent swap."""
+    if a == b or abs(len(a) - len(b)) > 1:
+        return False
+    i = 0
+    while i < min(len(a), len(b)) and a[i] == b[i]:
+        i += 1
+    if len(a) == len(b):
+        return a[i + 1:] == b[i + 1:] or (a[i] == b[i + 1] and a[i + 1] == b[i]
+                                          and a[i + 2:] == b[i + 2:])
+    short, long_ = sorted((a, b), key=len)
+    return short[i:] == long_[i + 1:]
+
+
+def fuzzy(term, docs):
+    """Sorted vocabulary words one edit from term; [] unless term is
+    FUZZY_MIN_LEN+ letters and no form of it occurs in any document."""
+    if len(term) < FUZZY_MIN_LEN:
+        return []
+    vocab = {w for d in docs.values() for w in d}
+    if any(f in vocab for f in forms(term)):
+        return []
+    return sorted(w for w in vocab if one_edit(term, w))
 
 
 def documents(graph, edges=()):
@@ -89,13 +123,16 @@ def scores(query, docs, groups=None):
     n = len(docs)
     avgdl = sum(len(d) for d in docs.values()) / n if n else 0.0
     tforms = {t: forms(t) for t in terms}
-    df = {t: sum(1 for d in docs.values() if any(f in d for f in tforms[t])) for t in terms}
+    typos = {t: fuzzy(t, docs) for t in terms}
+    df = {t: sum(1 for d in docs.values() if any(f in d for f in tforms[t] + typos[t]))
+          for t in terms}
     out = {}
     for cid, doc in docs.items():
         dl = len(doc)
         s = 0.0
         for t in terms:
-            tf = doc.count(t) + VARIANT_WEIGHT * sum(doc.count(f) for f in tforms[t][1:])
+            tf = (doc.count(t) + VARIANT_WEIGHT * sum(doc.count(f) for f in tforms[t][1:])
+                  + FUZZY_WEIGHT * sum(doc.count(f) for f in typos[t]))
             if not tf:
                 continue
             idf = math.log(1 + (n - df[t] + 0.5) / (df[t] + 0.5))
@@ -125,10 +162,11 @@ def confidence(query, docs, score_map):
     for t in dict.fromkeys(tokens(query)):
         if t in GENERIC:
             continue
-        df = sum(1 for d in docs.values() if any(f in d for f in forms(t)))
+        fs = forms(t) + fuzzy(t, docs)
+        df = sum(1 for d in docs.values() if any(f in d for f in fs))
         weights[t] = math.log(1 + (n - df + 0.5) / (df + 0.5))
     total = sum(weights.values())
-    covered = sum(w for t, w in weights.items() if any(f in top for f in forms(t)))
+    covered = sum(w for t, w in weights.items() if any(f in top for f in forms(t) + fuzzy(t, docs)))
     coverage = round(covered / total, 3) if total else 0.0
     gap = round(score_map[order[0]] - (score_map[order[1]] if len(order) > 1 else 0.0), 3)
     level = "low" if coverage < LOW_COVERAGE and gap < LOW_GAP else "high"

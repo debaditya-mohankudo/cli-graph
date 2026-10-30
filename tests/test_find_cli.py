@@ -90,6 +90,30 @@ class RankTest(unittest.TestCase):
         g = toy_graph(cmd("mail", "add", "create a new mailbox"))
         self.assertEqual(rank.seeds("news", g), [])
 
+    def test_typo_of_a_long_word_finds_the_correct_spelling(self):
+        g = toy_graph(cmd("cal", "add", "add a calendar event"),
+                      cmd("cal", "del", "delete an event"))
+        self.assertEqual([c for c, _ in rank.seeds("calender", g)], ["mac cal add"])
+        exact = rank.seeds("calendar", g)[0][1]
+        self.assertLess(rank.seeds("calender", g)[0][1], exact)
+
+    def test_fuzzy_applies_only_when_the_word_has_no_exact_match(self):
+        g = toy_graph(cmd("cal", "add", "add a calendar event"),
+                      cmd("cal", "fake", "calender app"))
+        self.assertEqual([c for c, _ in rank.seeds("calender", g)], ["mac cal fake"])
+
+    def test_short_words_never_fuzz(self):
+        g = toy_graph(cmd("a", "b", "tex mom"))
+        self.assertEqual(rank.seeds("txt mon", g), [])
+
+    def test_one_edit_covers_swap_insert_delete_substitute(self):
+        self.assertTrue(rank.one_edit("calendr", "calendar"))
+        self.assertTrue(rank.one_edit("evnet", "event"))
+        self.assertTrue(rank.one_edit("remindr", "reminder"))
+        self.assertTrue(rank.one_edit("calender", "calendar"))
+        self.assertFalse(rank.one_edit("msg", "message"))
+        self.assertFalse(rank.one_edit("same", "same"))
+
     def test_generic_word_does_not_pick_the_seed(self):
         # 'check' is rare in command text, so at full weight it would outrank 'tab'.
         g = toy_graph(cmd("x", "verify", "check if a section is present"),
@@ -214,6 +238,14 @@ class FindOnCommittedGraphTest(unittest.TestCase):
         for phrase, want, within in self.GUARDS:
             got = [c for c, _ in rank.seeds(phrase, self.graph, self.edges)][:within]
             self.assertIn(want, got, phrase)
+
+    def test_typos_and_short_forms_seed_their_commands_in_the_top_five(self):
+        for phrase, want in (("calender events next week", "mac calendar"),
+                             ("evnts tomorow", "mac calendar"),
+                             ("msg mom", "mac imessage send"),
+                             ("txt my friend", "mac imessage send")):
+            got = [c for c, _ in rank.seeds(phrase, self.graph, self.edges)][:5]
+            self.assertTrue(any(c.startswith(want) for c in got), (phrase, got))
 
     def test_news_does_not_seed_a_create_command(self):
         got = rank.seeds("check for news on tata", self.graph, self.edges)

@@ -6,6 +6,8 @@
     {"from": "mac calendar meetings", "type": "alias_of", "to": "mac calendar list_events"},
     {"from": "mac imessage dm", "type": "alias_of", "to": "mac imessage send"},
     {"from": "mac imessage ping", "type": "alias_of", "to": "mac imessage send"},
+    {"from": "mac imessage msg", "type": "alias_of", "to": "mac imessage send"},
+    {"from": "mac imessage txt", "type": "alias_of", "to": "mac imessage send"},
     {"from": "mac imessage text", "type": "alias_of", "to": "mac imessage send"},
     {"from": "mac mail reply", "type": "alias_of", "to": "mac mail read"},
     {"from": "mac reminders remind", "type": "alias_of", "to": "mac reminders create"},
