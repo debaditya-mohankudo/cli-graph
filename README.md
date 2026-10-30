@@ -130,9 +130,16 @@ repo.
 ```bash
 uv sync
 uv run python -m unittest discover -s tests   # whole suite
-uv run python tests/eval_find_cli.py          # find_cli hit-rate eval (90% gate)
+uv run python tests/eval_find_cli.py          # find_cli hit-rate eval (90% subgraph + 84% seed gate)
 uv run python -m graph.generate --check       # graph drift check
 ```
+
+The eval gates the tuning set, `tests/eval_phrases.json`, on its subgraph
+and seed hit rates. It then prints `tests/eval_heldout.json` on its own:
+real queries from the claude-hooks `find_cli_queries` log, checked by hand
+for personal data before they're copied in. That set is never used for
+tuning and never changes the exit code. A phrase with `expect: []` means no
+command fits, and it counts as correct only when `find_cli` returns no seeds.
 
 Run everything through `uv run`. Plain `python3` lacks pydantic, so the
 parity modules fail to import. Live parity tests, which really call the

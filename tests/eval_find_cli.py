@@ -1,17 +1,27 @@
 """Hit-rate eval for find_cli over tests/eval_phrases.json (task:597ac09d).
 
-    uv run python tests/eval_find_cli.py [--threshold 0.9] [--limit 5] [--hops 2]
+    uv run python tests/eval_find_cli.py [--threshold 0.9] [--seed-threshold 0.84]
+                                         [--limit 5] [--hops 2]
 
 A phrase is a hit when any of its expected commands is in the returned
 subgraph (seeds or neighbours); a seed hit when one is among the seeds. Both
-rates are printed, then every miss with the subgraph find_cli returned.
+rates are printed, then every miss with the subgraph find_cli returned. A
+phrase whose expect is [] says no command covers the task: it is scored as an
+abstention (correct when find_cli returns no seeds, or no_match), and left out
+of the hit rates.
 
-Exit codes: 0 when the subgraph hit rate is at least the threshold, 1 below
-it, 2 when the fixture names a command that is not in the committed graph
-(the fixture is stale, so no rate is computed).
+The tuning set (eval_phrases.json) is what the ranker is tuned on and gated.
+The held-out set (eval_heldout.json, task:9d42faae) is real logged queries,
+never tuned on; it is printed after the tuning set and never changes the exit
+code, since a handful of phrases moves its rate too far per phrase to gate on.
+
+Exit codes: 0 when the tuning set's subgraph hit rate is at least --threshold
+and its seed hit rate at least --seed-threshold, 1 when either is below, 2 when
+either fixture names a command that is not in the committed graph (the fixture
+is stale, so no rate is computed).
 
 Not named test_*.py, so unittest discovery does not run it; tests/test_eval_fixture.py
-keeps the fixture valid against the graph.
+keeps the fixtures valid against the graph.
 """
 import argparse
 import json
@@ -25,7 +35,10 @@ import find_cli
 from graph.validate_edges import command_ids
 
 FIXTURE = REPO / "tests" / "eval_phrases.json"
+HELDOUT = REPO / "tests" / "eval_heldout.json"
 THRESHOLD = 0.9
+# A ratchet at the current 53/63: raise it when seed hits rise, never lower it.
+SEED_THRESHOLD = 0.84
 
 
 def load_fixture(path=FIXTURE):
@@ -40,9 +53,11 @@ def unknown_ids(phrases, graph):
 
 
 def score(phrases, graph, edges, limit=find_cli.DEFAULT_LIMIT, hops=2):
-    """One result row per phrase: {phrase, expect, hit, seed_hit, rank, result}.
+    """One result row per phrase: {phrase, expect, hit, seed_hit, rank, abstained, result}.
 
     rank is the 1-based seed position of the best-placed expected id, or None.
+    abstained is true when find_cli returned no seeds (or said no_match); it is
+    the right answer only for a phrase whose expect is [].
     """
     rows = []
     for p in phrases:
@@ -56,51 +71,87 @@ def score(phrases, graph, edges, limit=find_cli.DEFAULT_LIMIT, hops=2):
             "hit": any(c in ids for c in p["expect"]),
             "seed_hit": bool(ranks),
             "rank": min(ranks) if ranks else None,
+            "abstained": bool(r.get("no_match")) or not seeds,
             "result": r,
         })
     return rows
 
 
+def rates(rows):
+    """{n, hits, seed_hits, subgraph_rate, seed_rate, negatives, abstained} for scored rows.
+
+    Rates are over phrases that expect a command; None when there are none.
+    """
+    pos = [r for r in rows if r["expect"]]
+    neg = [r for r in rows if not r["expect"]]
+    n = len(pos)
+    hits = sum(r["hit"] for r in pos)
+    seed_hits = sum(r["seed_hit"] for r in pos)
+    return {
+        "n": n, "hits": hits, "seed_hits": seed_hits,
+        "subgraph_rate": hits / n if n else None,
+        "seed_rate": seed_hits / n if n else None,
+        "negatives": len(neg), "abstained": sum(r["abstained"] for r in neg),
+    }
+
+
+def _mark(r):
+    if not r["expect"]:
+        return "abstain" if r["abstained"] else "MISS"
+    return "seed#%d" % r["rank"] if r["rank"] else ("nbr" if r["hit"] else "MISS")
+
+
 def report(rows, out=None):
+    """Print rates, one line per phrase, then each miss in detail. Returns rates(rows)."""
     out = out or sys.stdout
-    n = len(rows)
-    hits = sum(r["hit"] for r in rows)
-    seed_hits = sum(r["seed_hit"] for r in rows)
-    print(f"subgraph hit rate  {hits}/{n} = {hits / n:.0%}", file=out)
-    print(f"seed hit rate      {seed_hits}/{n} = {seed_hits / n:.0%}", file=out)
+    s = rates(rows)
+    n = s["n"]
+    if n:
+        print(f"subgraph hit rate  {s['hits']}/{n} = {s['subgraph_rate']:.0%}", file=out)
+        print(f"seed hit rate      {s['seed_hits']}/{n} = {s['seed_rate']:.0%}", file=out)
+    if s["negatives"]:
+        print(f"abstention         {s['abstained']}/{s['negatives']} phrases with no fitting command",
+              file=out)
     for r in rows:
-        mark = "seed#%d" % r["rank"] if r["rank"] else ("nbr" if r["hit"] else "MISS")
-        print(f"  {mark:7} {r['phrase']}", file=out)
-    misses = [r for r in rows if not r["hit"]]
-    for r in misses:
+        print(f"  {_mark(r):7} {r['phrase']}", file=out)
+    for r in rows:
+        if _mark(r) != "MISS":
+            continue
         res = r["result"]
-        print(f"\nMISS {r['phrase']!r}\n  expected  {', '.join(r['expect'])}", file=out)
+        expected = ", ".join(r["expect"]) or "(no command: should abstain)"
+        print(f"\nMISS {r['phrase']!r}\n  expected  {expected}", file=out)
         if not res["seeds"]:
             print("  (empty subgraph: no command scored above 0)", file=out)
-        for s in res["seeds"]:
-            print(f"  seed      {s['id']}  {s['score']}", file=out)
+        for sd in res["seeds"]:
+            print(f"  seed      {sd['id']}  {sd['score']}", file=out)
         for nb in res["neighbours"]:
             print(f"  nbr       {nb['id']}  via {nb['via']} from {nb['from']}", file=out)
-    return hits / n
+    return s
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--threshold", type=float, default=THRESHOLD)
+    ap.add_argument("--seed-threshold", type=float, default=SEED_THRESHOLD)
     ap.add_argument("--limit", type=int, default=find_cli.DEFAULT_LIMIT)
     ap.add_argument("--hops", type=int, default=2)
     args = ap.parse_args(argv)
 
     graph, edges = find_cli.load()
     phrases = load_fixture()
-    bad = unknown_ids(phrases, graph)
+    heldout = load_fixture(HELDOUT) if HELDOUT.exists() else []
+    bad = unknown_ids(phrases + heldout, graph)
     if bad:
         for phrase, cid in bad:
             print(f"fixture names {cid!r} (for {phrase!r}), not a command in the graph",
                   file=sys.stderr)
         return 2
-    rate = report(score(phrases, graph, edges, args.limit, args.hops))
-    return 0 if rate >= args.threshold else 1
+    s = report(score(phrases, graph, edges, args.limit, args.hops))
+    if heldout:
+        print("\n== held-out: logged real queries, never tuned on, reported not gated ==")
+        report(score(heldout, graph, edges, args.limit, args.hops))
+    ok = s["subgraph_rate"] >= args.threshold and s["seed_rate"] >= args.seed_threshold
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":

@@ -1,0 +1,11 @@
+{
+  "note": "Held-out find_cli phrases (task:9d42faae): real queries from the claude-hooks find_cli_queries log, copied after a hand review that removes personal data. Never tune the ranker, aliases or keywords on these; tuning phrases go in eval_phrases.json. expect [] means no command covers the task, so the right answer is an empty result (an abstention). Reported by eval_find_cli.py, not gated.",
+  "phrases": [
+    {"phrase": "list reminder lists", "expect": ["mac reminders lists"], "source": "logged"},
+    {"phrase": "send a text message to a contact", "expect": ["mac imessage send", "mac contacts search"], "source": "logged"},
+    {"phrase": "current vimshottari dasha mahadasha antardasha pratyantar", "expect": ["mac astrology aq_current_dasha", "mac astrology mahadasha"], "source": "logged"},
+    {"phrase": "gold price history, US 10-year yield, real yield, dollar index time series since January 2026", "expect": ["mac market gold_regime_history"], "source": "logged"},
+    {"phrase": "fetch FRED series DFII10 real yield and latest gold, DXY, US 10y quotes", "expect": [], "source": "logged"},
+    {"phrase": "git push commit to a local repo", "expect": ["mac git push", "mac git commit"], "source": "logged"}
+  ]
+}

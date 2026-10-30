@@ -40,6 +40,52 @@ class FixtureTest(unittest.TestCase):
         misses = [r["phrase"] for r in rows if not r["hit"]]
         self.assertGreaterEqual(rate, ev.THRESHOLD, misses)
 
+    def test_seed_hit_rate_meets_its_gate(self):
+        # task:9d42faae: the subgraph rate alone passes while seeds slip.
+        s = ev.rates(ev.score(self.phrases, self.graph, self.edges))
+        self.assertGreaterEqual(s["seed_rate"], ev.SEED_THRESHOLD, s)
+
+
+class HeldoutTest(unittest.TestCase):
+    """eval_heldout.json: logged real queries, scored apart and never tuned on (task:9d42faae)."""
+
+    def setUp(self):
+        self.graph, self.edges = find_cli.load()
+        self.heldout = ev.load_fixture(ev.HELDOUT)
+
+    def test_every_phrase_is_logged_and_may_expect_nothing(self):
+        self.assertTrue(self.heldout)
+        for p in self.heldout:
+            self.assertTrue(p["phrase"].strip())
+            self.assertIsInstance(p["expect"], list, p["phrase"])
+            self.assertEqual(p["source"], "logged", p["phrase"])
+
+    def test_every_expected_id_is_a_command_in_the_committed_graph(self):
+        self.assertEqual(ev.unknown_ids(self.heldout, self.graph), [])
+
+    def test_no_held_out_phrase_is_in_the_tuning_set(self):
+        tuning = {p["phrase"].strip().lower() for p in ev.load_fixture()}
+        self.assertEqual([p["phrase"] for p in self.heldout
+                          if p["phrase"].strip().lower() in tuning], [])
+
+
+class AbstainTest(unittest.TestCase):
+    def setUp(self):
+        self.graph, self.edges = find_cli.load()
+
+    def test_empty_expect_is_scored_as_abstention_and_left_out_of_hit_rates(self):
+        phrases = [{"phrase": "book a flight to delhi", "expect": []},
+                   {"phrase": "list reminder lists", "expect": ["mac reminders lists"]}]
+        rows = ev.score(phrases, self.graph, self.edges)
+        self.assertTrue(rows[0]["abstained"])
+        s = ev.rates(rows)
+        self.assertEqual((s["n"], s["hits"], s["negatives"], s["abstained"]), (1, 1, 1, 1))
+
+    def test_returning_seeds_for_an_empty_expect_is_not_an_abstention(self):
+        rows = ev.score([{"phrase": "list reminder lists", "expect": []}], self.graph, self.edges)
+        self.assertFalse(rows[0]["abstained"])
+        self.assertEqual(ev.rates(rows)["abstained"], 0)
+
 
 class MainTest(unittest.TestCase):
     def test_exit_code_follows_the_threshold(self):
@@ -48,6 +94,30 @@ class MainTest(unittest.TestCase):
         with contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(ev.main(["--threshold", "0"]), 0)
             self.assertEqual(ev.main(["--threshold", "1.01"]), 1)
+
+    def test_seed_threshold_alone_fails_the_gate(self):
+        import io
+        import contextlib
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(ev.main(["--threshold", "0", "--seed-threshold", "1.01"]), 1)
+
+    def test_held_out_misses_never_change_the_exit_code(self):
+        import io
+        import contextlib
+        import json
+        import tempfile
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "heldout.json"
+            path.write_text(json.dumps({"phrases": [
+                {"phrase": "list reminder lists", "expect": ["mac git push"], "source": "logged"},
+                {"phrase": "list reminder lists", "expect": [], "source": "logged"}]}))
+            buf = io.StringIO()
+            with mock.patch.object(ev, "HELDOUT", path), contextlib.redirect_stdout(buf):
+                self.assertEqual(ev.main([]), 0)
+        held = buf.getvalue().split("== held-out")[1]
+        self.assertIn("subgraph hit rate  0/1", held)
+        self.assertIn("abstention         0/1", held)
 
 
 if __name__ == "__main__":
