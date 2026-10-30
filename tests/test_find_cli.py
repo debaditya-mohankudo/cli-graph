@@ -397,11 +397,10 @@ class ServerTest(unittest.TestCase):
         from unittest import mock
         from find_cli import server
         counts = {"mac music play": {"count": 3, "last_used": "2026-10-27 03:00:00"}}
-        with mock.patch.object(server._usage, "load", return_value=counts):
+        graph, edges = server.FINDER.current()
+        with mock.patch("find_cli.service._usage.load", return_value=counts):
             got = server.find_cli("play a song")
-        self.assertEqual(got, find_cli.find("play a song", server.GRAPH, server.EDGES,
-                                            usage=counts))
-
+        self.assertEqual(got, find_cli.find("play a song", graph, edges, usage=counts))
 
 if __name__ == "__main__":
     unittest.main()

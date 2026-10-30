@@ -131,8 +131,16 @@ deterministic, and no LLM runs inside it.
 Run the server:
 
 ```bash
-uv run --directory ~/workspace/cli-graph python -m find_cli.server
+~/workspace/cli-graph/bin/find_cli
 ```
+
+`bin/find_cli` runs the server under the repo's `.venv` with no `uv sync`
+step (like `bin/mac`), so a lock or network failure cannot leave a session
+without the tool. Set the MCP config's `command` to that path with no args;
+run `uv sync` once after a checkout. The server re-reads the graph and edges
+when their files change and keeps the last good ones if a file is half
+written. A failure comes back as `{"error": {code, message}}`. With the
+server down, `mac cli find "<task>"` gives the same result.
 
 ## Setup and tests
 

@@ -1,24 +1,24 @@
 """The find_cli MCP server: one tool, `find_cli` (task:129f1bc3).
 
-Needs the `mcp` package, so run it under cli-graph's uv venv, the same one
-bin/mac and the suite use:
+Needs the `mcp` package, so run it through bin/find_cli, which uses
+cli-graph's .venv with no `uv sync` step (like bin/mac):
 
-    uv run --directory ~/workspace/cli-graph python -m find_cli.server
+    ~/workspace/cli-graph/bin/find_cli
 
-The graph and edges are loaded once at start-up from the committed files.
-Usage counts (find_cli.usage) are read on every call, because the server
-lives for a whole Claude session and the counts change under it.
+The graph and edges are re-read when their files change (find_cli.service),
+and usage counts on every call, because the server lives for a whole Claude
+session. The tool description and its area list are fixed at start: a new
+area works as a hint after a reload but is listed only after a restart.
 """
 from mcp.server.fastmcp import FastMCP
 
-from find_cli import DEFAULT_LIMIT, find, load
-from find_cli import usage as _usage
+from find_cli import DEFAULT_LIMIT
+from find_cli.service import Finder
 
 mcp = FastMCP("find_cli")
-GRAPH, EDGES = load()
+FINDER = Finder()
 
-
-AREAS = ", ".join(sorted(GRAPH["domains"]))
+AREAS = ", ".join(sorted(FINDER.current()[0]["domains"]))
 
 DESCRIPTION = """Find the `mac` CLI commands for a task. Returns seed commands (best
 match first) and their neighbours, each with its usage line, read/write
@@ -39,8 +39,7 @@ area: optional area you already know (%s):
 
 @mcp.tool(description=DESCRIPTION)
 def find_cli(task: str, limit: int = DEFAULT_LIMIT, hops: int = 2, area: str = "") -> dict:
-    return find(task, GRAPH, EDGES, limit=limit, hops=hops, usage=_usage.load(),
-                area=area or None)
+    return FINDER.answer(task, limit=limit, hops=hops, area=area)
 
 
 if __name__ == "__main__":

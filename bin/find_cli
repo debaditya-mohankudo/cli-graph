@@ -1,0 +1,10 @@
+#!/bin/sh
+# Runs the find_cli MCP server under cli-graph's .venv with no `uv sync`, so a
+# lock or network failure cannot leave a session without the tool (task:d430f68b).
+# PYTHONPATH is set here because the repo is not an installed package. Like
+# bin/mac, FIND_CLI_PYTHON overrides the interpreter; without the venv it
+# exits with a message on stderr.
+here=$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)
+py=${FIND_CLI_PYTHON:-$here/.venv/bin/python}
+[ -x "$py" ] || { echo "find_cli: no $py; run 'uv sync' in $here" >&2; exit 1; }
+PYTHONPATH="$here${PYTHONPATH:+:$PYTHONPATH}" exec "$py" -m find_cli.server "$@"

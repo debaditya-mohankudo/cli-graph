@@ -7,12 +7,13 @@
     "markets": ["market", "wyckoff"],
     "media": ["music", "podcasts", "sound"],
     "productivity": ["calendar", "notes", "reminders", "time"],
-    "system": ["hooks", "system", "vpn"],
+    "system": ["cli", "hooks", "system", "vpn"],
     "web": ["connector", "safari"]
   },
   "domains": {
     "astrology": {"group": "astrology", "verbs": ["aq_aspects_on_house", "aq_bhava_chalit", "aq_current_dasha", "aq_dasha_timeline", "aq_navamsha", "aq_neecha_bhanga", "aq_pd_timeline", "aq_planets", "aq_predict_events", "aq_predict_events_batch", "aq_pushkar_navamsa", "aq_strength_summary", "aq_upcoming_transitions", "aq_vargottama", "aq_yogas", "d10", "d12", "d9", "gochar_dasha_tally", "gochar_house", "gochar_summary", "mahadasha", "panchang_date", "panchang_rahukaal", "panchang_today", "planets_date", "planets_lagna", "planets_today", "tarabala"]},
     "calendar": {"group": "productivity", "verbs": ["add_event", "delete_event", "get_events_by_date", "get_noise_summary", "get_upcoming_events", "list_events"]},
+    "cli": {"group": "system", "verbs": ["find"]},
     "code_rag": {"group": "knowledge", "verbs": ["index_files", "query", "smart_search"]},
     "connector": {"group": "web", "verbs": ["execute_action", "health", "list_actions"]},
     "contacts": {"group": "communication", "verbs": ["search"]},
@@ -74,6 +75,7 @@
     {"area": "calendar", "cli": "mac", "desc": "get per-asset noise summary (gold/crude/nifty/usdinr/dxy) for a date (YYYY-MM-DD) from the market-watch calendar", "id": "mac calendar get_noise_summary", "kind": "command", "mode": "read", "usage": "mac calendar get_noise_summary [-h] [--limit LIMIT] [--json] date", "verb": "get_noise_summary"},
     {"area": "calendar", "cli": "mac", "desc": "get market-watch calendar events (Calendar.app) from from_date (default today) through days_ahead days, by date then noise level. The 7-day ambient-context read", "id": "mac calendar get_upcoming_events", "kind": "command", "mode": "read", "usage": "mac calendar get_upcoming_events [-h] [--limit LIMIT] [--json] [--days-ahead DAYS_AHEAD] [--from-date FROM_DATE]", "verb": "get_upcoming_events"},
     {"area": "calendar", "cli": "mac", "desc": "list calendar events overlapping [start_date, end_date] (YYYY-MM-DD or full ISO-8601; a bare end date covers that whole day). Pass calendar (title or identifier, e.g. \"market-watch\") to query one calendar. Recurring events are expanded. Returns events sorted by start, with local ISO start/end", "id": "mac calendar list_events", "kind": "command", "mode": "read", "usage": "mac calendar list_events [-h] [--limit LIMIT] [--json] [--calendar CALENDAR] start_date end_date", "verb": "list_events"},
+    {"area": "cli", "cli": "mac", "desc": "find the mac commands for a task in plain words: seeds and neighbours with usage (--limit sets the number of seeds)", "id": "mac cli find", "kind": "command", "mode": "read", "usage": "mac cli find [-h] [--limit LIMIT] [--json] [--hops HOPS] [--area AREA] task", "verb": "find"},
     {"area": "code_rag", "cli": "mac", "desc": "re-index specific files of a repo into its code search index", "id": "mac code_rag index_files", "kind": "command", "mode": "write", "usage": "mac code_rag index_files [-h] [--limit LIMIT] [--json] [--repo REPO] files [files ...]", "verb": "index_files"},
     {"area": "code_rag", "cli": "mac", "desc": "semantic search over a repo's code: find functions and files by what they do", "id": "mac code_rag query", "kind": "command", "mode": "read", "usage": "mac code_rag query [-h] [--limit LIMIT] [--json] [--repo REPO] [--k K] query", "verb": "query"},
     {"area": "code_rag", "cli": "mac", "desc": "find a symbol or concept in a repo's code: name lookup first, semantic rerank after", "id": "mac code_rag smart_search", "kind": "command", "mode": "read", "usage": "mac code_rag smart_search [-h] [--limit LIMIT] [--json] [--repo REPO] [--k K] query", "verb": "smart_search"},

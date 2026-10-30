@@ -7,7 +7,7 @@
     "markets": ["market", "wyckoff"],
     "media": ["music", "podcasts", "sound"],
     "productivity": ["calendar", "notes", "reminders", "time"],
-    "system": ["hooks", "system", "vpn"],
+    "system": ["cli", "hooks", "system", "vpn"],
     "web": ["connector", "safari"]
   },
   "ungrouped": []
