@@ -52,6 +52,9 @@
     {"phrase": "remind me to pull participant OI after 7pm", "expect": ["mac reminders create"], "source": "synonym"},
     {"phrase": "schedule the HDFC earnings date", "expect": ["mac calendar add_event"], "source": "synonym"},
     {"phrase": "did the bank reply yet", "expect": ["mac mail read", "mac mail search"], "source": "synonym"},
+    {"phrase": "whats on my schedule tomorrow", "expect": ["mac calendar get_events_by_date", "mac calendar get_upcoming_events", "mac calendar list_events"], "source": "synonym"},
+    {"phrase": "show my agenda", "expect": ["mac calendar get_upcoming_events", "mac calendar list_events"], "source": "synonym"},
+    {"phrase": "any meetings tomorrow", "expect": ["mac calendar list_events", "mac calendar get_events_by_date"], "source": "synonym"},
     {"phrase": "save this as a memory for next time", "expect": ["mac memory add"], "source": "paraphrase"},
     {"phrase": "search my memory for what I decided about this", "expect": ["mac memory search"], "source": "paraphrase"},
     {"phrase": "find which vault folder holds my notes on this topic", "expect": ["mac vault_map find"], "source": "paraphrase"},
@@ -66,6 +69,9 @@
     {"phrase": "show the recent commits", "expect": ["mac git log"], "source": "paraphrase"},
     {"phrase": "book a flight to delhi", "expect": [], "source": "negative"},
     {"phrase": "order a pizza", "expect": [], "source": "negative"},
-    {"phrase": "what is the weather in pune", "expect": [], "source": "negative"}
+    {"phrase": "what is the weather in pune", "expect": [], "source": "negative"},
+    {"phrase": "what is nifty doing", "expect": [], "source": "negative"},
+    {"phrase": "nse top gainers today", "expect": [], "source": "negative"},
+    {"phrase": "option chain for banknifty", "expect": [], "source": "negative"}
   ]
 }

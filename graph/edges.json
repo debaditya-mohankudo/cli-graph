@@ -1,6 +1,9 @@
 {
   "edges": [
     {"from": "mac calendar schedule", "type": "alias_of", "to": "mac calendar add_event"},
+    {"from": "mac calendar agenda", "type": "alias_of", "to": "mac calendar get_upcoming_events"},
+    {"from": "mac calendar tomorrow", "type": "alias_of", "to": "mac calendar get_events_by_date"},
+    {"from": "mac calendar meetings", "type": "alias_of", "to": "mac calendar list_events"},
     {"from": "mac imessage dm", "type": "alias_of", "to": "mac imessage send"},
     {"from": "mac imessage ping", "type": "alias_of", "to": "mac imessage send"},
     {"from": "mac imessage text", "type": "alias_of", "to": "mac imessage send"},
