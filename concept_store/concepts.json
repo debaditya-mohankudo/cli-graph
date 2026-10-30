@@ -33,14 +33,17 @@
         "The MCP server registers exactly one tool, `find_cli(task, limit, hops)`; its schema is ~190 tokens.",
         "tests/eval_find_cli.py scores tests/eval_phrases.json (real transcript prompts -> list of acceptable command ids). A hit means any expected id is in seeds or neighbours. It prints subgraph and seed hit rates plus every miss with its subgraph, and exits 0 when the subgraph rate is >= THRESHOLD=0.9 and the seed rate >= SEED_THRESHOLD=0.84 (a ratchet, task:9d42faae), 1 when either is below, 2 when a fixture names an id that is not in the graph. A phrase with expect [] is scored as an abstention (correct when find returns no seeds or no_match) and excluded from the hit rates. tests/eval_heldout.json (source 'logged': hand-reviewed real queries from claude-hooks find_cli_queries, never tuned on) is reported after the tuning set and never affects the exit code.",
         "find(..., usage=None): usage is {id: {count, last_used}} supplied by the caller. When given, every seed and neighbour gains count and last_used (0 / None for an id with no row); ranking and order never change. When None, the output has no usage fields (task:c5a222dc).",
-        "find_cli/usage.py load(path) reads mac rows of mcp_tool_hints in ~/.claude/tool_hints.sqlite (FIND_CLI_USAGE_DB overrides) read-only via mode=ro; a missing file/table or any sqlite3.Error gives {}. server.find_cli calls it on every request, not at start-up, because the server lives for a whole Claude session.",
         "find(task, graph, edges, limit=5, hops=2, usage=None) -> {query, seeds: [{id, score, mode, desc, usage[, count, last_used]}], neighbours: [{id, via, dir, from, hop, mode, desc, usage[, count, last_used]}]}; seeds are best first, ties broken by id.",
         "rank.scores applies two query-side adjustments; documents are indexed unchanged (task:2dcdba79). GENERIC words (check if any now show shows) score at GENERIC_WEIGHT=0.25 rather than being stopworded, so commands whose own text uses them keep some credit. 'get' is deliberately not GENERIC: it is the verb of get_* commands.",
         "rank.forms(term): a query word also matches term+'s', and term minus a trailing 's' when longer than 4 letters and not '-ss' (so 'news' never folds to 'new'). The word and its forms are ONE BM25 term: one df over docs holding any form, non-exact forms add VARIANT_WEIGHT=0.8 to tf, so an exact match beats a folded one. Per-variant idf was rejected: the rarer form outranked the exact one.",
-        "find() returns no_match (true iff no command scored above 0) and confidence {level, coverage, gap} from rank.confidence: level 'none' with no seeds, 'low' when coverage < LOW_COVERAGE (0.3) and gap < LOW_GAP (0.5), else 'high' (task:d08ebd55)."
+        "find() returns no_match (true iff no command scored above 0) and confidence {level, coverage, gap} from rank.confidence: level 'none' with no seeds, 'low' when coverage < LOW_COVERAGE (0.3) and gap < LOW_GAP (0.5), else 'high' (task:d08ebd55).",
+        "find_cli/service.py Finder.current() re-reads graph/cli_graph.json and graph/edges.json when either file's mtime or size changes, so a regenerated graph or edited edges.json shows in the next call without a server restart. A file that fails to parse keeps the last good pair; only a first load with no good pair is an error (task:d430f68b).",
+        "Finder.answer() never raises: a failure returns a contract-shaped {\"error\": {code, message}} (mac.contract.error_object, code 'internal'), for both the MCP tool and `mac cli find`.",
+        "`mac cli find` is the shared CLI fallback for when the MCP server is down; claude-hooks find_cli_log.link_calls ignores `mac cli` calls so such a lookup is not judged a miss against the pending find_cli query (task:ddc32293).",
+        "find_cli/usage.py load(path) reads mac rows of mcp_tool_hints in ~/.claude/tool_hints.sqlite (FIND_CLI_USAGE_DB overrides) read-only via mode=ro; a missing file/table or any sqlite3.Error gives {}. Finder.answer calls it on every request, not at start-up, because the server lives for a whole Claude session."
       ],
       "created_at": "2026-10-26T13:18:06.872864+00:00",
-      "description": "find_cli maps a plain-language task phrase to a small subgraph of `mac` commands. rank.py scores commands with stdlib BM25 over area + verb + desc + alias names to pick seeds. expand.py adds neighbours: hand-written edges at hops 1-2 plus up to 3 same-area siblings per seed. find() combines the two. server.py exposes it as the single MCP tool `find_cli`, run under local-mac's venv.",
+      "description": "find_cli maps a plain-language task phrase to a small subgraph of `mac` commands. rank.py scores commands with stdlib BM25 over area + verb + desc + alias names to pick seeds. expand.py adds neighbours: hand-written edges at hops 1-2 plus up to 3 same-area siblings per seed. find() combines the two. server.py exposes it as the single MCP tool `find_cli`, launched by bin/find_cli on cli-graph's own .venv (no uv sync at launch; FIND_CLI_PYTHON overrides the interpreter). find_cli/service.py Finder is shared with the CLI fallback `mac cli find`, so both return the same result for the same input.",
       "evidence": [
         "find_cli/__init__.py:find",
         "find_cli/rank.py:seeds",
@@ -72,7 +75,7 @@
         "Off-fixture guard phrases in tests/test_find_cli.py (GUARDS, test_news_does_not_seed_a_create_command) pin seeds outside the eval fixture, so a ranking change that trades unseen phrasing for fixture wins fails the suite. eval_find_cli.py does not report them; run the suite, not only the eval.",
         "Confidence is advice only: find()'s seeds equal rank.seeds() for the same query, so no_match/confidence never hide or reorder a command."
       ],
-      "last_validated": "2026-10-30T05:00:22.107609+00:00",
+      "last_validated": "2026-10-30T08:25:49.358195+00:00",
       "module": "find_cli/__init__.py",
       "name": "find-cli",
       "related": [
@@ -371,6 +374,6 @@
     }
   },
   "meta": {
-    "updated_at": "2026-10-30T05:00:22.107694+00:00"
+    "updated_at": "2026-10-30T08:25:49.358267+00:00"
   }
 }
