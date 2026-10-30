@@ -72,7 +72,7 @@ rejected.
 ## `find_cli`
 
 ```python
-find_cli(task: str, limit: int = 5, hops: int = 2) -> dict
+find_cli(task: str, limit: int = 5, hops: int = 2, area: str = "") -> dict
 ```
 
 It returns `seeds`, the best BM25 matches for the task, and `neighbours`.
@@ -116,7 +116,12 @@ Every area has to be listed once, either in
 a group or under `ungrouped`, so a new area can't be left out by accident. A
 query word that names a group ("communication") ranks that group's matching
 commands higher. Neither the boost nor the group neighbours can add a
-command the rest of the query didn't match.
+command the rest of the query didn't match. The same boost applies to an
+area the query names ("vault", "notes"), and to the optional `area` argument,
+which takes an area or group name. The hint reorders seeds but never hides the
+best seed without it; an unknown hint changes nothing and comes back as
+`hint: {known: false, valid: [...]}`. The eval prints seed and top-1 with and
+without an oracle hint.
 
 The result is capped at 25 commands and only names commands that exist in
 the graph. The `alias_of` edges add their alias words to the target's search
@@ -138,7 +143,7 @@ repo.
 ```bash
 uv sync
 uv run python -m unittest discover -s tests   # whole suite
-uv run python tests/eval_find_cli.py          # find_cli hit-rate eval (90% subgraph + 84% seed + confident-wrong ceiling)
+uv run python tests/eval_find_cli.py          # find_cli hit-rate eval (90% subgraph + 90% seed + confident-wrong ceiling)
 uv run python -m graph.generate --check       # graph drift check
 ```
 

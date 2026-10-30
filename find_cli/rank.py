@@ -26,6 +26,11 @@ Group boost: a query word that names an area group (graph/groups.json, e.g.
 GROUP_BOOST. Only scores already above 0 are boosted, so the group word
 reorders matches but never admits a command the rest of the query missed.
 Group names are not added to documents.
+
+Area boost (task:fcaad255): the same multiplier for the commands of an area the
+query names (every token of the area name appears, e.g. "vault" or "notes") and
+for an area or group the caller's hint names. The hint is plain input resolved
+by string match; an unknown one is reported by hint_info(), never applied.
 """
 import math
 import re
@@ -110,16 +115,36 @@ def documents(graph, edges=()):
     return docs
 
 
-def scores(query, docs, groups=None):
+def norm_hint(hint):
+    """A hint as a lowercase area/group name: 'Code-RAG ' -> 'code_rag'."""
+    return re.sub(r"[\s-]+", "_", (hint or "").strip().lower())
+
+
+def hint_info(hint, graph):
+    """{value, known, valid} for a caller's hint; valid is the sorted areas and
+    group names it can be. known is false when hint matches neither."""
+    valid = sorted(set(graph["domains"]) | {d["group"] for d in graph["domains"].values()
+                                            if d["group"]})
+    value = norm_hint(hint)
+    return {"value": value, "known": value in valid, "valid": valid}
+
+
+def scores(query, docs, groups=None, hint=None):
     """{command id: BM25 score} for every document, rounded to 3 places.
 
     groups ({command id: group name}, see graph.groups.command_groups) turns
     on the group boost: a query word naming a group multiplies the positive
-    scores of that group's commands by GROUP_BOOST.
+    scores of that group's commands by GROUP_BOOST. The same factor applies once
+    to a command whose area the query names or whose area or group the hint
+    names (hint, see norm_hint).
     """
+    hint = norm_hint(hint)
     terms = list(dict.fromkeys(tokens(query)))
     named = {g for g in set((groups or {}).values())
-             if any(g in forms(t) or t in forms(g) for t in terms)}
+             if hint == g or any(g in forms(t) or t in forms(g) for t in terms)}
+    areas = {a for a in {c.split()[1] for c in docs}
+             if hint == a or all(any(w in forms(t) or t in forms(w) for t in terms)
+                                 for w in tokens(a))}
     n = len(docs)
     avgdl = sum(len(d) for d in docs.values()) / n if n else 0.0
     tforms = {t: forms(t) for t in terms}
@@ -138,7 +163,7 @@ def scores(query, docs, groups=None):
             idf = math.log(1 + (n - df[t] + 0.5) / (df[t] + 0.5))
             w = GENERIC_WEIGHT if t in GENERIC else 1.0
             s += w * idf * tf * (K1 + 1) / (tf + K1 * (1 - B + B * dl / avgdl))
-        if s and groups and groups.get(cid) in named:
+        if s and ((groups and groups.get(cid) in named) or cid.split()[1] in areas):
             s *= GROUP_BOOST
         out[cid] = round(s, 3)
     return out
@@ -178,7 +203,19 @@ def ordered(score_map):
     return sorted(score_map, key=lambda cid: (-score_map[cid], cid))
 
 
-def seeds(query, graph, edges=(), limit=5):
-    """The top `limit` commands with a positive score, as (id, score) pairs."""
-    s = scores(query, documents(graph, edges), command_groups(graph))
-    return [(cid, s[cid]) for cid in ordered(s) if s[cid] > 0][:max(limit, 0)]
+def seeds(query, graph, edges=(), limit=5, hint=None):
+    """The top `limit` commands with a positive score, as (id, score) pairs.
+
+    With a hint the list is reordered by the boost, but the best seed without
+    the hint always stays: if the boost pushed it out, it takes the last slot.
+    """
+    docs = documents(graph, edges)
+    groups = command_groups(graph)
+    s = scores(query, docs, groups, hint)
+    out = [(cid, s[cid]) for cid in ordered(s) if s[cid] > 0][:max(limit, 0)]
+    if norm_hint(hint) and out:
+        plain = scores(query, docs, groups)
+        best = ordered(plain)[0]
+        if plain[best] > 0 and best not in [c for c, _ in out]:
+            out[-1] = (best, s[best])
+    return out

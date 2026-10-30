@@ -43,11 +43,11 @@ from graph.validate_edges import command_ids
 FIXTURE = REPO / "tests" / "eval_phrases.json"
 HELDOUT = REPO / "tests" / "eval_heldout.json"
 THRESHOLD = 0.9
-# A ratchet at the current 53/63: raise it when seed hits rise, never lower it.
-SEED_THRESHOLD = 0.84
-# A ratchet at the current 7 (1 negative + 6 positives): lower it when a
+# A ratchet at 63/70, under the current 65/70: raise it when seed hits rise, never lower it.
+SEED_THRESHOLD = 0.9
+# A ratchet at the current 3 (was 7 before the area boost, task:fcaad255): lower it when a
 # confident wrong answer is fixed, never raise it (task:e720fe9a).
-CONFIDENT_WRONG_CEILING = 7
+CONFIDENT_WRONG_CEILING = 3
 
 
 def load_fixture(path=FIXTURE):
@@ -61,16 +61,24 @@ def unknown_ids(phrases, graph):
     return [(p["phrase"], cid) for p in phrases for cid in p["expect"] if cid not in commands]
 
 
-def score(phrases, graph, edges, limit=find_cli.DEFAULT_LIMIT, hops=2):
+def oracle_area(p):
+    """The area of a phrase's first expected command, the best hint a caller
+    could give; None for a phrase with no fitting command."""
+    return p["expect"][0].split()[1] if p["expect"] else None
+
+
+def score(phrases, graph, edges, limit=find_cli.DEFAULT_LIMIT, hops=2, oracle=False):
     """One result row per phrase: {phrase, expect, hit, seed_hit, rank, abstained, result}.
 
     rank is the 1-based seed position of the best-placed expected id, or None.
     abstained is true when find_cli returned no seeds (or said no_match); it is
     the right answer only for a phrase whose expect is [].
+    oracle passes each phrase's true area as the hint (task:fcaad255).
     """
     rows = []
     for p in phrases:
-        r = find_cli.find(p["phrase"], graph, edges, limit=limit, hops=hops)
+        r = find_cli.find(p["phrase"], graph, edges, limit=limit, hops=hops,
+                           area=oracle_area(p) if oracle else None)
         seeds = [s["id"] for s in r["seeds"]]
         ids = seeds + [n["id"] for n in r["neighbours"]]
         ranks = [seeds.index(c) + 1 for c in p["expect"] if c in seeds]
@@ -186,6 +194,14 @@ def main(argv=None):
                   file=sys.stderr)
         return 2
     s = report(score(phrases, graph, edges, args.limit, args.hops))
+    print("\n== area hint (task:fcaad255): seed / top-1 without and with an oracle hint ==")
+    for name, ph in (("tuning", phrases), ("held-out", heldout)):
+        if not ph:
+            continue
+        a = rates(score(ph, graph, edges, args.limit, args.hops))
+        b = rates(score(ph, graph, edges, args.limit, args.hops, oracle=True))
+        print(f"{name:9} seed {a['seed_hits']}/{a['n']} -> {b['seed_hits']}/{b['n']}"
+              f"   top-1 {a['top1_hits']}/{a['n']} -> {b['top1_hits']}/{b['n']}")
     if heldout:
         print("\n== held-out: logged real queries, never tuned on, reported not gated ==")
         report(score(heldout, graph, edges, args.limit, args.hops))

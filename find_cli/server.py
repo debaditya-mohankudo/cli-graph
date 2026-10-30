@@ -18,21 +18,29 @@ mcp = FastMCP("find_cli")
 GRAPH, EDGES = load()
 
 
-@mcp.tool()
-def find_cli(task: str, limit: int = DEFAULT_LIMIT, hops: int = 2) -> dict:
-    """Find the `mac` CLI commands for a task. Returns seed commands (best
-    match first) and their neighbours, each with its usage line, read/write
-    mode and how often it has been run (count, last_used). Run the chosen
-    command through Bash: `mac <area> <verb> --json`. no_match true means no
-    command covers the task: say so rather than run something. confidence
-    level "low" means the top seed matched only an incidental word: check its
-    desc fits the task before running it.
+AREAS = ", ".join(sorted(GRAPH["domains"]))
 
-    task: what you want to do, in plain words ("text someone", "read a note")
-    limit: number of seed commands (default 5)
-    hops: 0 seeds only, 1 adds linked commands, 2 also adds area siblings
-    """
-    return find(task, GRAPH, EDGES, limit=limit, hops=hops, usage=_usage.load())
+DESCRIPTION = """Find the `mac` CLI commands for a task. Returns seed commands (best
+match first) and their neighbours, each with its usage line, read/write
+mode and how often it has been run (count, last_used). Run the chosen
+command through Bash: `mac <area> <verb> --json`. no_match true means no
+command covers the task: say so rather than run something. confidence
+level "low" means the top seed matched only an incidental word: check its
+desc fits the task before running it.
+
+task: what you want to do, in plain words ("text someone", "read a note")
+limit: number of seed commands (default 5)
+hops: 0 seeds only, 1 adds linked commands, 2 also adds area siblings
+area: optional area you already know (%s):
+    boosts that area's commands, never hides others; an unknown value is
+    reported in hint
+""" % AREAS
+
+
+@mcp.tool(description=DESCRIPTION)
+def find_cli(task: str, limit: int = DEFAULT_LIMIT, hops: int = 2, area: str = "") -> dict:
+    return find(task, GRAPH, EDGES, limit=limit, hops=hops, usage=_usage.load(),
+                area=area or None)
 
 
 if __name__ == "__main__":

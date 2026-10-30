@@ -124,6 +124,46 @@ class RankTest(unittest.TestCase):
         self.assertTrue(rank.seeds("check", g), "a generic word still scores, just lower")
 
 
+class AreaHintTest(unittest.TestCase):
+    G = toy_graph(
+        cmd("notes", "read", "read a note"),
+        cmd("vault", "read", "read a note"),
+        cmd("mail", "read", "read a note"),
+    )
+
+    def test_query_naming_an_area_boosts_it(self):
+        base = rank.seeds("read a note", self.G)[0][0]
+        self.assertEqual(rank.seeds("read a note in vault", self.G)[0][0], "mac vault read")
+        self.assertNotEqual(base, "mac vault read")
+
+    def test_hint_boosts_and_keeps_every_seed(self):
+        plain = [c for c, _ in rank.seeds("read", self.G)]
+        hinted = [c for c, _ in rank.seeds("read", self.G, hint="Vault")]
+        self.assertEqual(hinted[0], "mac vault read")
+        self.assertEqual(sorted(hinted), sorted(plain))
+
+    def test_wrong_hint_keeps_best_plain_seed_under_a_tight_limit(self):
+        plain = rank.seeds("read", self.G, limit=1)[0][0]
+        got = rank.seeds("read", self.G, limit=1, hint="vault")
+        self.assertEqual([c for c, _ in got], [plain])
+        got = rank.seeds("read", self.G, limit=2, hint="mail")
+        self.assertIn(plain, [c for c, _ in got])
+
+    def test_unknown_hint_is_reported_and_changes_nothing(self):
+        a = find_cli.find("read a note", self.G, area="nonsense")
+        b = find_cli.find("read a note", self.G)
+        self.assertEqual(a["hint"]["known"], False)
+        self.assertEqual(a["hint"]["value"], "nonsense")
+        self.assertIn("vault", a["hint"]["valid"])
+        self.assertEqual(a["seeds"], b["seeds"])
+        self.assertNotIn("hint", b)
+
+    def test_known_hint_is_reported(self):
+        r = find_cli.find("read", self.G, area="vault")
+        self.assertTrue(r["hint"]["known"])
+        self.assertEqual(r["seeds"][0]["id"], "mac vault read")
+
+
 class ExpandTest(unittest.TestCase):
     def ids(self, out):
         return [n["id"] for n in out]
