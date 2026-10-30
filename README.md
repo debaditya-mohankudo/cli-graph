@@ -159,15 +159,32 @@ The eval gates the tuning set, `tests/eval_phrases.json`, on its subgraph
 and seed hit rates. It then prints `tests/eval_heldout.json` on its own:
 real queries from the claude-hooks `find_cli_queries` log, checked by hand
 for personal data before they're copied in. That set is never used for
-tuning and never changes the exit code. A phrase with `expect: []` means no
+tuning, and its seed hit rate is gated by `HELDOUT_SEED_THRESHOLD` (0.8,
+set before any tuning; it only goes up). A phrase with `expect: []` means no
 command fits, and it counts as correct only when `find_cli` returns no seeds.
 The eval also reports how often `low` confidence falls on top-1 hits, top-1
 misses and negatives, so the level is measured rather than assumed. It
 names each confident wrong answer: a phrase answered at `high` confidence
 with no expected command among the seeds (for a negative, any seed). The
 tuning set fails the eval when their count passes
-`CONFIDENT_WRONG_CEILING` (7 today); the ceiling only goes down. The
-held-out set lists them but is not gated.
+`CONFIDENT_WRONG_CEILING` (3 today); the ceiling only goes down. The
+held-out set lists them but only its seed rate is gated.
+
+Growing the held-out set from real use is a loop, run from claude-hooks:
+
+1. **Export.** `uv run python -m src.tools.find_cli_log --export --exclude
+   <cli-graph>/tests/eval_phrases.json --exclude
+   <cli-graph>/tests/eval_heldout.json` prints, as JSON on stdout, logged
+   queries in neither fixture (text, draft `expect`, outcome, chosen
+   command). It writes nothing into this repo. It is empty until a new query
+   is logged.
+2. **Review.** By hand: scrub personal data from the text (this repo is
+   public), fix `expect` (a `miss` or `unused` row is only a guess; `[]`
+   means no command fits), and drop the `id`, `outcome` and `chosen` keys.
+3. **Add.** Append the rows to `tests/eval_heldout.json` and run the eval.
+   Never change the ranker, aliases or keywords to make a held-out phrase
+   pass; if one fails, that is the signal. Raise `HELDOUT_SEED_THRESHOLD`
+   only when the set has grown enough to support it.
 
 Run everything through `uv run`. Plain `python3` lacks pydantic, so the
 parity modules fail to import. Live parity tests, which really call the

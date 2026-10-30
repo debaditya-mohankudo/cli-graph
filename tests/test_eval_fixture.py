@@ -130,9 +130,12 @@ class ConfidentWrongTest(unittest.TestCase):
         rows = self.rows
         with mock.patch.object(ev, "score", return_value=rows), \
                 contextlib.redirect_stdout(io.StringIO()):
+            # the mock also feeds the held-out set, so its seed gate is switched off here
             self.assertEqual(ev.main(["--threshold", "0", "--seed-threshold", "0",
+                                      "--heldout-seed-threshold", "0",
                                       "--confident-wrong-ceiling", "2"]), 0)
             self.assertEqual(ev.main(["--threshold", "0", "--seed-threshold", "0",
+                                      "--heldout-seed-threshold", "0",
                                       "--confident-wrong-ceiling", "1"]), 1)
 
     def test_committed_ceiling_holds_on_the_live_tuning_set(self):
@@ -155,7 +158,7 @@ class MainTest(unittest.TestCase):
         with contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(ev.main(["--threshold", "0", "--seed-threshold", "1.01"]), 1)
 
-    def test_held_out_misses_never_change_the_exit_code(self):
+    def test_held_out_seed_rate_gates_the_exit_code(self):
         import io
         import contextlib
         import json
@@ -168,10 +171,16 @@ class MainTest(unittest.TestCase):
                 {"phrase": "list reminder lists", "expect": [], "source": "logged"}]}))
             buf = io.StringIO()
             with mock.patch.object(ev, "HELDOUT", path), contextlib.redirect_stdout(buf):
-                self.assertEqual(ev.main([]), 0)
+                self.assertEqual(ev.main([]), 1)
+                self.assertEqual(ev.main(["--heldout-seed-threshold", "0"]), 0)
         held = buf.getvalue().split("== held-out")[1]
         self.assertIn("subgraph hit rate  0/1", held)
         self.assertIn("abstention         0/1", held)
+
+    def test_committed_held_out_threshold_holds_on_the_live_set(self):
+        graph, edges = find_cli.load()
+        s = ev.rates(ev.score(ev.load_fixture(ev.HELDOUT), graph, edges))
+        self.assertGreaterEqual(s["seed_rate"], ev.HELDOUT_SEED_THRESHOLD)
 
 
 if __name__ == "__main__":

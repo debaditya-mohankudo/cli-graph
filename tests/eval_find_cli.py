@@ -12,8 +12,9 @@ of the hit rates.
 
 The tuning set (eval_phrases.json) is what the ranker is tuned on and gated.
 The held-out set (eval_heldout.json, task:9d42faae) is real logged queries,
-never tuned on; it is printed after the tuning set and never changes the exit
-code, since a handful of phrases moves its rate too far per phrase to gate on.
+never tuned on; it is printed after the tuning set and its seed hit rate is
+gated against --heldout-seed-threshold (task:71dc0383). New cases come from
+`--export` in claude-hooks' find_cli_log (see README).
 
 A confident wrong answer (task:e720fe9a) is a phrase find_cli answers at high
 confidence with none of the expected commands among the seeds; for a negative,
@@ -22,7 +23,8 @@ its score; only the tuning set's count is gated, against CONFIDENT_WRONG_CEILING
 
 Exit codes: 0 when the tuning set's subgraph hit rate is at least --threshold,
 its seed hit rate at least --seed-threshold and its confident-wrong count at
-most the ceiling, 1 when any is breached, 2 when
+most the ceiling and the held-out seed hit rate at least --heldout-seed-threshold,
+1 when any is breached, 2 when
 either fixture names a command that is not in the committed graph (the fixture
 is stale, so no rate is computed).
 
@@ -48,6 +50,10 @@ SEED_THRESHOLD = 0.9
 # A ratchet at the current 3 (was 7 before the area boost, task:fcaad255): lower it when a
 # confident wrong answer is fixed, never raise it (task:e720fe9a).
 CONFIDENT_WRONG_CEILING = 3
+# Held-out seed gate (task:71dc0383), set at the 5/5 baseline before any new phrase or
+# tuning: one miss at n=5 still passes. Raise it as the set grows, never lower it, and
+# never tune the ranker on held-out phrases to meet it.
+HELDOUT_SEED_THRESHOLD = 0.8
 
 
 def load_fixture(path=FIXTURE):
@@ -179,6 +185,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--threshold", type=float, default=THRESHOLD)
     ap.add_argument("--seed-threshold", type=float, default=SEED_THRESHOLD)
+    ap.add_argument("--heldout-seed-threshold", type=float, default=HELDOUT_SEED_THRESHOLD)
     ap.add_argument("--confident-wrong-ceiling", type=int, default=CONFIDENT_WRONG_CEILING)
     ap.add_argument("--limit", type=int, default=find_cli.DEFAULT_LIMIT)
     ap.add_argument("--hops", type=int, default=2)
@@ -203,10 +210,13 @@ def main(argv=None):
         print(f"{name:9} seed {a['seed_hits']}/{a['n']} -> {b['seed_hits']}/{b['n']}"
               f"   top-1 {a['top1_hits']}/{a['n']} -> {b['top1_hits']}/{b['n']}")
     if heldout:
-        print("\n== held-out: logged real queries, never tuned on, reported not gated ==")
-        report(score(heldout, graph, edges, args.limit, args.hops))
+        print("\n== held-out: logged real queries, never tuned on, seed rate gated ==")
+        h = report(score(heldout, graph, edges, args.limit, args.hops))
+        heldout_ok = h["n"] == 0 or h["seed_rate"] >= args.heldout_seed_threshold
+    else:
+        heldout_ok = True
     ok = (s["subgraph_rate"] >= args.threshold and s["seed_rate"] >= args.seed_threshold
-          and s["confident_wrong"] <= args.confident_wrong_ceiling)
+          and s["confident_wrong"] <= args.confident_wrong_ceiling and heldout_ok)
     return 0 if ok else 1
 
 

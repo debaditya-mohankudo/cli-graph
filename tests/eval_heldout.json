@@ -1,5 +1,5 @@
 {
-  "note": "Held-out find_cli phrases (task:9d42faae): real queries from the claude-hooks find_cli_queries log, copied after a hand review that removes personal data. Never tune the ranker, aliases or keywords on these; tuning phrases go in eval_phrases.json. expect [] means no command covers the task, so the right answer is an empty result (an abstention). Reported by eval_find_cli.py, not gated.",
+  "note": "Held-out find_cli phrases (task:9d42faae): real queries from the claude-hooks find_cli_queries log, copied after a hand review that removes personal data. Never tune the ranker, aliases or keywords on these; tuning phrases go in eval_phrases.json. expect [] means no command covers the task, so the right answer is an empty result (an abstention). Its seed hit rate is gated by eval_find_cli.py (HELDOUT_SEED_THRESHOLD, task:71dc0383).",
   "phrases": [
     {"phrase": "list reminder lists", "expect": ["mac reminders lists"], "source": "logged"},
     {"phrase": "send a text message to a contact", "expect": ["mac imessage send", "mac contacts search"], "source": "logged"},
