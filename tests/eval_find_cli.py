@@ -72,6 +72,7 @@ def score(phrases, graph, edges, limit=find_cli.DEFAULT_LIMIT, hops=2):
             "seed_hit": bool(ranks),
             "rank": min(ranks) if ranks else None,
             "abstained": bool(r.get("no_match")) or not seeds,
+            "low": r["confidence"]["level"] != "high",
             "result": r,
         })
     return rows
@@ -92,6 +93,11 @@ def rates(rows):
         "subgraph_rate": hits / n if n else None,
         "seed_rate": seed_hits / n if n else None,
         "negatives": len(neg), "abstained": sum(r["abstained"] for r in neg),
+        # confidence calibration (task:d08ebd55): low should land on misses, not hits
+        "top1_hits": sum(r["rank"] == 1 for r in pos),
+        "low_top1_hits": sum(r["low"] and r["rank"] == 1 for r in pos),
+        "low_top1_misses": sum(r["low"] and r["rank"] != 1 for r in pos),
+        "low_negatives": sum(r["low"] for r in neg),
     }
 
 
@@ -111,6 +117,12 @@ def report(rows, out=None):
         print(f"seed hit rate      {s['seed_hits']}/{n} = {s['seed_rate']:.0%}", file=out)
     if s["negatives"]:
         print(f"abstention         {s['abstained']}/{s['negatives']} phrases with no fitting command",
+              file=out)
+    if n:
+        misses = n - s["top1_hits"]
+        print(f"low confidence     {s['low_top1_hits']}/{s['top1_hits']} top-1 hits, "
+              f"{s['low_top1_misses']}/{misses} top-1 misses"
+              + (f", {s['low_negatives']}/{s['negatives']} negatives" if s["negatives"] else ""),
               file=out)
     for r in rows:
         print(f"  {_mark(r):7} {r['phrase']}", file=out)

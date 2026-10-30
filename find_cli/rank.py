@@ -41,6 +41,9 @@ GENERIC = frozenset("check if any now show shows".split())
 GENERIC_WEIGHT = 0.25
 VARIANT_WEIGHT = 0.8
 GROUP_BOOST = 1.5
+# confidence() thresholds, measured on the eval (task:d08ebd55).
+LOW_COVERAGE = 0.3
+LOW_GAP = 0.5
 
 
 def tokens(text):
@@ -102,6 +105,34 @@ def scores(query, docs, groups=None):
             s *= GROUP_BOOST
         out[cid] = round(s, 3)
     return out
+
+
+def confidence(query, docs, score_map):
+    """{level, coverage, gap} for the top seed of score_map (task:d08ebd55).
+
+    coverage is the idf-weighted share of the query's non-GENERIC terms that
+    the top seed's document contains (any form); gap is the top score minus
+    the runner-up's. level is "none" when nothing scored, "low" when coverage
+    < LOW_COVERAGE and gap < LOW_GAP (one incidental word matched and nothing
+    stands out), else "high". It is advice only: it never removes a seed.
+    """
+    order = [c for c in ordered(score_map) if score_map[c] > 0]
+    if not order:
+        return {"level": "none", "coverage": 0.0, "gap": 0.0}
+    top = docs[order[0]]
+    n = len(docs)
+    weights = {}
+    for t in dict.fromkeys(tokens(query)):
+        if t in GENERIC:
+            continue
+        df = sum(1 for d in docs.values() if any(f in d for f in forms(t)))
+        weights[t] = math.log(1 + (n - df + 0.5) / (df + 0.5))
+    total = sum(weights.values())
+    covered = sum(w for t, w in weights.items() if any(f in top for f in forms(t)))
+    coverage = round(covered / total, 3) if total else 0.0
+    gap = round(score_map[order[0]] - (score_map[order[1]] if len(order) > 1 else 0.0), 3)
+    level = "low" if coverage < LOW_COVERAGE and gap < LOW_GAP else "high"
+    return {"level": level, "coverage": coverage, "gap": gap}
 
 
 def ordered(score_map):

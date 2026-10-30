@@ -164,6 +164,32 @@ class FindOnCommittedGraphTest(unittest.TestCase):
         cls.graph, cls.edges = find_cli.load()
         cls.commands = command_ids(cls.graph)
 
+    def test_no_match_when_nothing_scores(self):
+        r = find_cli.find("book a flight to delhi", self.graph, self.edges)
+        self.assertTrue(r["no_match"])
+        self.assertEqual(r["confidence"], {"level": "none", "coverage": 0.0, "gap": 0.0})
+
+    def test_incidental_word_matches_are_low_confidence(self):
+        # task:d08ebd55: review probes no command covers
+        for q in ["fetch FRED series DFII10 real yield and latest gold, DXY, US 10y quotes",
+                  "what is nifty doing"]:
+            r = find_cli.find(q, self.graph, self.edges)
+            self.assertFalse(r["no_match"], q)
+            self.assertEqual(r["confidence"]["level"], "low", q)
+
+    def test_clear_match_is_high_confidence(self):
+        r = find_cli.find("add a calendar event for 30-Sep recheck", self.graph, self.edges)
+        self.assertEqual(r["seeds"][0]["id"], "mac calendar add_event")
+        self.assertEqual(r["confidence"]["level"], "high")
+        self.assertFalse(r["no_match"])
+
+    def test_confidence_never_changes_seeds(self):
+        for q in self.PHRASES:
+            r = find_cli.find(q, self.graph, self.edges)
+            self.assertEqual([(s["id"], s["score"]) for s in r["seeds"]],
+                             rank.seeds(q, self.graph, self.edges), q)
+            self.assertEqual(r["no_match"], not r["seeds"], q)
+
     def test_shape_carries_usage_and_mode(self):
         r = find_cli.find("read a note in my vault", self.graph, self.edges)
         self.assertEqual(r["seeds"][0]["id"], "mac vault read")

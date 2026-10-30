@@ -81,6 +81,14 @@ a usage record: run count and `last_used`. The usage records come read-only
 from claude-hooks' `~/.claude/tool_hints.sqlite`; set `FIND_CLI_USAGE_DB` to
 override the path.
 
+Two top-level fields say how far to trust the result. `no_match` is true
+when no command scored at all, so nothing covers the task. `confidence` is
+`{level, coverage, gap}` for the top seed: `coverage` is the share of the
+query's informative words that seed contains, and `gap` is its lead over the
+runner-up. `level` is `low` when both are small, meaning only an incidental
+word matched, so check the command's `desc` before running it. Confidence is
+advice and never removes a seed.
+
 - **hops 0**: seeds only.
 
 - **hops 1**: adds commands linked to a seed by a `feeds`, `requires` or
@@ -140,6 +148,8 @@ real queries from the claude-hooks `find_cli_queries` log, checked by hand
 for personal data before they're copied in. That set is never used for
 tuning and never changes the exit code. A phrase with `expect: []` means no
 command fits, and it counts as correct only when `find_cli` returns no seeds.
+The eval also reports how often `low` confidence falls on top-1 hits, top-1
+misses and negatives, so the level is measured rather than assumed.
 
 Run everything through `uv run`. Plain `python3` lacks pydantic, so the
 parity modules fail to import. Live parity tests, which really call the

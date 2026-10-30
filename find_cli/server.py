@@ -23,7 +23,10 @@ def find_cli(task: str, limit: int = DEFAULT_LIMIT, hops: int = 2) -> dict:
     """Find the `mac` CLI commands for a task. Returns seed commands (best
     match first) and their neighbours, each with its usage line, read/write
     mode and how often it has been run (count, last_used). Run the chosen
-    command through Bash: `mac <area> <verb> --json`.
+    command through Bash: `mac <area> <verb> --json`. no_match true means no
+    command covers the task: say so rather than run something. confidence
+    level "low" means the top seed matched only an incidental word: check its
+    desc fits the task before running it.
 
     task: what you want to do, in plain words ("text someone", "read a note")
     limit: number of seed commands (default 5)

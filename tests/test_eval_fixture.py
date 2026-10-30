@@ -24,8 +24,9 @@ class FixtureTest(unittest.TestCase):
         self.assertGreaterEqual(len(self.phrases), 20)
         for p in self.phrases:
             self.assertTrue(p["phrase"].strip())
-            self.assertTrue(p["expect"], p["phrase"])
-            self.assertIn(p["source"], ("transcript", "paraphrase", "synonym"))
+            self.assertIn(p["source"], ("transcript", "paraphrase", "synonym", "negative"))
+            # only a negative may expect nothing, and a negative must (task:d08ebd55)
+            self.assertEqual(not p["expect"], p["source"] == "negative", p["phrase"])
 
     def test_every_expected_id_is_a_command_in_the_committed_graph(self):
         self.assertEqual(ev.unknown_ids(self.phrases, self.graph), [])

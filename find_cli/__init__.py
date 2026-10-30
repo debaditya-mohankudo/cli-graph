@@ -1,7 +1,11 @@
 """find_cli: map a task phrase to a small subgraph of `mac` commands (task:129f1bc3).
 
-    find(task, graph, edges)  ->  {query, seeds, neighbours}
+    find(task, graph, edges)  ->  {query, no_match, confidence, seeds, neighbours}
 
+no_match    true when no command scored above 0: nothing covers the task
+confidence  {level, coverage, gap} for the top seed (rank.confidence); level
+            "low" means only an incidental word matched, so check the result
+            before running it. Advice only: it never hides a seed.
 seeds       [{id, score, mode, desc, usage}]  BM25 hits, best first
 neighbours  [{id, via, dir, from, hop, mode, desc, usage}]  reached from a seed
             via a hand-written edge (dir "out"/"in"), as an area sibling
@@ -48,7 +52,8 @@ def find(task, graph, edges=(), limit=DEFAULT_LIMIT, hops=2, usage=None):
     """
     commands = command_ids(graph)
     nodes = {n["id"]: n for n in graph["nodes"] if n["id"] in commands}
-    scores = _rank.scores(task, _rank.documents(graph, edges), command_groups(graph))
+    docs = _rank.documents(graph, edges)
+    scores = _rank.scores(task, docs, command_groups(graph))
     seed_pairs = [(cid, s) for cid, s in _rank.seeds(task, graph, edges, limit)
                   if cid in commands]
     neighbours = _expand.expand([cid for cid, _ in seed_pairs], graph, edges,
@@ -63,8 +68,11 @@ def find(task, graph, edges=(), limit=DEFAULT_LIMIT, hops=2, usage=None):
             out["last_used"] = u.get("last_used")
         return out
 
+    conf = _rank.confidence(task, docs, scores)
     return {
         "query": task,
+        "no_match": not seed_pairs,
+        "confidence": conf,
         "seeds": [{"id": cid, "score": s, **info(cid)} for cid, s in seed_pairs],
         "neighbours": [{**nb, **info(nb["id"])} for nb in neighbours],
     }

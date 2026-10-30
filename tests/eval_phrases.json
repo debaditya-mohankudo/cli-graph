@@ -1,5 +1,5 @@
 {
-  "about": "Hit-rate fixture for find_cli (task:597ac09d). Each phrase is a prompt from a Claude Code transcript that led to a local-mac tool call. source=transcript means it is verbatim apart from typos kept as typed; source=paraphrase means a name was removed or a reply that needed earlier context was made to stand alone; source=synonym is a written phrase that names a command only by an alias_of synonym (graph/edges.json). expect lists every command that would be a right answer; any one of them in the returned subgraph is a hit.",
+  "about": "Hit-rate fixture for find_cli (task:597ac09d). Each phrase is a prompt from a Claude Code transcript that led to a local-mac tool call. source=transcript means it is verbatim apart from typos kept as typed; source=paraphrase means a name was removed or a reply that needed earlier context was made to stand alone; source=synonym is a written phrase that names a command only by an alias_of synonym (graph/edges.json). expect lists every command that would be a right answer; any one of them in the returned subgraph is a hit. source=negative is a written phrase no mac command covers, with expect []; it is scored as an abstention and left out of the hit rates (task:d08ebd55).",
   "phrases": [
     {"phrase": "add a calendar event for 30-Sep recheck", "expect": ["mac calendar add_event"], "source": "transcript"},
     {"phrase": "send each section by message to my friend", "expect": ["mac imessage send"], "source": "paraphrase"},
@@ -63,6 +63,9 @@
     {"phrase": "commit my changes with the task id", "expect": ["mac git commit"], "source": "paraphrase"},
     {"phrase": "push this branch to the remote", "expect": ["mac git push"], "source": "paraphrase"},
     {"phrase": "what files changed in the repo", "expect": ["mac git status", "mac git diff"], "source": "paraphrase"},
-    {"phrase": "show the recent commits", "expect": ["mac git log"], "source": "paraphrase"}
+    {"phrase": "show the recent commits", "expect": ["mac git log"], "source": "paraphrase"},
+    {"phrase": "book a flight to delhi", "expect": [], "source": "negative"},
+    {"phrase": "order a pizza", "expect": [], "source": "negative"},
+    {"phrase": "what is the weather in pune", "expect": [], "source": "negative"}
   ]
 }
