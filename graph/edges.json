@@ -9,6 +9,7 @@
     {"from": "mac imessage msg", "type": "alias_of", "to": "mac imessage send"},
     {"from": "mac imessage txt", "type": "alias_of", "to": "mac imessage send"},
     {"from": "mac imessage text", "type": "alias_of", "to": "mac imessage send"},
+    {"from": "mac imessage message", "type": "alias_of", "to": "mac imessage send"},
     {"from": "mac mail reply", "type": "alias_of", "to": "mac mail read"},
     {"from": "mac reminders remind", "type": "alias_of", "to": "mac reminders create"},
     {"from": "mac reminders tick", "type": "alias_of", "to": "mac reminders complete"},
