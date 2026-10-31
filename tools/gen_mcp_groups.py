@@ -37,6 +37,17 @@ WRITE = {
                 "update_fno", "update_short_volume", "classify_announcements"},
 }
 
+# NSE's schemas list every property as required, though a string left out
+# means "latest"/"all" (probed 2026-11-01). Those become --flags. Its Java
+# int properties do fail when omitted (NullPointerException), so these get a
+# default here; `days` and `symbols` have none and stay required.
+NSE_AREAS = ("nse_eod", "nse_live")
+OPTIONAL = {a: {"date", "endDate", "fromDate", "toDate", "filter", "symbolFilter", "nameFilter",
+                "group", "sortBy", "direction", "period", "scope", "indexName"} for a in NSE_AREAS}
+DEFAULTS = {(a, p): v for a in NSE_AREAS for p, v in (("n", 10), ("months", 3), ("limit", 20))}
+# `limit` would clash with mac's global --limit, so it is --count.
+RENAME = {(a, "limit"): "count" for a in NSE_AREAS}
+
 # Properties that carry source text, so they can also be read from a file or stdin.
 FILE_ARGS = {"sysml": ("code", "originalCode")}
 
@@ -46,6 +57,42 @@ MAX_DESC = 160
 DESC = {
     ("sysml", "get_complexity"): "analyse structural complexity of a SysML model: complexity index, "
                                  "hotspots, coupling, documentation coverage",
+    ('nse_eod', 'compare_indices'): 'compare NSE index performance over months',
+    ('nse_eod', 'compare_stocks'): "compare up to 10 stocks' performance over months",
+    ('nse_eod', 'get_52_week_high_low'): "a stock's 52-week high and low and its distance from them",
+    ('nse_eod', 'get_bulk_quote'): 'end-of-day close, change and volume for up to 50 stocks',
+    ('nse_eod', 'get_corporate_actions'): 'dividends, splits, bonus issues and other corporate actions of a stock',
+    ('nse_eod', 'get_index_history'): 'daily history of an NSE index over months',
+    ('nse_eod', 'get_index_movers'): 'stocks that moved an index most over a period',
+    ('nse_eod', 'get_index_performance'): "an NSE index's returns over standard periods",
+    ('nse_eod', 'get_index_snapshot'): 'end-of-day snapshot of NSE indices',
+    ('nse_eod', 'get_index_valuation'): 'index PE, PB and dividend yield over months',
+    ('nse_eod', 'get_ltp_by_date'): "a stock's closing price on a past date",
+    ('nse_eod', 'get_market_breadth'): 'advances, declines and unchanged stocks for a day',
+    ('nse_eod', 'get_market_mood'): 'end-of-day market mood: benchmarks, breadth and top movers',
+    ('nse_eod', 'get_stock_history'): 'daily OHLCV history of a stock, up to 3 months',
+    ('nse_eod', 'get_stock_vs_index'): "a stock's relative strength against an NSE index",
+    ('nse_eod', 'get_top_by_volume'): 'top stocks by traded volume or value for a day',
+    ('nse_eod', 'get_top_movers'): 'end-of-day top gainers or losers for a day',
+    ('nse_eod', 'get_volume_analysis'): "a stock's volume against its average, with spikes",
+    ('nse_eod', 'moving_average'): "a stock's simple moving average over a number of days",
+    ('nse_eod', 'nse_lookup_symbol'): 'resolve a company name to its NSE symbol',
+    ('nse_eod', 'search_symbols'): 'search NSE symbols and company names',
+    ('nse_live', 'cm_get_allstocks_status'): 'freshness of the NSE all-stocks live cache',
+    ('nse_live', 'cm_get_bond_stocks'): 'live data for NSE bond and debt instruments',
+    ('nse_live', 'cm_get_call_auction_stocks'): 'live data for stocks in the call auction session',
+    ('nse_live', 'cm_get_data_status'): 'freshness of the NSE live market data',
+    ('nse_live', 'cm_get_equity_stocks'): 'live quotes for all NSE equity stocks, filterable by symbol',
+    ('nse_live', 'cm_get_index_quote'): 'live quote of one NSE index',
+    ('nse_live', 'cm_get_live_gainers'): 'live top gainers grouped by index segment',
+    ('nse_live', 'cm_get_live_indices'): 'live values of NSE indices by group',
+    ('nse_live', 'cm_get_live_losers'): 'live top losers grouped by index segment',
+    ('nse_live', 'cm_get_live_market_data'): 'live NSE market data for one index variation',
+    ('nse_live', 'cm_get_sme_stocks'): 'live quotes for NSE SME stocks',
+    ('nse_live', 'cm_get_stock_quote'): 'live quote of one NSE stock: price, change and volume',
+    ('nse_live', 'nse_get_gainers'): "live top gainers across the NSE",
+    ('nse_live', 'nse_get_losers'): "live top losers across the NSE",
+    ('nse_live', 'nse_get_market_movers'): "live top gainers and losers, optionally within an index",
     ("wyckoff", "classify_announcements"): "validate agent-labelled announcements for a tracked stock against "
                                            "the decision schema and insert the confident ones as news",
 }
@@ -133,12 +180,16 @@ def _verb(area, tool):
     required = set(schema.get("required", []))
     file_args = [n for n in FILE_ARGS.get(area, ()) if n in props]
     arg_lines, imports = [], {("_mcp_proxy", "call_tool")}
+    dests = {}
     for name, prop in props.items():
-        if name == "limit":
+        if name == "limit" and (area, name) not in RENAME:
             raise SystemExit(f"{tool.name}: a `limit` property would clash with mac's global --limit")
+        dest = dests[name] = RENAME.get((area, name), name)
         k, choices = kind(prop)
-        positional = name in required and name not in file_args
-        opts = [] if positional else ["dest=" + repr(name), "default=argparse.SUPPRESS"]
+        positional = (name in required and name not in file_args and name not in OPTIONAL.get(area, ())
+                      and (area, name) not in DEFAULTS)
+        default = repr(DEFAULTS[(area, name)]) if (area, name) in DEFAULTS else "argparse.SUPPRESS"
+        opts = [] if positional else ["dest=" + repr(dest), "default=" + default]
         if k == "bool":
             if prop.get("default") is True:
                 raise SystemExit(f"{tool.name}.{name}: a boolean defaulting to true cannot be a store_true flag")
@@ -156,7 +207,7 @@ def _verb(area, tool):
                 opts.append(f"choices={choices!r}")
         if not positional:
             imports.add(("argparse", None))
-        arg_lines.append(f"p.add_argument({', '.join([repr(name if positional else flag(name))] + opts)})")
+        arg_lines.append(f"p.add_argument({', '.join([repr(name if positional else flag(dest))] + opts)})")
         if name in file_args:
             arg_lines.append(f"p.add_argument({flag(name) + '-file'!r}, dest={f'{name}_file'!r}, "
                              f"default=None, metavar='PATH', help='read {name} from PATH (- for stdin)')")
@@ -178,8 +229,13 @@ def _verb(area, tool):
         imports.add(("_mcp_proxy", "code_from"))
     given = ""
     if props:
-        given = f", **given(ns, {tuple(props)!r})"
+        got = f"given(ns, {tuple(dests.values())!r})"
         imports.add(("_backend", "given"))
+        renames = {d: n for n, d in dests.items() if d != n}
+        if renames:
+            got = f"renamed({got}, {renames!r})"
+            imports.add(("_mcp_proxy", "renamed"))
+        given = f", **{got}"
     call = f"call_tool({area!r}, {tool.name!r}{given})"
     post = "as_list" if verb in LIST_RESULT.get(area, ()) else POST.get((area, verb))
     if post:

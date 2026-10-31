@@ -275,7 +275,11 @@ class ServerTest(unittest.TestCase):
                 props, required = schema.get("properties", {}), schema.get("required", [])
                 file_args = gen_mcp_groups.FILE_ARGS.get(area, ())
                 argv = []
+                # NSE lists every property as required; these are flags (see gen_mcp_groups.OPTIONAL/DEFAULTS).
+                flags = gen_mcp_groups.OPTIONAL.get(area, set()) | {p for a, p in gen_mcp_groups.DEFAULTS if a == area}
                 for name in required:
+                    if name in flags:
+                        continue
                     prop = props[name]
                     v = next((v for v in prop.get("anyOf", [prop]) if v.get("type") != "null"), {})
                     t = v.get("type", "string")
@@ -292,7 +296,7 @@ class ServerTest(unittest.TestCase):
                     (srv, name), arguments = fake.call_args.args, fake.call_args.kwargs
                     self.assertEqual((srv, name), (area, tool.name))
                     self.assertLessEqual(set(arguments), set(props))
-                    self.assertEqual(set(required) - set(arguments), set())
+                    self.assertEqual(set(required) - set(arguments) - flags, set())
 
     def test_list_result_table_matches_the_handlers(self):
         # Run under each server's own interpreter: its handlers cannot be imported here.

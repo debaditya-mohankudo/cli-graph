@@ -31,9 +31,10 @@ HOME = Path.home()
 
 
 class Server(NamedTuple):
-    command: str
+    command: str = ""
     args: tuple = ()
     cwd: str | None = None
+    url: str | None = None  # a remote streamable-HTTP server: no process is started
 
 
 # The same launch commands as the MCP config entries they replace, except the
@@ -51,7 +52,16 @@ SERVERS = {
     "sysml": Server(
         command="node",
         args=(str(HOME / "workspace/mbse-claude-hooks-model/sysml-mcp/dist/server/mcpServer.js"),)),
+    # NSE's official, keyless MCP servers (https://www.nseindia.in/nse-mcp), cash market only.
+    "nse_eod": Server(url="https://mcp.nseindia.in/bhavcopy/cm/mcp"),
+    "nse_live": Server(url="https://mcp.nseindia.in/cmmkt/mcp"),
 }
+
+# NSE's hosted servers lose a session right after initialize (HTTP 404 from the
+# next request, a load-balancer node that does not know it): measured 2026-11-01,
+# about 1 attempt in 8 gets through. So a remote call is retried on a fresh
+# connection, ~0.7s each, which gives ~95% over 25 attempts.
+REMOTE_ATTEMPTS = 25
 
 # Set by bin/mac or cli-graph's venv; they must not leak into another project's interpreter.
 _DROP_ENV = ("PYTHONPATH", "VIRTUAL_ENV", "PYTHONHOME")
@@ -62,6 +72,8 @@ def _env():
 
 
 def _check_installed(name, server):
+    if server.url:
+        return
     cmd = Path(server.command)
     if cmd.is_absolute() and not cmd.exists():
         raise Failure("backend_missing", f"{name} server interpreter not found: {cmd}")
@@ -84,6 +96,11 @@ def unwrap(result):
         raise Failure("tool_error", " ".join(texts) or "tool reported an error")
     values = [_value(t) for t in texts]
     return raise_if_error(values[0] if len(values) == 1 else values)
+
+
+def renamed(arguments, names):
+    """`arguments` with each key in `names` renamed to its tool property (a flag renamed to dodge --limit)."""
+    return {names.get(k, k): v for k, v in arguments.items()}
 
 
 def as_list(data):
@@ -115,10 +132,19 @@ async def _session(server, errlog, op):
     from mcp import ClientSession, StdioServerParameters
     from mcp.client.stdio import stdio_client
 
-    params = StdioServerParameters(command=server.command, args=list(server.args),
-                                   cwd=server.cwd, env=_env())
-    async with stdio_client(params, errlog=errlog) as (read, write):
-        async with ClientSession(read, write) as session:
+    if server.url:
+        import logging
+
+        from mcp.client.streamable_http import streamablehttp_client
+        # NSE answers the client's closing DELETE with 501; the client logs that as noise.
+        logging.getLogger("mcp.client.streamable_http").setLevel(logging.CRITICAL)
+        transport = streamablehttp_client(server.url)
+    else:
+        params = StdioServerParameters(command=server.command, args=list(server.args),
+                                       cwd=server.cwd, env=_env())
+        transport = stdio_client(params, errlog=errlog)
+    async with transport as streams:
+        async with ClientSession(streams[0], streams[1]) as session:
             await session.initialize()
             return await op(session)
 
@@ -126,6 +152,13 @@ async def _session(server, errlog, op):
 def _tail(errlog, lines=5):
     errlog.seek(0)
     return " | ".join(errlog.read().strip().splitlines()[-lines:])
+
+
+def _leaf(exc):
+    """The innermost error of an ExceptionGroup, which is what a failed remote session raises."""
+    while getattr(exc, "exceptions", None):
+        exc = exc.exceptions[0]
+    return exc
 
 
 def _run(server_name, op):
@@ -137,13 +170,16 @@ def _run(server_name, op):
     server = SERVERS[server_name]
     _check_installed(server_name, server)
     with tempfile.TemporaryFile("w+") as errlog:
-        try:
-            return asyncio.run(_session(server, errlog, op))
-        except Exception as exc:
-            detail = _tail(errlog)
-            raise Failure("backend_missing",
-                          f"{server_name} server failed: {type(exc).__name__}: {exc}"
-                          + (f" (server stderr: {detail})" if detail else ""))
+        for _ in range(REMOTE_ATTEMPTS if server.url else 1):
+            try:
+                return asyncio.run(_session(server, errlog, op))
+            except Exception as exc:
+                last = exc
+        detail = _tail(errlog)
+        raise Failure("backend_missing",
+                      f"{server_name} server failed: {type(last).__name__}: {_leaf(last)}"
+                      + (f" (after {REMOTE_ATTEMPTS} attempts; NSE's hosted server drops sessions, retry later)" if server.url else "")
+                      + (f" (server stderr: {detail})" if detail else ""))
 
 
 def call_tool(server_name, tool, /, **arguments):

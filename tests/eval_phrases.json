@@ -15,7 +15,7 @@
     {"phrase": "tick the MDB reminder and update its due date", "expect": ["mac reminders complete", "mac reminders update"], "source": "transcript"},
     {"phrase": "check today's reminders", "expect": ["mac reminders list"], "source": "transcript"},
     {"phrase": "check active page on safari", "expect": ["mac safari read"], "source": "transcript"},
-    {"phrase": "check live on NSE in Safari", "expect": ["mac safari open"], "source": "transcript"},
+    {"phrase": "check live on NSE in Safari", "expect": ["mac safari open", "mac nse_live cm_get_live_indices"], "source": "transcript"},
     {"phrase": "append this to the gold vault note", "expect": ["mac vault append"], "source": "transcript"},
     {"phrase": "check the obsidian vault daily note", "expect": ["mac vault daily_read"], "source": "transcript"},
     {"phrase": "delete the test note in the vault", "expect": ["mac vault delete"], "source": "paraphrase"},
@@ -74,8 +74,8 @@
     {"phrase": "book a flight to delhi", "expect": [], "source": "negative"},
     {"phrase": "order a pizza", "expect": [], "source": "negative"},
     {"phrase": "what is the weather in pune", "expect": [], "source": "negative"},
-    {"phrase": "what is nifty doing", "expect": [], "source": "negative"},
-    {"phrase": "nse top gainers today", "expect": [], "source": "negative"},
+    {"phrase": "what is nifty doing", "expect": ["mac nse_live cm_get_index_quote", "mac nse_live cm_get_live_indices"], "source": "synonym"},
+    {"phrase": "nse top gainers today", "expect": ["mac nse_live nse_get_gainers", "mac nse_live nse_get_market_movers"], "source": "synonym"},
     {"phrase": "option chain for banknifty", "expect": [], "source": "negative"},
     {"phrase": "mom birthday plan", "expect": [], "source": "negative"}
   ]

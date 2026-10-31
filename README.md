@@ -25,7 +25,7 @@ so a CLI call and an MCP call share one code path.
 | `mac/` | The dispatcher: argument parsing, help, the output/error contract (`contract.py`), and one module per area under `mac/groups/`. |
 | `mac/groups/_backend.py` | Runs local-mac's handlers in-process through its own `dispatcher.resolve` / `invoke`, so the same logging and safety gates apply. |
 | `mac/groups/_hooks.py` | Runs claude-hooks' `src/tools` handlers (`memory`, `vault_map`, `hooks`, `code_rag`, `diff_rag`) in a subprocess of claude-hooks' own interpreter, via `_hooks_runner.py`. No MCP server and no Ollama start-up; about 0.3s a call (`code_rag`/`diff_rag`: about 1.4s, the llama_index import). |
-| `mac/groups/_mcp_proxy.py` | Starts a separate MCP server over stdio for each call (`astrology`, `wyckoff`, `sysml`). These servers have their own venvs or are Node bundles. |
+| `mac/groups/_mcp_proxy.py` | Runs a separate MCP server's tool for each call (`astrology`, `wyckoff`, `sysml` over stdio; `nse_eod`, `nse_live` over HTTP to NSE's hosted servers, retried up to 25 times because NSE drops most new sessions). The stdio servers have their own venvs or are Node bundles. |
 | `graph/cli_graph.json` | Command graph **generated** from `mac --help --json`: a `groups` and a `domains` overview first, then one node per command. Never hand-edited. |
 | `graph/edges.json` | Hand-written edges between commands: `alias_of`, `requires`, `feeds`, `prefer_over`. |
 | `graph/groups.json` | Hand-written groups of areas (communication, productivity, ...). `graph/generate.py` adds them to the graph's `groups` and `domains` sections. |
@@ -206,7 +206,7 @@ Each has a test that fails while its output is out of date.
 | When this changes | Run | Guarded by |
 |---|---|---|
 | A local-mac handler signature | `~/workspace/claude_for_mac_local/.venv/bin/python tools/gen_groups.py` | parity tests |
-| A proxied server's tools (`astrology`, `wyckoff`, `sysml`) | `uv run python tools/gen_mcp_groups.py` | `tests/test_parity_mcp_servers.py` |
+| A proxied server's tools (`astrology`, `wyckoff`, `sysml`, `nse_eod`, `nse_live`) | `uv run python tools/gen_mcp_groups.py` | `tests/test_parity_mcp_servers.py` |
 | Any verb added or removed | `uv run python -m graph.generate` | `tests/test_drift.py` |
 | Any verb added or removed | `uv run python tools/gen_permissions.py` | `tests/test_permissions.py` |
 | Hand-written edges | edit `graph/edges.json` | `graph/validate_edges.py`, `tests/test_edges.py` |

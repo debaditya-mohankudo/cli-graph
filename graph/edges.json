@@ -1,5 +1,6 @@
 {
   "edges": [
+    {"from": "mac nse_live nifty", "type": "alias_of", "to": "mac nse_live cm_get_index_quote"},
     {"from": "mac calendar schedule", "type": "alias_of", "to": "mac calendar add_event"},
     {"from": "mac calendar agenda", "type": "alias_of", "to": "mac calendar get_upcoming_events"},
     {"from": "mac calendar tomorrow", "type": "alias_of", "to": "mac calendar get_events_by_date"},
