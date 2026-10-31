@@ -218,29 +218,38 @@ hand-reviewed `ASK` table get an `ask` rule; every other verb gets `allow`.
 
 ## Cutover and rollback
 
-The MCP servers that `mac` replaces (local-mac, astrology, wyckoff-analyzer,
-sysml-mcp) were turned off on 2026-10-27. A fresh session now loads
-claude-hooks, taskfw and `find_cli`: 67 tools instead of 245 (stdio servers
-only; hosted connectors and claude-in-chrome are unchanged). local-mac is still
-loaded inside `claude_for_mac_local`, through that repo's `.mcp.json`.
+Two cutovers have turned MCP servers off, each with its own backup file:
+
+| Cutover | Servers turned off | Date | Backup |
+|---|---|---|---|
+| `9839b040` (default) | local-mac, astrology, wyckoff-analyzer, sysml-mcp | 2026-10-27 | `~/.claude/cutover-9839b040-backup.json` (4 servers, 99 allow rules) |
+| `299daf58` | claude-hooks | 2026-10-31 | `~/.claude/cutover-299daf58-backup.json` (1 server, 16 allow rules) |
+
+A fresh session now loads only taskfw and `find_cli`: 38 tools instead of 245
+(stdio servers only; hosted connectors and claude-in-chrome are unchanged).
+claude-hooks' capabilities are reached as `mac memory`, `mac vault_map`,
+`mac hooks`, `mac code_rag` and `mac diff_rag`. local-mac is still loaded
+inside `claude_for_mac_local`, through that repo's `.mcp.json`.
 
 ```bash
-uv run python tools/cutover.py status     # exit 0 when cut over
-uv run python tools/cutover.py rollback   # turn the old servers back on
-uv run python tools/cutover.py apply      # turn them off again
-uv run python tools/cutover.py count      # tools each configured server lists
+uv run python tools/cutover.py status [299daf58]    # exit 0 when cut over
+uv run python tools/cutover.py rollback [299daf58]  # turn the old servers back on
+uv run python tools/cutover.py apply [299daf58]     # turn them off again
+uv run python tools/cutover.py count                # tools each configured server lists
 ```
 
-`apply` saves the four server definitions and their 99 `mcp__<server>__*`
-allow rules to `~/.claude/cutover-9839b040-backup.json`, then removes them
-with `claude mcp remove -s user` and from `~/.claude/settings.json`.
-`rollback` restores both from that file. The `mac` permission rules are not
-touched. Start a new session after either step, so the tool list reloads.
+Omit the name to act on the first cutover; pass `299daf58` for claude-hooks.
+`apply` saves the cutover's server definitions and their `mcp__<server>__*`
+allow rules to its backup file, then removes them with
+`claude mcp remove -s user` and from `~/.claude/settings.json`. `rollback`
+restores both from that file, and only that cutover's servers. The `mac`
+permission rules are not touched. Start a new session after either step, so
+the tool list reloads.
 
 ## Status
 
 This work is tracked under taskfw epic `9839b040`.
 [`epic-9839b040-status.md`](epic-9839b040-status.md) is a snapshot from
 2026-10-27; for the live state, run `tasks__list(parent="9839b040")`. The
-migrated MCP servers are off (task:8cd14cfe); taskfw and claude-hooks stay as
-MCP servers.
+migrated MCP servers are off (task:8cd14cfe, task:299daf58); only taskfw and
+`find_cli` stay as MCP servers.
