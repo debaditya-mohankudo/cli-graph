@@ -103,7 +103,7 @@ POST = {("sysml", "preview"): "data_block"}
 # Tools that return a list. FastMCP sends one text block per item, so a
 # one-item list would otherwise come back as a lone object (see as_list).
 # Checked against the handlers' return annotations by
-# tests/test_parity_mcp_servers.py.
+# tests/test_mcp_proxy.py.
 LIST_RESULT = {
     "astrology": {"aq_dasha_timeline", "aq_pd_timeline", "aq_planets", "aq_aspects_on_house",
                   "aq_strength_summary", "aq_bhava_chalit", "aq_vargottama", "aq_neecha_bhanga",

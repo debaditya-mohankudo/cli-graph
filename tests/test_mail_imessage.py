@@ -1,7 +1,7 @@
 """`mac mail` / `mac imessage`: argument forwarding and the send/delete gates (task:babafba2).
 
 Coverage, modes and generated-module freshness are checked with the other
-generated groups in test_parity_simple_groups.py.
+generated groups in test_simple_groups.py.
 
 The gates live in local-mac's tool_hooks and run inside dispatcher.invoke:
 imessage send needs a contacts search within 120s that found someone, mail

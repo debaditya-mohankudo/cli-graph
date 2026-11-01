@@ -126,27 +126,26 @@
         "tools/gen_groups.py:render",
         "tools/gen_groups.py:WRITE",
         "tools/gen_groups.py:parameters",
-        "tests/test_parity_simple_groups.py:CoverageTest",
-        "tests/test_parity_simple_groups.py:LiveParityTest",
+        "tests/test_simple_groups.py:CoverageTest",
         "tools/gen_groups.py:_verb",
         "mac/groups/_backend.py:given",
-        "tests/test_parity_simple_groups.py:TranslationTest",
+        "tests/test_simple_groups.py:TranslationTest",
         "tools/gen_groups.py:kind",
-        "tests/test_parity_mail_imessage.py:GateTest",
-        "tests/test_parity_vault_rag.py:ImportCostTest",
-        "tests/test_parity_vault_rag.py:ForwardingTest"
+        "tests/test_mail_imessage.py:GateTest",
+        "tests/test_vault_rag.py:ImportCostTest",
+        "tests/test_vault_rag.py:ForwardingTest"
       ],
       "invariants": [
         "Committed mac/groups/<area>.py must equal render() output for the current handlers; CoverageTest.test_generated_modules_are_current fails otherwise",
-        "tests/test_parity_simple_groups.py keeps its own copy of WRITE, so a mode change needs both edits",
+        "tests/test_simple_groups.py keeps its own copy of WRITE, so a mode change needs both edits",
         "Generated modules contain no copied handler default values; a handler-side default change reaches `mac` without regeneration",
         "CLI rows in mcp_tool_calls log only supplied args (e.g. '{}'), so they differ in shape from MCP rows, which carry FastMCP-filled defaults; nothing reads args_json",
-        "Hand-written mac/groups/notes.py and reminders.py are outside the generator but follow the same rule by hand: SUPPRESS defaults plus given(), no copied handler defaults (task:906b962e); ForwardingTest in tests/test_parity_notes_reminders.py pins exact kwargs",
-        "AREAS includes mail and imessage; their gates (imessage send, mail delete) live in local-mac tool_hooks and are tested by tests/test_parity_mail_imessage.py GateTest with the real invoke and stubbed handlers",
+        "Hand-written mac/groups/notes.py and reminders.py are outside the generator but follow the same rule by hand: SUPPRESS defaults plus given(), no copied handler defaults (task:906b962e); ForwardingTest in tests/test_notes_reminders.py pins exact kwargs",
+        "AREAS includes mail and imessage; their gates (imessage send, mail delete) live in local-mac tool_hooks and are tested by tests/test_mail_imessage.py GateTest with the real invoke and stubbed handlers",
         "AREAS includes vault (task:0c64fa90); vault write/append/delete/move are write in both gen_groups.WRITE and the test's WRITE copy. Vault containment is the handler's own tool_hooks.Refused, which _backend maps to 'blocked'",
         "Hand-written groups outside the generator: notes, reminders and safari. safari is hand-written so it can enforce the tab guard (concept safari-tab-guard)",
         "AREAS includes vault_rag (task:73cbda5d). index_vault, index_file and remove_section are write verbs in both gen_groups.WRITE and the test's WRITE copy. local-mac's code_rag and ollama_agent were deliberately left out of AREAS (0 calls; decision recorded on task:73cbda5d)",
-        "Loading local-mac's tools.vault_rag must not import llama_index, because each `mac` call is a fresh process and that import costs about 1.2s. OllamaEmbedding is imported inside _get_embed_model in local-mac. ImportCostTest in tests/test_parity_vault_rag.py checks sys.modules in a subprocess"
+        "Loading local-mac's tools.vault_rag must not import llama_index, because each `mac` call is a fresh process and that import costs about 1.2s. OllamaEmbedding is imported inside _get_embed_model in local-mac. ImportCostTest in tests/test_vault_rag.py checks sys.modules in a subprocess"
       ],
       "last_validated": "2026-10-26T12:45:53.654068+00:00",
       "module": "tools/gen_groups.py",
@@ -287,12 +286,11 @@
       "evidence": [
         "mac/groups/_backend.py:call",
         "mac/groups/_backend.py:tools",
-        "tests/test_parity_notes_reminders.py:TranslationTest",
-        "tests/test_parity_notes_reminders.py:LiveParityTest",
+        "tests/test_notes_reminders.py:TranslationTest",
         "mac/groups/_backend.py:dispatcher",
-        "tests/test_parity_notes_reminders.py:HookTest",
+        "tests/test_notes_reminders.py:HookTest",
         "mac/groups/_backend.py:_load_env",
-        "tests/test_parity_mail_imessage.py:EnvTest"
+        "tests/test_mail_imessage.py:EnvTest"
       ],
       "invariants": [
         "The MCP handler stays the single implementation; verbs never re-implement AppleScript",
@@ -325,11 +323,11 @@
         "mac/contract.py:raise_if_error",
         "tools/gen_mcp_groups.py:LIST_RESULT",
         "tools/gen_mcp_groups.py:WRITE",
-        "tests/test_parity_mcp_servers.py"
+        "tests/test_mcp_proxy.py"
       ],
       "invariants": [
         "The MCP server stays the only implementation; verbs never re-implement a tool.",
-        "Committed group modules match gen_mcp_groups output for each server's live tools/list. tests/test_parity_mcp_servers.py fails when they go stale.",
+        "Group modules are generated by gen_mcp_groups from each server's tools/list. No test compares them to a live list (the servers are CLI-only), so regenerate by hand when a server's tools change. tests/test_mcp_proxy.py covers the argv and result translation only.",
         "asyncio, tempfile and the mcp client import only when a proxied verb runs, so other mac verbs do not pay for them.",
         "Each call is a new server process. A tool must not rely on state left by an earlier call in the same process (astrology planets_* once did)."
       ],
@@ -355,14 +353,14 @@
       "evidence": [
         "mac/groups/safari.py:guard",
         "mac/groups/safari.py:host_matches",
-        "tests/test_parity_vault_safari.py:SafariGuardTest",
-        "tests/test_parity_vault_safari.py:SafariForwardingTest",
+        "tests/test_vault_safari.py:SafariGuardTest",
+        "tests/test_vault_safari.py:SafariForwardingTest",
         "~/.claude/skills/safari-tab-check/SKILL.md"
       ],
       "invariants": [
         "A guard refusal is decided before dispatcher.invoke, so mcp_tool_calls has no blocked=1 row for it, only the current_url probe",
         "Check and action are two osascript calls; a tab switch between them is still possible",
-        "tests/test_parity_vault_safari.py pins coverage of DOMAIN_MAP safari, modes (SAFARI_WRITE), exact forwarded kwargs per verb, and the guard; CoverageTest in test_parity_simple_groups.py does not cover safari"
+        "tests/test_vault_safari.py pins coverage of DOMAIN_MAP safari, modes (SAFARI_WRITE), exact forwarded kwargs per verb, and the guard; CoverageTest in test_simple_groups.py does not cover safari"
       ],
       "last_validated": "2026-10-26T11:13:57.778150+00:00",
       "module": "mac/groups/safari.py",

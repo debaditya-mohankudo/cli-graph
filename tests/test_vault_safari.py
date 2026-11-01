@@ -1,7 +1,7 @@
 """`mac vault` / `mac safari`: vault containment and the safari tab guard (task:0c64fa90).
 
 vault is generated, so its coverage, modes and freshness are checked with the
-other generated groups in test_parity_simple_groups.py. Here: a path outside the
+other generated groups in test_simple_groups.py. Here: a path outside the
 vault comes back as 'blocked', and content starting with '-' gets through after `--`.
 
 safari is hand-written so it can enforce the tab guard: every verb acting on the

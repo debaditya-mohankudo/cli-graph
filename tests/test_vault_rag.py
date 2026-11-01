@@ -1,7 +1,7 @@
 """`mac vault_rag` (task:73cbda5d).
 
 vault_rag is generated, so its coverage, modes and freshness are checked with the
-other generated groups in test_parity_simple_groups.py. Here: the exact kwargs
+other generated groups in test_simple_groups.py. Here: the exact kwargs
 each verb forwards, and that loading the handlers does not import llama_index.
 That import costs about 1.2s and only the embedding verbs need it, so a
 regression would make every `mac vault_rag fts_vault` call slow without failing.
