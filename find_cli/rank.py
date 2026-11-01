@@ -31,6 +31,14 @@ Area boost (task:fcaad255): the same multiplier for the commands of an area the
 query names (every token of the area name appears, e.g. "vault" or "notes") and
 for an area or group the caller's hint names. The hint is plain input resolved
 by string match; an unknown one is reported by hint_info(), never applied.
+
+Domain layer (task:a70134dd): with a domains map (graph/domains.json, {group:
+[words]}), a query that uses a domain's word resolves to that domain
+(resolve_domains) and its commands get the same single GROUP_BOOST, as if the
+query had named the group, unless the query already names an area of that
+domain (the area boost is the more specific signal). Like the group boost it never admits a zero score,
+so a query that resolves to no domain, or domains=None, ranks exactly as
+before.
 """
 import math
 import re
@@ -129,14 +137,22 @@ def hint_info(hint, graph):
     return {"value": value, "known": value in valid, "valid": valid}
 
 
-def scores(query, docs, groups=None, hint=None):
+def resolve_domains(query, domains):
+    """Sorted groups whose domain words (any form) appear in query; [] with no domains."""
+    terms = tokens(query)
+    return sorted(g for g, words in (domains or {}).items()
+                  if any(w in forms(t) or t in forms(w) for t in terms for w in words))
+
+
+def scores(query, docs, groups=None, hint=None, domains=None):
     """{command id: BM25 score} for every document, rounded to 3 places.
 
     groups ({command id: group name}, see graph.groups.command_groups) turns
     on the group boost: a query word naming a group multiplies the positive
     scores of that group's commands by GROUP_BOOST. The same factor applies once
     to a command whose area the query names or whose area or group the hint
-    names (hint, see norm_hint).
+    names (hint, see norm_hint), or whose group the query resolves to through
+    domains (resolve_domains).
     """
     hint = norm_hint(hint)
     terms = list(dict.fromkeys(tokens(query)))
@@ -145,6 +161,10 @@ def scores(query, docs, groups=None, hint=None):
     areas = {a for a in {c.split()[1] for c in docs}
              if hint == a or all(any(w in forms(t) or t in forms(w) for t in terms)
                                  for w in tokens(a))}
+    # A named area is the more specific signal: its domain is not boosted too,
+    # or the area's group siblings would catch up with it.
+    area_groups = {(groups or {}).get(c) for c in docs if c.split()[1] in areas}
+    named |= set(resolve_domains(query, domains)) - area_groups
     n = len(docs)
     avgdl = sum(len(d) for d in docs.values()) / n if n else 0.0
     tforms = {t: forms(t) for t in terms}
@@ -203,7 +223,7 @@ def ordered(score_map):
     return sorted(score_map, key=lambda cid: (-score_map[cid], cid))
 
 
-def seeds(query, graph, edges=(), limit=5, hint=None):
+def seeds(query, graph, edges=(), limit=5, hint=None, domains=None):
     """The top `limit` commands with a positive score, as (id, score) pairs.
 
     With a hint the list is reordered by the boost, but the best seed without
@@ -211,10 +231,10 @@ def seeds(query, graph, edges=(), limit=5, hint=None):
     """
     docs = documents(graph, edges)
     groups = command_groups(graph)
-    s = scores(query, docs, groups, hint)
+    s = scores(query, docs, groups, hint, domains)
     out = [(cid, s[cid]) for cid in ordered(s) if s[cid] > 0][:max(limit, 0)]
     if norm_hint(hint) and out:
-        plain = scores(query, docs, groups)
+        plain = scores(query, docs, groups, domains=domains)
         best = ordered(plain)[0]
         if plain[best] > 0 and best not in [c for c, _ in out]:
             out[-1] = (best, s[best])

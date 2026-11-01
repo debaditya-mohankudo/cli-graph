@@ -21,6 +21,13 @@ confidence with none of the expected commands among the seeds; for a negative,
 any seed at high confidence. Both sets list them with the wrong top command and
 its score; only the tuning set's count is gated, against CONFIDENT_WRONG_CEILING.
 
+--domains (task:a70134dd) adds a section comparing the domain layer
+(graph/domains.json) off and on: top-1, seed and subgraph rates on the even
+half of the tuning set (index parity; the vocabulary was written from its
+misses) and the odd half (the test), the held-out set as counts only, and
+confident-wrong answers on the off-fixture guards (eval_prompts.json rows with
+no fitting command). It reports; it does not change the exit code.
+
 Exit codes: 0 when the tuning set's subgraph hit rate is at least --threshold,
 its seed hit rate at least --seed-threshold and its confident-wrong count at
 most the ceiling and the held-out seed hit rate at least --heldout-seed-threshold,
@@ -44,6 +51,7 @@ from graph.validate_edges import command_ids
 
 FIXTURE = REPO / "tests" / "eval_phrases.json"
 HELDOUT = REPO / "tests" / "eval_heldout.json"
+PROMPTS = REPO / "tests" / "eval_prompts.json"
 THRESHOLD = 0.9
 # A ratchet at 63/70, under the current 65/70: raise it when seed hits rise, never lower it.
 SEED_THRESHOLD = 0.9
@@ -73,18 +81,20 @@ def oracle_area(p):
     return p["expect"][0].split()[1] if p["expect"] else None
 
 
-def score(phrases, graph, edges, limit=find_cli.DEFAULT_LIMIT, hops=2, oracle=False):
+def score(phrases, graph, edges, limit=find_cli.DEFAULT_LIMIT, hops=2, oracle=False,
+          domains=None):
     """One result row per phrase: {phrase, expect, hit, seed_hit, rank, abstained, result}.
 
     rank is the 1-based seed position of the best-placed expected id, or None.
     abstained is true when find_cli returned no seeds (or said no_match); it is
     the right answer only for a phrase whose expect is [].
-    oracle passes each phrase's true area as the hint (task:fcaad255).
+    oracle passes each phrase's true area as the hint (task:fcaad255);
+    domains turns on the domain layer (task:a70134dd).
     """
     rows = []
     for p in phrases:
         r = find_cli.find(p["phrase"], graph, edges, limit=limit, hops=hops,
-                           area=oracle_area(p) if oracle else None)
+                           area=oracle_area(p) if oracle else None, domains=domains)
         seeds = [s["id"] for s in r["seeds"]]
         ids = seeds + [n["id"] for n in r["neighbours"]]
         ranks = [seeds.index(c) + 1 for c in p["expect"] if c in seeds]
@@ -181,6 +191,31 @@ def report(rows, out=None):
     return s
 
 
+def domain_report(graph, edges, phrases, heldout, domains, limit, hops, out=None):
+    """Print the domain layer off vs on (task:a70134dd); return {name: (off, on)} rates."""
+    out = out or sys.stdout
+    guards = [p for p in load_fixture(PROMPTS) if not p["expect"]] if PROMPTS.exists() else []
+    sets = (("even", phrases[0::2]), ("odd", phrases[1::2]), ("held-out", heldout),
+            ("guards", guards))
+    res = {}
+    print("\n== domain layer (task:a70134dd): off -> on ==", file=out)
+    for name, ph in sets:
+        if not ph:
+            continue
+        a = rates(score(ph, graph, edges, limit, hops))
+        b = rates(score(ph, graph, edges, limit, hops, domains=domains))
+        res[name] = (a, b)
+        if a["n"]:
+            print(f"{name:9} top-1 {a['top1_hits']}/{a['n']} -> {b['top1_hits']}"
+                  f"   seed {a['seed_hits']} -> {b['seed_hits']}"
+                  f"   subgraph {a['hits']} -> {b['hits']}"
+                  f"   confident-wrong {a['confident_wrong']} -> {b['confident_wrong']}", file=out)
+        else:
+            print(f"{name:9} confident-wrong {a['confident_wrong']}/{a['negatives']}"
+                  f" -> {b['confident_wrong']}/{b['negatives']}", file=out)
+    return res
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--threshold", type=float, default=THRESHOLD)
@@ -189,6 +224,8 @@ def main(argv=None):
     ap.add_argument("--confident-wrong-ceiling", type=int, default=CONFIDENT_WRONG_CEILING)
     ap.add_argument("--limit", type=int, default=find_cli.DEFAULT_LIMIT)
     ap.add_argument("--hops", type=int, default=2)
+    ap.add_argument("--domains", action="store_true",
+                    help="also compare the domain layer off and on (task:a70134dd)")
     args = ap.parse_args(argv)
 
     graph, edges = find_cli.load()
@@ -215,6 +252,9 @@ def main(argv=None):
         heldout_ok = h["n"] == 0 or h["seed_rate"] >= args.heldout_seed_threshold
     else:
         heldout_ok = True
+    if args.domains:
+        from graph import domains as _domains
+        domain_report(graph, edges, phrases, heldout, _domains.load(), args.limit, args.hops)
     ok = (s["subgraph_rate"] >= args.threshold and s["seed_rate"] >= args.seed_threshold
           and s["confident_wrong"] <= args.confident_wrong_ceiling and heldout_ok)
     return 0 if ok else 1

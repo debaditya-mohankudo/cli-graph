@@ -40,10 +40,13 @@
         "find_cli/service.py Finder.current() re-reads graph/cli_graph.json and graph/edges.json when either file's mtime or size changes, so a regenerated graph or edited edges.json shows in the next call without a server restart. A file that fails to parse keeps the last good pair; only a first load with no good pair is an error (task:d430f68b).",
         "Finder.answer() never raises: a failure returns a contract-shaped {\"error\": {code, message}} (mac.contract.error_object, code 'internal'), for both the MCP tool and `mac cli find`.",
         "`mac cli find` is the shared CLI fallback for when the MCP server is down; claude-hooks find_cli_log.link_calls ignores `mac cli` calls so such a lookup is not judged a miss against the pending find_cli query (task:ddc32293).",
-        "find_cli/usage.py load(path) reads mac rows of mcp_tool_hints in ~/.claude/tool_hints.sqlite (FIND_CLI_USAGE_DB overrides) read-only via mode=ro; a missing file/table or any sqlite3.Error gives {}. Finder.answer calls it on every request, not at start-up, because the server lives for a whole Claude session."
+        "find_cli/usage.py load(path) reads mac rows of mcp_tool_hints in ~/.claude/tool_hints.sqlite (FIND_CLI_USAGE_DB overrides) read-only via mode=ro; a missing file/table or any sqlite3.Error gives {}. Finder.answer calls it on every request, not at start-up, because the server lives for a whole Claude session.",
+        "find(..., domains=None) (task:a70134dd): domains is {group: [words]} from graph/domains.json, passed by the caller like usage. When given, rank.resolve_domains(query, domains) -> sorted groups whose words (any form) the query uses; those groups join rank.scores' named set and get the single GROUP_BOOST, except a group in which the query already names an area. Output gains `domains` (the resolved list, [] when none). confidence is computed from the layer-off scores. With domains=None the output has no `domains` key and is byte-identical to before (verified against f20659d over 232 phrases x 3 call shapes).",
+        "graph/domains.py validate(domains, group_names): every key is a group of graph/groups.json, every group has >=1 word, words are lowercase alphanumeric and under one domain only; `uv run python -m graph.domains` exits 1 naming each problem.",
+        "tests/eval_find_cli.py --domains prints layer off -> on for the even half (index parity, vocabulary source), odd half (test), held-out (counts only) and eval_prompts.json no-fit rows (guards); report only, exit code unchanged. 2026-11-01: odd top-1 22->22/36, seed 34->34, guards confident-wrong 46/61->46/61; even top-1 21->24."
       ],
       "created_at": "2026-10-26T13:18:06.872864+00:00",
-      "description": "find_cli maps a plain-language task phrase to a small subgraph of `mac` commands. rank.py scores commands with stdlib BM25 over area + verb + desc + alias names to pick seeds. expand.py adds neighbours: hand-written edges at hops 1-2 plus up to 3 same-area siblings per seed. find() combines the two. server.py exposes it as the single MCP tool `find_cli`, launched by bin/find_cli on cli-graph's own .venv (no uv sync at launch; FIND_CLI_PYTHON overrides the interpreter). find_cli/service.py Finder is shared with the CLI fallback `mac cli find`, so both return the same result for the same input.",
+      "description": "find_cli maps a plain-language task phrase to a small subgraph of `mac` commands. rank.py scores commands with stdlib BM25 over area + verb + desc + alias names to pick seeds. expand.py adds neighbours: hand-written edges at hops 1-2 plus up to 3 same-area siblings per seed. find() combines the two. server.py exposes it as the single MCP tool `find_cli`, launched by bin/find_cli on cli-graph's own .venv (no uv sync at launch; FIND_CLI_PYTHON overrides the interpreter). find_cli/service.py Finder is shared with the CLI fallback `mac cli find`, so both return the same result for the same input. An optional domain layer (graph/domains.json, task:a70134dd) maps plain words to the closed group set before ranking; it is off in the server.",
       "evidence": [
         "find_cli/__init__.py:find",
         "find_cli/rank.py:seeds",
@@ -63,7 +66,11 @@
         "tests/test_find_cli.py:UsageTest",
         "find_cli/rank.py:forms",
         "find_cli/rank.py:scores",
-        "find_cli/rank.py:confidence"
+        "find_cli/rank.py:confidence",
+        "find_cli/rank.py:resolve_domains",
+        "graph/domains.py:validate",
+        "tests/test_domains.py:FindWithDomainsTest",
+        "tests/eval_find_cli.py:domain_report"
       ],
       "invariants": [
         "Reads only the committed graph/cli_graph.json and graph/edges.json, never a live CLI.",
@@ -73,9 +80,11 @@
         "Output is a pure function of (task, graph, edges, limit, hops, usage) and byte-identical across processes with different hash seeds: no ordering comes from sets.",
         "tests/test_eval_fixture.py asserts in the suite that the fixture's subgraph hit rate is >= 0.9, its seed hit rate >= 0.84, that held-out phrases are disjoint from the tuning set, and that every expected id is a command node, so a rank/expand/edges change that lowers retrieval, or a regenerated graph that renames a verb, fails unittest discover (task:597ac09d). As of 2026-10-27: 51/51 subgraph, 42/51 seed (task:2dcdba79).",
         "Off-fixture guard phrases in tests/test_find_cli.py (GUARDS, test_news_does_not_seed_a_create_command) pin seeds outside the eval fixture, so a ranking change that trades unseen phrasing for fixture wins fails the suite. eval_find_cli.py does not report them; run the suite, not only the eval.",
-        "Confidence is advice only: find()'s seeds equal rank.seeds() for the same query, so no_match/confidence never hide or reorder a command."
+        "Confidence is advice only: find()'s seeds equal rank.seeds() for the same query, so no_match/confidence never hide or reorder a command.",
+        "The domain layer never admits a zero-score command and never changes confidence: it can only reorder seeds a keyword already matched (tests/test_domains.py).",
+        "find_cli/service.py does not pass domains, so the MCP tool behaves as keyword ranking only until an eval on unseen phrases shows the layer gains."
       ],
-      "last_validated": "2026-10-30T08:25:49.358195+00:00",
+      "last_validated": "2026-11-01T05:41:54.871061+00:00",
       "module": "find_cli/__init__.py",
       "name": "find-cli",
       "related": [
@@ -372,6 +381,6 @@
     }
   },
   "meta": {
-    "updated_at": "2026-10-30T08:25:49.358267+00:00"
+    "updated_at": "2026-11-01T05:41:54.871153+00:00"
   }
 }

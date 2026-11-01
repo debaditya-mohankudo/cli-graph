@@ -11,6 +11,9 @@ has no model inside it.
 - `graph/edges.json` is hand-written. It holds relations a description can't
   express: `feeds`, `requires`, `prefer_over` and `alias_of`.
 - `graph/groups.json` assigns areas to groups, such as "communication".
+- `graph/domains.json` lists, for each group, plain words that mean that
+  group without naming it ("friend", "ping" mean communication). It is the
+  optional domain layer, off in the server (see below).
 
 ## The call
 
@@ -33,6 +36,22 @@ desc, and the verbs of any aliases pointing at it. So "text" finds
 | Plural/singular forms | Count as the same term, at 0.8 weight. |
 | Typo fallback | A word of 5+ letters found nowhere is matched against vocabulary words one edit away, at 0.6 weight. |
 | Group and area boost | Scores above 0 are multiplied by 1.5 when the query names a group or area, or the `area` hint does. This reorders results but never admits a command the query didn't match. |
+| Domain layer (optional) | With `domains` passed to `find()`, a query that uses a domain's word gets that group's boost too, unless it already names an area in that group (the area is the more specific signal). |
+
+**The domain layer** sits between the query and the commands. The set of
+domains is closed: it is exactly the groups in `graph/groups.json`.
+`rank.resolve_domains` maps the query to the groups whose words it uses, and
+the output reports them in a `domains` field. The layer only multiplies scores
+already above 0. So a query with no domain word ranks by keywords alone,
+unchanged. With `domains=None`, which is the default, the output is
+byte-identical to the output without the layer. `uv run python -m graph.domains`
+fails if the file names a group that doesn't exist, leaves a group with no
+words, or lists a word under two groups.
+
+The layer is off in the server. On the odd half of the eval phrases, which
+was not used to write the words, top-1 stayed at 22/36 and seed hits at 34/36.
+It gained only on the even half the words came from. Run
+`tests/eval_find_cli.py --domains` to measure it again as the fixture grows.
 
 ### 2. Confidence (`rank.confidence`)
 
@@ -40,7 +59,8 @@ The result carries a `confidence` field. `coverage` is the idf-weighted share
 of the query's terms that the top seed contains. `gap` is the top score minus
 the runner-up's. Both low gives `level: "low"`, which means only an incidental
 word matched. If nothing scored, `no_match` is true. This is advice only and
-never hides a seed.
+never hides a seed. Confidence is always computed without the domain layer's
+boost: the layer may reorder seeds, but it never raises confidence.
 
 ### 3. Expansion (`expand.py`)
 

@@ -1,0 +1,14 @@
+{
+  "about": "Domain vocabulary for find_cli (task:a70134dd): plain words that signal one of the closed groups of graph/groups.json. Written from the command graph and the misses of the even half of tests/eval_phrases.json only; the odd half and the held-out set are the test. A word belongs to one domain only; leave out words several domains use (note, check, list, search). Checked by `uv run python -m graph.domains`.",
+  "domains": {
+    "astrology": ["astrology", "horoscope", "dasha", "kundli", "gochar", "panchang", "nakshatra", "planet", "planets", "birth", "rashi", "lagna"],
+    "communication": ["message", "messages", "imessage", "sms", "text", "mail", "email", "emails", "inbox", "contact", "contacts", "friend", "ping", "reply", "phone", "ipad"],
+    "development": ["git", "commit", "commits", "branch", "repo", "repository", "merge", "rebase"],
+    "knowledge": ["vault", "obsidian", "memory", "memories", "remember", "knowledge", "semantic", "code", "codebase", "sysml", "backlinks", "rag"],
+    "markets": ["market", "stock", "stocks", "share", "shares", "price", "nse", "nifty", "ticker", "wyckoff", "portfolio", "sector", "trading", "eod"],
+    "media": ["music", "song", "songs", "playlist", "podcast", "podcasts", "episode", "episodes", "volume", "sound", "audio"],
+    "productivity": ["calendar", "event", "events", "meeting", "meetings", "appointment", "schedule", "reminder", "reminders", "todo"],
+    "system": ["battery", "sleep", "vpn", "wifi", "disk", "hooks", "cpu", "notification", "notify"],
+    "web": ["web", "safari", "browser", "tab", "tabs", "url", "website", "connector"]
+  }
+}

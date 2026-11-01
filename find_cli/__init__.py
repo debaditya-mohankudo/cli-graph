@@ -18,6 +18,12 @@ hint        only when the caller passed an area/group hint: {value, known, valid
             without it is kept. An unknown one is reported with the valid
             names and changes nothing.
 
+domains     only when the caller passed a domains map (graph/domains.json,
+            task:a70134dd): the sorted groups the query resolved to. Their
+            commands are boosted like a group the query names; [] means the
+            query used no domain word and ranking is plain keyword ranking.
+            confidence is always computed without the domain boost.
+
 With a usage map, each seed and neighbour also carries count and last_used.
 
 It reads only the committed graph/cli_graph.json and graph/edges.json, never a
@@ -47,23 +53,25 @@ def load(graph_path=GRAPH, edges_path=EDGES):
     return graph, edges
 
 
-def find(task, graph, edges=(), limit=DEFAULT_LIMIT, hops=2, usage=None, area=None):
+def find(task, graph, edges=(), limit=DEFAULT_LIMIT, hops=2, usage=None, area=None,
+         domains=None):
     """Seeds and neighbours for task. See the module docstring for the shape.
 
     usage ({id: {"count", "last_used"}}, see find_cli.usage) is passed in by
     the caller, so find() stays a pure function of its arguments. When given,
     every returned command gets count and last_used (0 / None if it has no
     row); it never changes ranking or order. area is the caller's optional
-    area or group hint (task:fcaad255). When None, the output is
-    exactly what it was without usage.
+    area or group hint (task:fcaad255). domains ({group: [words]}, see
+    graph.domains) is passed in the same way (task:a70134dd). When usage,
+    area and domains are None, the output is exactly what it was without them.
     """
     commands = command_ids(graph)
     nodes = {n["id"]: n for n in graph["nodes"] if n["id"] in commands}
     docs = _rank.documents(graph, edges)
     info_hint = _rank.hint_info(area, graph) if area else None
     hint = info_hint["value"] if info_hint and info_hint["known"] else None
-    scores = _rank.scores(task, docs, command_groups(graph), hint)
-    seed_pairs = [(cid, s) for cid, s in _rank.seeds(task, graph, edges, limit, hint)
+    scores = _rank.scores(task, docs, command_groups(graph), hint, domains)
+    seed_pairs = [(cid, s) for cid, s in _rank.seeds(task, graph, edges, limit, hint, domains)
                   if cid in commands]
     neighbours = _expand.expand([cid for cid, _ in seed_pairs], graph, edges,
                                 scores=scores, hops=hops)
@@ -77,7 +85,10 @@ def find(task, graph, edges=(), limit=DEFAULT_LIMIT, hops=2, usage=None, area=No
             out["last_used"] = u.get("last_used")
         return out
 
-    conf = _rank.confidence(task, docs, scores)
+    # The domain layer reorders but never certifies: confidence reads the
+    # scores without it, so a domain word alone cannot turn "low" into "high".
+    plain = _rank.scores(task, docs, command_groups(graph), hint) if domains else scores
+    conf = _rank.confidence(task, docs, plain)
     result = {
         "query": task,
         "no_match": not seed_pairs,
@@ -87,4 +98,6 @@ def find(task, graph, edges=(), limit=DEFAULT_LIMIT, hops=2, usage=None, area=No
     }
     if info_hint:
         result["hint"] = info_hint
+    if domains is not None:
+        result["domains"] = _rank.resolve_domains(task, domains)
     return result

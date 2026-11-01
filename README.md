@@ -29,6 +29,7 @@ so a CLI call and an MCP call share one code path.
 | `graph/cli_graph.json` | Command graph **generated** from `mac --help --json`: a `groups` and a `domains` overview first, then one node per command. Never hand-edited. |
 | `graph/edges.json` | Hand-written edges between commands: `alias_of`, `requires`, `feeds`, `prefer_over`. |
 | `graph/groups.json` | Hand-written groups of areas (communication, productivity, ...). `graph/generate.py` adds them to the graph's `groups` and `domains` sections. |
+| `graph/domains.json` | Plain words per group for `find_cli`'s optional domain layer, checked by `graph/domains.py` (off in the server; see `docs/how-it-works.md`). |
 | `find_cli/` | The MCP server (`server.py`): BM25 ranking (`rank.py`), edge and sibling expansion (`expand.py`), usage counts (`usage.py`). |
 | `tools/` | Generators: `gen_groups.py` (local-mac group modules), `gen_mcp_groups.py` (proxy group modules), `gen_permissions.py` (Claude Code permission rules). `cutover.py` turns the migrated MCP servers off or back on (one backup per cutover; pass `299daf58` for the claude-hooks one). |
 | `tests/` | Unit, drift and hook-parity tests, the `find_cli` hit-rate eval (`eval_find_cli.py`) and the caller-picks experiment (`pick_from_index.py`). |
@@ -220,6 +221,7 @@ Each has a test that fails while its output is out of date.
 | Any verb added or removed | `uv run python tools/gen_permissions.py` | `tests/test_permissions.py` |
 | Hand-written edges | edit `graph/edges.json` | `graph/validate_edges.py`, `tests/test_edges.py` |
 | An area added, or its group changed | edit `graph/groups.json`, then `uv run python -m graph.generate` | `tests/test_groups.py`, `tests/test_drift.py` |
+| A group added or renamed | add its words to `graph/domains.json` | `uv run python -m graph.domains`, `tests/test_domains.py` |
 
 `gen_permissions.py` writes one `Bash(mac <area> <verb> *)` rule per command
 into `~/.claude/settings.json`. Outbound or destructive verbs listed in its
