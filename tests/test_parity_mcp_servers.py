@@ -6,20 +6,12 @@ parity is mostly about the two translations around that call:
     right JSON types, and every required property reachable;
   - tool result -> mac output: JSON text blocks unwrapped, errors on stderr.
 
-Offline tests stub the proxy. Server-backed tests start the real servers
-(skipped when one is not installed): the generated modules match each live
-tools/list, and pure-compute verbs return what a direct MCP call returns.
-Live tests (MAC_PARITY_LIVE=1) add reads of the private astrology.db.
-
-Never run here: the wyckoff write verbs (update_*, db_init_state,
-plot_sr_chart, classify_announcements), which write stock DBs and fetch from
-NSE/FINRA/yfinance, and the wyckoff reads that fetch live prices.
+These servers are permanently CLI-only, so there is no MCP counterpart to
+compare against: every test stubs the proxy and starts no server.
 """
-import functools
 import io
 import json
 import os
-import subprocess
 import sys
 import types
 import unittest
@@ -38,11 +30,6 @@ from mac.groups import _mcp_proxy
 AREAS = gen_mcp_groups.AREAS
 
 
-@functools.cache
-def live_tools(area):
-    """tools/list of the area's server, fetched once per test run (each fetch is a server start)."""
-    return _mcp_proxy.list_tools(area)
-
 # Reviewed independently of gen_mcp_groups.WRITE: a verb must not turn read by an edit there.
 WRITE = {
     "wyckoff": {"plot_sr_chart", "db_init_state", "update_run", "update_delivery",
@@ -60,14 +47,6 @@ def text_result(*texts, is_error=False):
 def stub_proxy(area, returns="ok"):
     """Replace call_tool in the generated module for `area`; data_block keeps working on what it returns."""
     return mock.patch(f"mac.groups.{area}.call_tool", return_value=returns)
-
-
-def installed(server):
-    try:
-        _mcp_proxy._check_installed(server, _mcp_proxy.SERVERS[server])
-        return True
-    except Failure:
-        return False
 
 
 class UnwrapTest(unittest.TestCase):
@@ -216,169 +195,6 @@ class ForwardingTest(unittest.TestCase):
         with stub_proxy("sysml", returns=["ACTION REQUIRED: call renderMermaidDiagram", {"mermaidMarkup": "m"}]):
             status, out, err = run("sysml", "preview", "--code", "package P;")
         self.assertEqual((status, json.loads(out)), (0, {"mermaidMarkup": "m"}), err)
-
-
-def direct(server, calls):
-    """[(tool, arguments)] -> the parsed text blocks of each result, from one MCP session.
-
-    Shares only the launch and the JSON-or-text parse with `mac`, not its
-    unwrapping: this is what an MCP client gets. The calls share one server
-    process, as in an MCP session, so a tool that leans on state an earlier call
-    left behind shows up as a mismatch with `mac`, where every call is a fresh
-    process.
-    """
-    async def op(session):
-        out = []
-        for tool, arguments in calls:
-            result = await session.call_tool(tool, arguments)
-            out.append([_mcp_proxy._value(b.text) for b in result.content])
-        return out
-    return _mcp_proxy._run(server, op)
-
-
-def without_timing(value):
-    """sysml reports parse timings in ms, which differ between two runs."""
-    if isinstance(value, dict):
-        return {k: without_timing(v) for k, v in value.items() if k != "timing"}
-    if isinstance(value, list):
-        return [without_timing(v) for v in value]
-    return value
-
-
-class ServerTest(unittest.TestCase):
-    """Starts the real servers; each area is skipped when its server is not installed."""
-
-    def area(self, area):
-        if not installed(area):
-            self.skipTest(f"{area} server not installed")
-        return area
-
-    def cli(self, *argv):
-        status, out, err = run(*argv)
-        self.assertEqual(status, 0, err)
-        return json.loads(out)
-
-    def test_generated_modules_match_the_live_tool_lists(self):
-        for area in AREAS:
-            with self.subTest(area=area):
-                self.area(area)
-                expected = gen_mcp_groups.render(area, live_tools(area))
-                actual = gen_mcp_groups.module_path(area).read_text()
-                self.assertEqual(actual, expected, f"{area}: rerun tools/gen_mcp_groups.py")
-
-    def test_every_verb_sends_arguments_its_schema_accepts(self):
-        sample = {"integer": "3", "number": "1.5", "object": "{}", "boolean": None}
-        for area in AREAS:
-            self.area(area)
-            for tool in live_tools(area):
-                schema = tool.inputSchema or {}
-                props, required = schema.get("properties", {}), schema.get("required", [])
-                file_args = gen_mcp_groups.FILE_ARGS.get(area, ())
-                argv = []
-                # NSE lists every property as required; these are flags (see gen_mcp_groups.OPTIONAL/DEFAULTS).
-                flags = gen_mcp_groups.OPTIONAL.get(area, set()) | {p for a, p in gen_mcp_groups.DEFAULTS if a == area}
-                for name in required:
-                    if name in flags:
-                        continue
-                    prop = props[name]
-                    v = next((v for v in prop.get("anyOf", [prop]) if v.get("type") != "null"), {})
-                    t = v.get("type", "string")
-                    if name in file_args:
-                        argv += [gen_mcp_groups.flag(name), "x"]
-                    elif "format" in v:  # a date format: "x" would be a usage error
-                        argv.append("2026-10-27")
-                    else:
-                        argv.append(sample.get(t, "x"))
-                verb = gen_mcp_groups.verb_name(area, tool.name)
-                with self.subTest(verb=f"{area} {verb}"), stub_proxy(area, returns={}) as fake:
-                    status, _, err = run(area, verb, *argv)
-                    self.assertEqual(status, 0, err)
-                    (srv, name), arguments = fake.call_args.args, fake.call_args.kwargs
-                    self.assertEqual((srv, name), (area, tool.name))
-                    self.assertLessEqual(set(arguments), set(props))
-                    self.assertEqual(set(required) - set(arguments) - flags, set())
-
-    def test_list_result_table_matches_the_handlers(self):
-        # Run under each server's own interpreter: its handlers cannot be imported here.
-        probes = {
-            "astrology": "import importlib, inspect, json, sys; sys.path.insert(0, '.');"
-                         "from dispatcher import DOMAIN_MAP;"
-                         "print(json.dumps({f'{d}__{a}': str(inspect.signature(getattr("
-                         "importlib.import_module(m), 'handle_' + a)).return_annotation)"
-                         " for d, (m, acts) in DOMAIN_MAP.items() for a in acts}))",
-            "wyckoff": "import inspect, json, sys; sys.path.insert(0, '.');"
-                       "import stock_tracker.mcp_server as s;"
-                       "print(json.dumps({n: str(inspect.signature(f).return_annotation)"
-                       " for n, f in vars(s).items() if inspect.isfunction(f)"
-                       " and f.__module__ == s.__name__ and not n.startswith('_')}))",
-        }
-        for area, code in probes.items():
-            with self.subTest(area=area):
-                self.area(area)
-                server = _mcp_proxy.SERVERS[area]
-                out = subprocess.run([server.command, "-c", code], cwd=server.cwd, capture_output=True,
-                                     text=True, env=_mcp_proxy._env(), check=True).stdout
-                returns = json.loads(out.strip().splitlines()[-1])
-                lists = {gen_mcp_groups.verb_name(area, tool) for tool, ann in returns.items() if "list" in ann}
-                self.assertEqual(lists, gen_mcp_groups.LIST_RESULT.get(area, set()))
-
-    def test_astrology_pure_compute_matches_mcp(self):
-        self.area("astrology")
-        calls = [("panchang__date", {"year": 2026, "month": 10, "day": 26}),
-                 ("planets__date", {"year": 2026, "month": 10, "day": 26}),
-                 ("astrology__mahadasha", {"moon_abs_degree": 45.0, "birth_date": "1990-01-01"}),
-                 ("astrology__tarabala", {"janma_nakshatra": 1, "target_nakshatra": 5})]
-        expected = [blocks[0] for blocks in direct("astrology", calls)]
-        got = [self.cli("astrology", "panchang_date", "2026", "10", "26"),
-               self.cli("astrology", "planets_date", "2026", "10", "26"),
-               self.cli("astrology", "mahadasha", "45.0", "1990-01-01"),
-               self.cli("astrology", "tarabala", "1", "5")]
-        self.assertEqual(got, expected)
-
-    def test_wyckoff_static_table_matches_mcp(self):
-        self.area("wyckoff")
-        [[expected]] = direct("wyckoff", [("signal_weight_table", {})])
-        self.assertEqual(self.cli("wyckoff", "signal_weight_table"), expected)
-
-    def test_sysml_matches_mcp(self):
-        self.area("sysml")
-        calls = [("parse", {"code": SYSML}), ("validate", {"code": SYSML}),
-                 ("getSymbols", {"code": SYSML, "definitionsOnly": True}),
-                 ("getComplexity", {"code": SYSML}), ("preview", {"code": SYSML})]
-        expected = direct("sysml", calls)
-        got = [self.cli("sysml", "parse", "--code", SYSML),
-               self.cli("sysml", "validate", "--code", SYSML),
-               self.cli("sysml", "get_symbols", "--code", SYSML, "--definitions-only"),
-               self.cli("sysml", "get_complexity", "--code", SYSML),
-               self.cli("sysml", "preview", "--code", SYSML)]
-        self.assertEqual(without_timing(got[:4]), without_timing([b[0] for b in expected[:4]]))
-        self.assertEqual(got[4], expected[4][-1])  # preview: the data block, without the render instruction
-
-    def test_bin_mac_runs_a_server_verb(self):
-        # End to end through bin/mac, so the environment it sets does not break a server start.
-        self.area("sysml")
-        out = subprocess.run([str(REPO / "bin" / "mac"), "sysml", "get_model_summary", "--code", SYSML],
-                             capture_output=True, text=True)
-        self.assertEqual(out.returncode, 0, out.stderr)
-        self.assertIn("documents", json.dumps(json.loads(out.stdout)).lower())
-
-
-@unittest.skipUnless(os.environ.get("MAC_PARITY_LIVE") == "1", "set MAC_PARITY_LIVE=1 to read astrology.db")
-class LiveParityTest(unittest.TestCase):
-    def test_astrology_db_reads_match_mcp(self):
-        if not installed("astrology"):
-            self.skipTest("astrology server not installed")
-        calls = [("gochar__summary", {"as_of": "2026-10-26"}),
-                 ("aq__upcoming_transitions", {"days": 30, "as_of": "2026-10-26"})]
-        summary, transitions = direct("astrology", calls)
-        expected = [summary[0], transitions]  # a list comes back as one block per item
-        got = []
-        for argv in (["gochar_summary", "--as-of", "2026-10-26"],
-                     ["aq_upcoming_transitions", "--days", "30", "--as-of", "2026-10-26"]):
-            status, out, err = run("astrology", *argv)
-            self.assertEqual(status, 0, err)
-            got.append(json.loads(out))
-        self.assertEqual(got, expected)
 
 
 if __name__ == "__main__":

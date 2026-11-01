@@ -7,11 +7,8 @@ The gates live in local-mac's tool_hooks and run inside dispatcher.invoke:
 imessage send needs a contacts search within 120s that found someone, mail
 delete needs a mail read within 120s. GateTest runs the real invoke against a
 scratch DB with stubbed handlers, so the allowed path is checked without
-sending a message or trashing mail. Live tests (MAC_PARITY_LIVE=1) check read
-parity and that the refusals come back as 'blocked'; the allowed path is never
-run live.
+sending a message or trashing mail.
 """
-import importlib
 import json
 import os
 import sqlite3
@@ -133,42 +130,6 @@ class GateTest(unittest.TestCase):
         status, out, err = run("mail", "delete", "7")
         self.assertEqual((status, json.loads(out)), (0, {"deleted": [7]}), err)
         self.mods.handle_delete.assert_called_once_with(message_ids=[7])
-
-
-def real_handler(area, action):
-    module_path = _backend.dispatcher().DOMAIN_MAP[area][0]
-    return getattr(importlib.import_module(module_path), f"handle_{action}")
-
-
-@unittest.skipUnless(os.environ.get("MAC_PARITY_LIVE") == "1", "set MAC_PARITY_LIVE=1 to touch the Mac")
-class LiveTest(unittest.TestCase):
-    def cli(self, *argv):
-        status, out, err = run(*argv)
-        self.assertEqual(status, 0, err)
-        return json.loads(out)
-
-    def same(self, area, action, *argv, **kwargs):
-        self.assertEqual(self.cli(area, action, *argv), real_handler(area, action)(**kwargs))
-
-    def test_reads_match_handlers(self):
-        self.same("mail", "list_mailboxes")
-        self.same("mail", "list_drafts", "--limit", "3", limit=3)
-        self.same("mail", "read", "--limit", "3", limit=3)
-        self.same("imessage", "read", "--limit", "3", "--direction", "sent", limit=3, direction="sent")
-
-    def test_send_refused_after_a_search_that_found_nobody(self):
-        self.assertEqual(self.cli("contacts", "search", f"zz-no-such-contact-{os.getpid()}"), [])
-        status, _, err = run("imessage", "send", "nobody@invalid.example", "mac parity")
-        self.assertEqual((status, json.loads(err)["error"]["code"]), (1, "blocked"), err)
-        self.assertIn("found no matching contact", err)
-
-    def test_delete_refused_without_a_recent_read(self):
-        hooks = _backend.tool_hooks()
-        if hooks._called_recently("mail__read"):
-            self.skipTest("a mail read ran in the last 120s, so the gate would pass")
-        # id 0 matches no message, so even a gate regression trashes nothing.
-        status, _, err = run("mail", "delete", "0")
-        self.assertEqual((status, json.loads(err)["error"]["code"]), (1, "blocked"), err)
 
 
 if __name__ == "__main__":

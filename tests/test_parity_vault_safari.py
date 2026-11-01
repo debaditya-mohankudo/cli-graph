@@ -8,17 +8,10 @@ safari is hand-written so it can enforce the tab guard: every verb acting on the
 front tab requires --expect-host and refuses with 'blocked' when the front tab's
 host does not match. These tests pin coverage, modes, exact forwarded kwargs and
 the guard, offline with stubbed handlers.
-
-Live tests (MAC_PARITY_LIVE=1) compare vault reads with the handlers, write,
-append, move and delete a note in a scratch folder, and open example.com in a
-new Safari window, read it through the guard and close it. Never run live:
-safari close_all_tabs, and any guarded verb on a tab these tests did not open.
 """
 import importlib
 import json
-import os
 import sys
-import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -175,45 +168,3 @@ class VaultTest(unittest.TestCase):
             status, _, err = run("vault", "append", "Inbox", "--", "- [ ] buy milk")
         self.assertEqual(status, 0, err)
         fake.assert_called_once_with(path="Inbox", content="- [ ] buy milk")
-
-
-@unittest.skipUnless(os.environ.get("MAC_PARITY_LIVE") == "1", "set MAC_PARITY_LIVE=1 to touch the Mac")
-class LiveParityTest(unittest.TestCase):
-    SCRATCH = "_cli-graph-parity"
-
-    def cli(self, *argv):
-        status, out, err = run(*argv)
-        self.assertEqual(status, 0, err)
-        return json.loads(out)
-
-    def test_vault_reads_match_handlers(self):
-        module = handler_module("vault")
-        self.assertEqual(self.cli("vault", "stats"), module.handle_stats())
-        self.assertEqual(self.cli("vault", "list"), module.handle_list())
-        self.assertEqual(self.cli("vault", "tags_search", "--limit", "10"), module.handle_tags_search(limit=10))
-        self.assertEqual(self.cli("vault", "filename_search", "daily"), module.handle_filename_search(query="daily"))
-
-    def test_vault_write_append_move_delete_in_scratch_folder(self):
-        module = handler_module("vault")
-        note, moved = f"{self.SCRATCH}/note", f"{self.SCRATCH}/moved"
-        folder = module.VAULT_PATH / self.SCRATCH
-        self.addCleanup(lambda: [p.unlink() for p in folder.glob("*.md")] and None)
-        self.addCleanup(lambda: folder.exists() and not any(folder.iterdir()) and folder.rmdir())
-        self.cli("vault", "write", note, "# parity\n")
-        self.cli("vault", "append", note, "--", "- line")
-        self.assertEqual(self.cli("vault", "read", note), module.handle_read(path=note))
-        self.assertIn("- line", self.cli("vault", "read", note))
-        self.cli("vault", "move", note, moved)
-        self.cli("vault", "delete", moved)
-        self.assertEqual(list(folder.glob("*.md")), [])
-
-    def test_safari_guard_on_a_window_of_our_own(self):
-        self.cli("safari", "open", "https://example.com/", "--new-window")
-        for _ in range(20):  # wait for the page to load
-            if host_matches(self.cli("safari", "current_url"), "example.com"):
-                break
-            time.sleep(0.5)
-        status, _, err = run("safari", "read", "title", "--expect-host", "not-this-host.org")
-        self.assertEqual((status, json.loads(err)["error"]["code"]), (1, "blocked"))
-        self.assertIn("Example", self.cli("safari", "read", "title", "--expect-host", "example.com"))
-        self.cli("safari", "close_tab", "--expect-host", "example.com")

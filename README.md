@@ -187,8 +187,9 @@ Growing the held-out set from real use is a loop, run from claude-hooks:
    only when the set has grown enough to support it.
 
 Run everything through `uv run`. Plain `python3` lacks pydantic, so the
-parity modules fail to import. Live parity tests, which really call the
-handlers, are skipped unless `MAC_PARITY_LIVE=1` is set.
+parity modules fail to import. Only `tests/test_parity_hooks.py` has a live
+MCP counterpart (claude-hooks). The local-mac, astrology, wyckoff, sysml and
+NSE servers are CLI-only, so their tests stub the backend and start no server.
 
 Environment overrides:
 
@@ -206,7 +207,7 @@ Each has a test that fails while its output is out of date.
 | When this changes | Run | Guarded by |
 |---|---|---|
 | A local-mac handler signature | `~/workspace/claude_for_mac_local/.venv/bin/python tools/gen_groups.py` | parity tests |
-| A proxied server's tools (`astrology`, `wyckoff`, `sysml`, `nse_eod`, `nse_live`) | `uv run python tools/gen_mcp_groups.py` | `tests/test_parity_mcp_servers.py` |
+| A proxied server's tools (`astrology`, `wyckoff`, `sysml`, `nse_eod`, `nse_live`) | `uv run python tools/gen_mcp_groups.py` | `tests/test_parity_mcp_servers.py` (translation only; no live tool-list check) |
 | Any verb added or removed | `uv run python -m graph.generate` | `tests/test_drift.py` |
 | Any verb added or removed | `uv run python tools/gen_permissions.py` | `tests/test_permissions.py` |
 | Hand-written edges | edit `graph/edges.json` | `graph/validate_edges.py`, `tests/test_edges.py` |

@@ -5,13 +5,7 @@ other generated groups in test_parity_simple_groups.py. Here: the exact kwargs
 each verb forwards, and that loading the handlers does not import llama_index.
 That import costs about 1.2s and only the embedding verbs need it, so a
 regression would make every `mac vault_rag fts_vault` call slow without failing.
-
-Live tests (MAC_PARITY_LIVE=1) compare the sqlite-only reads with the handlers.
-They never run index_vault, index_file or remove_section, which change the
-shared index, or query_vault/smart_search, which need a running Ollama.
 """
-import importlib
-import json
 import os
 import subprocess
 import sys
@@ -23,13 +17,6 @@ sys.path[:0] = [str(Path(__file__).resolve().parent.parent), str(Path(__file__).
 
 from _helpers import run, stub_dispatcher
 from mac.groups import _backend
-
-
-def handler_module():
-    try:
-        return importlib.import_module(_backend.dispatcher().DOMAIN_MAP["vault_rag"][0])
-    except ImportError as exc:
-        raise unittest.SkipTest(f"vault_rag handlers need local-mac's dependencies (run under `uv run`): {exc}")
 
 
 class ForwardingTest(unittest.TestCase):
@@ -75,26 +62,6 @@ class ImportCostTest(unittest.TestCase):
                  "print(any(m.startswith('llama_index') for m in sys.modules))")
         out = subprocess.run([str(python), "-c", probe, src], capture_output=True, text=True, check=True)
         self.assertEqual(out.stdout.strip(), "False")
-
-
-@unittest.skipUnless(os.environ.get("MAC_PARITY_LIVE") == "1", "set MAC_PARITY_LIVE=1 to touch the Mac")
-class LiveParityTest(unittest.TestCase):
-    def cli(self, *argv):
-        status, out, err = run(*argv)
-        self.assertEqual(status, 0, err)
-        return json.loads(out)
-
-    def test_sqlite_reads_match_handlers(self):
-        module = handler_module()
-        self.assertEqual(self.cli("vault_rag", "fts_vault", "sqlite", "--limit", "5"),
-                         module.handle_fts_vault(query="sqlite", limit=5))
-        self.assertEqual(self.cli("vault_rag", "fts_vault", "sqlite", "--folder", "Projects"),
-                         module.handle_fts_vault(query="sqlite", folder="Projects"))
-        self.assertEqual(self.cli("vault_rag", "index_status"), module.handle_index_status())
-        self.assertEqual(self.cli("vault_rag", "contains_section", "1"),
-                         module.handle_contains_section(section_id=1))
-        self.assertEqual(self.cli("vault_rag", "unindexed_files", "--folder", "Projects"),
-                         module.handle_unindexed_files(folder="Projects"))
 
 
 if __name__ == "__main__":

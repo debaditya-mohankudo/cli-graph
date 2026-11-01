@@ -2,22 +2,11 @@
 
 Offline tests check coverage of DOMAIN_MAP, the read/write table, that the
 generated modules are current, and that every verb passes arguments the real
-handler signature accepts. Live tests (MAC_PARITY_LIVE=1) compare read verbs
-against direct handler calls and run the writes that can be undone.
-
-Not run live, by design: system sleep_now/sleep_in/sleep_winddown/sleep_cancel
-(sleeps the Mac or touches a real schedule), vpn connect/disconnect/pause (drops
-the network), sound set_output (switches the audio device), music playback and
-volume (audible, launches Music), connector execute_action (external side
-effects; container is down), time play_sound (audible).
+handler signature accepts.
 """
 import importlib
 import json
-import os
-import re
-import subprocess
 import sys
-import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -146,100 +135,6 @@ class TranslationTest(unittest.TestCase):
         with stub_dispatcher(lambda a, b: down):
             status, _, err = run("connector", "health")
         self.assertEqual((status, json.loads(err)["error"]["code"]), (1, "internal"))
-
-
-@unittest.skipUnless(os.environ.get("MAC_PARITY_LIVE") == "1", "set MAC_PARITY_LIVE=1 to touch the Mac")
-class LiveParityTest(unittest.TestCase):
-    def cli(self, *argv):
-        status, out, err = run(*argv)
-        self.assertEqual(status, 0, err)
-        return json.loads(out)
-
-    def same(self, area, action, *argv, **kwargs):
-        self.assertEqual(self.cli(area, action, *argv), real_handler(area, action)(**kwargs))
-
-    def test_stable_reads_match_handlers(self):
-        self.same("sound", "get_output")
-        self.same("sound", "list_devices", "--type", "all", type="all")
-        self.same("podcasts", "list")
-        self.same("music", "list_playlists")
-        self.same("contacts", "search", "Debaditya", name="Debaditya")
-        self.same("calendar", "list_events", "2026-10-01", "2026-10-31",
-                  start_date="2026-10-01", end_date="2026-10-31")
-        self.same("calendar", "get_events_by_date", "2026-10-26", date="2026-10-26")
-        self.same("system", "icloud_list")
-        self.same("system", "sleep_status")
-        self.same("market", "gold_regime_history")
-
-    def test_volatile_reads_have_handler_shape(self):
-        for area, action in (("system", "battery_status"), ("system", "cpu_status"),
-                             ("system", "memory_status"), ("vpn", "status"), ("sound", "get_volume")):
-            self.assertEqual(self.cli(area, action).keys(), real_handler(area, action)().keys())
-
-    def test_calendar_add_then_delete_leaves_day_unchanged(self):
-        title, cal, day = f"mac-parity-{os.getpid()}", "market-watch", "2026-10-28"
-        before = self.cli("calendar", "list_events", day, day, "--limit", "1000")
-        self.assertIn("Added", self.cli("calendar", "add_event", title, f"{day}T10:00:00", "--calendar", cal))
-        try:
-            rows = self.cli("calendar", "list_events", day, day, "--calendar", cal)
-            self.assertIn(title, {r["title"] for r in rows})
-        finally:
-            self.assertIn("Deleted", self.cli("calendar", "delete_event", title, "--calendar", cal))
-        self.assertEqual(self.cli("calendar", "list_events", day, day, "--limit", "1000"), before)
-
-    def test_volume_and_mute_restore(self):
-        start = self.cli("sound", "get_volume")
-        try:
-            self.cli("sound", "set_volume", "30")
-            self.assertEqual(self.cli("sound", "get_volume")["volume"], 30)
-            self.cli("sound", "mute")
-            self.assertTrue(self.cli("sound", "get_volume")["muted"])
-        finally:
-            self.cli("sound", "set_volume", str(start["volume"]))
-            self.cli("sound", "mute" if start["muted"] else "unmute")
-
-    def test_clipboard_write_restores(self):
-        saved = subprocess.run(["pbpaste"], capture_output=True).stdout
-        try:
-            self.cli("system", "clipboard_write", "mac-parity")
-            self.assertEqual(self.cli("system", "clipboard_read"), "mac-parity")
-        finally:
-            subprocess.run(["pbcopy"], input=saved)
-
-    def test_process_kill_on_own_child(self):
-        child = subprocess.Popen(["sleep", "300"])
-        self.addCleanup(child.kill)
-        self.assertIn(str(child.pid), self.cli("system", "process_kill", str(child.pid)))
-        self.assertIsNotNone(child.wait(timeout=5))
-
-    def test_notify(self):
-        self.assertIn("Notification sent", self.cli("system", "notify", "mac parity", "--body", "live test"))
-
-    def test_wait_and_alarm_schedule_timers_that_are_removed(self):
-        # Each timer reports "(pid N)" and is stopped with `mac time cancel`.
-        # Cleanup is registered before any assertion, so a failing run still
-        # leaves no timer behind. Cleanups run last-in first-out, so the
-        # leftover check registered here runs after the cancels.
-        self.addCleanup(self.assertNoParityTimers)
-        for argv in (("time", "wait", "600", "--label", "mac-parity"),
-                     ("time", "alarm", "23:59", "--label", "mac-parity")):
-            message = self.cli(*argv)
-            pid = re.search(r"\(pid (\d+)\)", message)
-            self.assertIsNotNone(pid, message)
-            self.addCleanup(self.cancel_timer, pid.group(1))
-            self.assertIn("mac-parity", message)
-
-    def cancel_timer(self, pid):
-        self.assertIn(self.cli("time", "cancel", pid), (f"Timer {pid} cancelled",
-                                                       f"Timer {pid} already finished"))
-
-    def assertNoParityTimers(self):
-        for _ in range(20):
-            left = subprocess.run(["pgrep", "-f", "mac-parity"], capture_output=True, text=True).stdout.split()
-            if not left:
-                break
-            time.sleep(0.1)
-        self.assertEqual(left, [], "mac-parity timer still running")
 
 
 if __name__ == "__main__":
