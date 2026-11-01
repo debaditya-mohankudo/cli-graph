@@ -66,7 +66,14 @@ a placeholder or generic example, or leave the file out; never commit it.
 
 ## Where things are
 
-`README.md` covers the layout, the CLI contract, setup, tests and what to
-regenerate after a change. The work is tracked under taskfw epic
-`9839b040`, and `epic-9839b040-status.md` is a dated snapshot of it.
+`README.md` covers the layout, the CLI contract, setup, tests, what to
+regenerate after a change, and the cutover/rollback of the MCP servers
+that `mac` replaced (local-mac, astrology, wyckoff-analyzer, sysml-mcp,
+claude-hooks). `docs/how-it-works.md` explains how `find_cli` ranks and
+expands. The work is tracked under taskfw epic `9839b040`, and
+`epic-9839b040-status.md` is a dated snapshot of it.
 Always run Python through `uv run`.
+
+Counts in the README (areas, verbs, group table) drift when a verb or area
+is added. After such a change, check them against `mac --help` and
+`graph/groups.json`, not from memory.

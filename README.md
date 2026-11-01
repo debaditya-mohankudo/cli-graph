@@ -31,7 +31,8 @@ so a CLI call and an MCP call share one code path.
 | `graph/groups.json` | Hand-written groups of areas (communication, productivity, ...). `graph/generate.py` adds them to the graph's `groups` and `domains` sections. |
 | `find_cli/` | The MCP server (`server.py`): BM25 ranking (`rank.py`), edge and sibling expansion (`expand.py`), usage counts (`usage.py`). |
 | `tools/` | Generators: `gen_groups.py` (local-mac group modules), `gen_mcp_groups.py` (proxy group modules), `gen_permissions.py` (Claude Code permission rules). `cutover.py` turns the migrated MCP servers off or back on (one backup per cutover; pass `299daf58` for the claude-hooks one). |
-| `tests/` | Unit, drift and parity tests, plus the `find_cli` hit-rate eval. |
+| `tests/` | Unit, drift and hook-parity tests, the `find_cli` hit-rate eval (`eval_find_cli.py`) and the caller-picks experiment (`pick_from_index.py`). |
+| `docs/how-it-works.md` | Walkthrough of how `find_cli` ranks and expands. |
 | `concept_store/concepts.json` | Architectural notes and invariants for the repo. |
 
 ## The `mac` CLI
@@ -43,10 +44,10 @@ mac <area> --help          # verbs, read/write mode, usage lines
 mac --help --json          # every command as JSON rows (feeds graph/generate.py)
 ```
 
-There are about 204 verbs across 26 areas: `astrology`, `calendar`, `code_rag`, `connector`, `contacts`,
-`diff_rag`, `git`, `hooks`, `imessage`, `mail`, `market`, `memory`, `music`, `notes`, `podcasts`, `reminders`,
-`safari`, `sound`, `sysml`, `system`, `time`, `vault`, `vault_map`, `vault_rag`, `vpn`,
-`wyckoff`. `memory`, `vault_map` and `hooks` wrap claude-hooks; `memory add` takes
+There are 241 verbs across 29 areas: `astrology`, `calendar`, `cli`, `code_rag`, `connector`, `contacts`,
+`diff_rag`, `git`, `hooks`, `imessage`, `mail`, `market`, `memory`, `music`, `notes`, `nse_eod`, `nse_live`,
+`podcasts`, `reminders`, `safari`, `sound`, `sysml`, `system`, `time`, `vault`, `vault_map`, `vault_rag`,
+`vpn`, `wyckoff`. `nse_eod` and `nse_live` proxy NSE's hosted MCP servers; `cli find` is the `find_cli` lookup as a command. `memory`, `vault_map` and `hooks` wrap claude-hooks; `memory add` takes
 `--links` as a JSON list and `--body-file -` for long text. `scratch` and `think`
 were not ported (task:5ab623ca). `git` runs `git` directly: `add` takes explicit paths only,
 `commit` takes the staged files (or only the paths listed) and refuses a message without a
@@ -108,8 +109,8 @@ advice and never removes a seed.
 | productivity | calendar, notes, reminders, time |
 | knowledge | code_rag, diff_rag, memory, sysml, vault, vault_map, vault_rag |
 | media | music, podcasts, sound |
-| markets | market, wyckoff |
-| system | hooks, system, vpn |
+| markets | market, nse_eod, nse_live, wyckoff |
+| system | cli, hooks, system, vpn |
 | web | connector, safari |
 
 Every area has to be listed once, either in
@@ -170,6 +171,13 @@ tuning set fails the eval when their count passes
 `CONFIDENT_WRONG_CEILING` (3 today); the ceiling only goes down. The
 held-out set lists them but only its seed rate is gated.
 
+`tests/pick_from_index.py` is a separate experiment, not a gate: it puts the
+whole command index (or area-then-command) in front of a model and scores the
+model's picks against the ranker on the same phrases. On the tuning and held-out phrases together (77) the
+caller picked the right top-1 for 66/77 (full index) and 67/77 (areas first),
+against 48/77 for the ranker. Picks are stored in `tests/picks_full.json` and
+`tests/picks_areas.json` for replay with `--score`.
+
 Growing the held-out set from real use is a loop, run from claude-hooks:
 
 1. **Export.** `uv run python -m src.tools.find_cli_log --export --exclude
@@ -187,7 +195,7 @@ Growing the held-out set from real use is a loop, run from claude-hooks:
    only when the set has grown enough to support it.
 
 Run everything through `uv run`. Plain `python3` lacks pydantic, so the
-parity modules fail to import. Only `tests/test_parity_hooks.py` has a live
+test modules fail to import. Only `tests/test_parity_hooks.py` has a live
 MCP counterpart (claude-hooks). The local-mac, astrology, wyckoff, sysml and
 NSE servers are CLI-only, so their tests stub the backend and start no server.
 
@@ -206,7 +214,7 @@ Each has a test that fails while its output is out of date.
 
 | When this changes | Run | Guarded by |
 |---|---|---|
-| A local-mac handler signature | `~/workspace/claude_for_mac_local/.venv/bin/python tools/gen_groups.py` | parity tests |
+| A local-mac handler signature | `~/workspace/claude_for_mac_local/.venv/bin/python tools/gen_groups.py` | `tests/test_simple_groups.py`, `tests/test_mail_imessage.py` |
 | A proxied server's tools (`astrology`, `wyckoff`, `sysml`, `nse_eod`, `nse_live`) | `uv run python tools/gen_mcp_groups.py` | `tests/test_mcp_proxy.py` (translation only; no live tool-list check) |
 | Any verb added or removed | `uv run python -m graph.generate` | `tests/test_drift.py` |
 | Any verb added or removed | `uv run python tools/gen_permissions.py` | `tests/test_permissions.py` |
