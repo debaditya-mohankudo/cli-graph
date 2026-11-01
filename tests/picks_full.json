@@ -1,0 +1,752 @@
+{
+ "mode": "full",
+ "model": "sonnet",
+ "phrases": {
+  "add a calendar event for 30-Sep recheck": {
+   "picks": [
+    "calendar add_event",
+    "reminders create",
+    "calendar list_events",
+    "time alarm"
+   ],
+   "invalid": []
+  },
+  "add a reminder to rerun after CPI": {
+   "picks": [
+    "reminders create",
+    "reminders lists",
+    "calendar get_upcoming_events",
+    "time alarm"
+   ],
+   "invalid": []
+  },
+  "add the RBI MPC and Q2 results dates to calendar": {
+   "picks": [
+    "calendar add_event",
+    "calendar list_events",
+    "reminders create"
+   ],
+   "invalid": []
+  },
+  "add this summary in my daily notes in vault": {
+   "picks": [
+    "vault daily_read",
+    "vault append",
+    "vault write",
+    "vault list",
+    "vault filename_search"
+   ],
+   "invalid": []
+  },
+  "add this table to the apple note": {
+   "picks": [
+    "notes add",
+    "notes update",
+    "notes list",
+    "notes read",
+    "notes folders"
+   ],
+   "invalid": []
+  },
+  "any meetings tomorrow": {
+   "picks": [
+    "calendar list_events",
+    "calendar get_upcoming_events",
+    "calendar get_events_by_date",
+    "time now"
+   ],
+   "invalid": []
+  },
+  "any reminders to run?": {
+   "picks": [
+    "reminders list",
+    "reminders lists",
+    "calendar get_upcoming_events",
+    "time alarm"
+   ],
+   "invalid": []
+  },
+  "append this to the correlation note": {
+   "picks": [
+    "vault append",
+    "vault filename_search",
+    "notes update",
+    "notes list",
+    "vault_map find"
+   ],
+   "invalid": []
+  },
+  "append this to the gold vault note": {
+   "picks": [
+    "vault append",
+    "vault filename_search",
+    "vault write",
+    "vault read",
+    "vault section_search"
+   ],
+   "invalid": []
+  },
+  "book a flight to delhi": {
+   "picks": [],
+   "invalid": []
+  },
+  "calender events next week": {
+   "picks": [
+    "calendar get_upcoming_events",
+    "calendar list_events"
+   ],
+   "invalid": []
+  },
+  "check - vpn cut": {
+   "picks": [
+    "vpn status",
+    "vpn connect",
+    "vpn pause",
+    "vpn disconnect"
+   ],
+   "invalid": []
+  },
+  "check active page on safari": {
+   "picks": [
+    "safari current_url",
+    "safari current_title",
+    "safari read",
+    "safari list_tabs",
+    "safari screenshot"
+   ],
+   "invalid": []
+  },
+  "check if market-watch-reminders exist in apple reminder app": {
+   "picks": [
+    "reminders lists",
+    "reminders list"
+   ],
+   "invalid": []
+  },
+  "check if the note shows up in market-watch now": {
+   "picks": [
+    "calendar get_upcoming_events",
+    "calendar list_events",
+    "calendar get_events_by_date"
+   ],
+   "invalid": []
+  },
+  "check latest 5 mail - subject": {
+   "picks": [
+    "mail read",
+    "mail search",
+    "mail list_mailboxes"
+   ],
+   "invalid": []
+  },
+  "check live on NSE in Safari": {
+   "picks": [
+    "safari open",
+    "nse_live cm_get_stock_quote",
+    "safari navigate",
+    "safari read",
+    "nse_live cm_get_live_indices"
+   ],
+   "invalid": []
+  },
+  "check mail": {
+   "picks": [
+    "mail read",
+    "mail search",
+    "mail list_mailboxes",
+    "mail list_drafts"
+   ],
+   "invalid": []
+  },
+  "check my sent mail": {
+   "picks": [
+    "mail read",
+    "mail search",
+    "mail list_mailboxes",
+    "imessage read"
+   ],
+   "invalid": []
+  },
+  "check recent messages": {
+   "picks": [
+    "imessage read",
+    "mail read",
+    "imessage send",
+    "mail search",
+    "mail list_drafts"
+   ],
+   "invalid": []
+  },
+  "check reply from the bank if any?": {
+   "picks": [
+    "mail search",
+    "mail read",
+    "mail list_mailboxes",
+    "connector list_actions"
+   ],
+   "invalid": []
+  },
+  "check the obsidian vault daily note": {
+   "picks": [
+    "vault daily_read",
+    "vault tasks",
+    "vault list",
+    "vault filename_search",
+    "vault_rag fts_vault"
+   ],
+   "invalid": []
+  },
+  "check today's reminders": {
+   "picks": [
+    "reminders list",
+    "reminders lists"
+   ],
+   "invalid": []
+  },
+  "check vpn status": {
+   "picks": [
+    "vpn status"
+   ],
+   "invalid": []
+  },
+  "commit my changes with the task id": {
+   "picks": [
+    "git commit",
+    "git status",
+    "git add",
+    "git diff",
+    "git log"
+   ],
+   "invalid": []
+  },
+  "current vimshottari dasha mahadasha antardasha pratyantar": {
+   "picks": [
+    "astrology aq_current_dasha",
+    "astrology mahadasha",
+    "astrology aq_dasha_timeline",
+    "astrology aq_pd_timeline",
+    "astrology aq_upcoming_transitions"
+   ],
+   "invalid": []
+  },
+  "delete the VGT reminders and update the note": {
+   "picks": [
+    "reminders list",
+    "reminders delete",
+    "notes list",
+    "notes update",
+    "notes read"
+   ],
+   "invalid": []
+  },
+  "delete the old note": {
+   "picks": [
+    "notes delete",
+    "vault delete",
+    "notes list",
+    "notes read",
+    "vault list"
+   ],
+   "invalid": []
+  },
+  "delete the one in Notes by title": {
+   "picks": [
+    "notes delete"
+   ],
+   "invalid": []
+  },
+  "delete the stale OpenAI IPO calendar event": {
+   "picks": [
+    "calendar delete_event",
+    "calendar list_events",
+    "calendar get_upcoming_events"
+   ],
+   "invalid": []
+  },
+  "delete the test note in the vault": {
+   "picks": [
+    "vault filename_search",
+    "vault delete",
+    "vault list"
+   ],
+   "invalid": []
+  },
+  "did the bank reply yet": {
+   "picks": [
+    "mail search",
+    "mail read",
+    "connector execute_action",
+    "imessage read",
+    "mail list_mailboxes"
+   ],
+   "invalid": []
+  },
+  "disconnect the vpn": {
+   "picks": [
+    "vpn disconnect",
+    "vpn status",
+    "vpn pause"
+   ],
+   "invalid": []
+  },
+  "dm him the link": {
+   "picks": [
+    "imessage send",
+    "contacts search",
+    "system clipboard_read",
+    "safari current_url",
+    "imessage read"
+   ],
+   "invalid": []
+  },
+  "evnts tomorow": {
+   "picks": [
+    "calendar list_events",
+    "calendar get_upcoming_events",
+    "calendar get_events_by_date",
+    "reminders list",
+    "time now"
+   ],
+   "invalid": []
+  },
+  "fetch FRED series DFII10 real yield and latest gold, DXY, US 10y quotes": {
+   "picks": [],
+   "invalid": []
+  },
+  "find the function that builds the dispatcher in the repo code": {
+   "picks": [
+    "code_rag smart_search",
+    "code_rag query",
+    "diff_rag smart_search"
+   ],
+   "invalid": []
+  },
+  "find which vault folder holds my notes on this topic": {
+   "picks": [
+    "vault_map find",
+    "vault folder_search",
+    "vault_map overview",
+    "vault_rag smart_search",
+    "vault filename_search"
+   ],
+   "invalid": []
+  },
+  "git push commit to a local repo": {
+   "picks": [
+    "git push",
+    "git status",
+    "git log",
+    "git commit",
+    "git add"
+   ],
+   "invalid": []
+  },
+  "gold price history, US 10-year yield, real yield, dollar index time series since January 2026": {
+   "picks": [
+    "market gold_regime_history",
+    "market gold_regime_projection",
+    "vault_rag smart_search",
+    "vault_map find"
+   ],
+   "invalid": []
+  },
+  "good pick , send that to my imessage": {
+   "picks": [
+    "imessage send",
+    "contacts search",
+    "system clipboard_read"
+   ],
+   "invalid": []
+  },
+  "is the summary added to vault?": {
+   "picks": [
+    "vault daily_read",
+    "vault filename_search",
+    "vault_rag fts_vault",
+    "vault_map find",
+    "vault tasks"
+   ],
+   "invalid": []
+  },
+  "list recent daily notes": {
+   "picks": [
+    "vault daily_read",
+    "vault list",
+    "vault filename_search",
+    "vault tasks",
+    "vault_map overview"
+   ],
+   "invalid": []
+  },
+  "list reminder lists": {
+   "picks": [
+    "reminders lists",
+    "reminders list"
+   ],
+   "invalid": []
+  },
+  "mom birthday plan": {
+   "picks": [
+    "calendar add_event",
+    "reminders create",
+    "notes add",
+    "contacts search",
+    "calendar list_events"
+   ],
+   "invalid": []
+  },
+  "move the note to Education/Coursera in the vault": {
+   "picks": [
+    "vault move",
+    "vault list",
+    "vault filename_search",
+    "vault_map find"
+   ],
+   "invalid": []
+  },
+  "msg mom": {
+   "picks": [
+    "imessage send",
+    "contacts search",
+    "imessage read",
+    "mail compose",
+    "cli find"
+   ],
+   "invalid": []
+  },
+  "new vault note called Coursera": {
+   "picks": [
+    "vault write",
+    "vault append",
+    "vault filename_search",
+    "notes add",
+    "vault list"
+   ],
+   "invalid": []
+  },
+  "nse top gainers today": {
+   "picks": [
+    "nse_live nse_get_gainers",
+    "nse_live cm_get_live_gainers",
+    "nse_live nse_get_market_movers",
+    "nse_eod get_top_movers",
+    "nse_live cm_get_live_indices"
+   ],
+   "invalid": []
+  },
+  "option chain for banknifty": {
+   "picks": [
+    "nse_live cm_get_index_quote",
+    "nse_live cm_get_live_market_data",
+    "nse_live cm_get_stock_quote",
+    "nse_eod get_index_snapshot",
+    "cli find"
+   ],
+   "invalid": []
+  },
+  "order a pizza": {
+   "picks": [],
+   "invalid": []
+  },
+  "ping my friend that I am late": {
+   "picks": [
+    "imessage send",
+    "contacts search",
+    "mail compose",
+    "system notify"
+   ],
+   "invalid": []
+  },
+  "push this branch to the remote": {
+   "picks": [
+    "git push",
+    "git status",
+    "git log"
+   ],
+   "invalid": []
+  },
+  "read the email from my colleague": {
+   "picks": [
+    "mail search",
+    "mail read",
+    "mail get",
+    "mail list_drafts",
+    "contacts search"
+   ],
+   "invalid": []
+  },
+  "refresh the vault map and the index": {
+   "picks": [
+    "vault_rag index_vault",
+    "vault_rag unindexed_files",
+    "vault_map overview",
+    "vault_rag index_status",
+    "vault_rag index_file"
+   ],
+   "invalid": []
+  },
+  "remind me to pull participant OI after 7pm": {
+   "picks": [
+    "reminders create",
+    "time alarm",
+    "reminders lists",
+    "calendar add_event",
+    "time wait"
+   ],
+   "invalid": []
+  },
+  "remove the reminders - thangamayil and enrin and hindcopper - i dont track them anymore": {
+   "picks": [
+    "reminders list",
+    "reminders delete",
+    "reminders lists",
+    "reminders complete"
+   ],
+   "invalid": []
+  },
+  "save this as a memory for next time": {
+   "picks": [
+    "memory add",
+    "memory add_batch",
+    "memory search",
+    "memory get",
+    "memory list"
+   ],
+   "invalid": []
+  },
+  "save this report to apple notes - market-watch folder": {
+   "picks": [
+    "notes add",
+    "notes folders",
+    "notes update",
+    "notes list",
+    "system clipboard_read"
+   ],
+   "invalid": []
+  },
+  "save this summary in vault": {
+   "picks": [
+    "vault write",
+    "vault append",
+    "vault_map find",
+    "vault list",
+    "notes add"
+   ],
+   "invalid": []
+  },
+  "save this to apple notes": {
+   "picks": [
+    "notes add",
+    "notes update",
+    "notes list",
+    "notes read",
+    "notes folders"
+   ],
+   "invalid": []
+  },
+  "schedule the HDFC earnings date": {
+   "picks": [
+    "calendar add_event",
+    "nse_eod get_corporate_actions",
+    "reminders create",
+    "calendar list_events",
+    "nse_eod nse_lookup_symbol"
+   ],
+   "invalid": []
+  },
+  "search axis customer id in vault": {
+   "picks": [
+    "vault_rag smart_search",
+    "vault_rag fts_vault",
+    "vault filename_search",
+    "vault_map find",
+    "vault_rag query_vault"
+   ],
+   "invalid": []
+  },
+  "search my memory for what I decided about this": {
+   "picks": [
+    "memory search",
+    "memory list",
+    "memory tool_hints",
+    "memory get",
+    "memory stale"
+   ],
+   "invalid": []
+  },
+  "semantic search the claude-hooks code for where tool handlers are dispatched": {
+   "picks": [
+    "code_rag smart_search",
+    "code_rag query"
+   ],
+   "invalid": []
+  },
+  "send a text message to a contact": {
+   "picks": [
+    "imessage send",
+    "contacts search",
+    "imessage read",
+    "mail compose"
+   ],
+   "invalid": []
+  },
+  "send each section by message to my friend": {
+   "picks": [
+    "imessage send",
+    "contacts search",
+    "imessage read"
+   ],
+   "invalid": []
+  },
+  "send the artifact link to my ipad": {
+   "picks": [
+    "imessage send",
+    "mail compose",
+    "contacts search",
+    "system clipboard_write",
+    "system notify"
+   ],
+   "invalid": []
+  },
+  "set a reminder to check the CDOE portal": {
+   "picks": [
+    "reminders create",
+    "reminders lists",
+    "time alarm",
+    "reminders list",
+    "calendar add_event"
+   ],
+   "invalid": []
+  },
+  "show my agenda": {
+   "picks": [
+    "calendar get_upcoming_events",
+    "calendar list_events",
+    "reminders list",
+    "vault tasks",
+    "vault daily_read"
+   ],
+   "invalid": []
+  },
+  "show the recent commits": {
+   "picks": [
+    "git log",
+    "git status",
+    "git diff",
+    "diff_rag query",
+    "hooks server_memory"
+   ],
+   "invalid": []
+  },
+  "text someone": {
+   "picks": [
+    "imessage send",
+    "contacts search",
+    "imessage read",
+    "mail compose",
+    "system notify"
+   ],
+   "invalid": []
+  },
+  "tick the MDB reminder and update its due date": {
+   "picks": [
+    "reminders list",
+    "reminders complete",
+    "reminders update",
+    "reminders lists",
+    "reminders create"
+   ],
+   "invalid": []
+  },
+  "txt my friend": {
+   "picks": [
+    "imessage send",
+    "contacts search",
+    "imessage read",
+    "mail compose",
+    "reminders create"
+   ],
+   "invalid": []
+  },
+  "what did I change in src/tools last month, by commit diff": {
+   "picks": [
+    "diff_rag query",
+    "diff_rag smart_search",
+    "git log",
+    "git diff",
+    "diff_rag index_commits"
+   ],
+   "invalid": []
+  },
+  "what files changed in the repo": {
+   "picks": [
+    "git status",
+    "git diff",
+    "git log"
+   ],
+   "invalid": []
+  },
+  "what is nifty doing": {
+   "picks": [
+    "nse_live cm_get_index_quote",
+    "nse_live cm_get_live_indices",
+    "nse_eod get_index_snapshot",
+    "nse_eod get_market_mood",
+    "nse_eod get_index_performance"
+   ],
+   "invalid": []
+  },
+  "what is the weather in pune": {
+   "picks": [],
+   "invalid": []
+  },
+  "what was I working on, recent session activity": {
+   "picks": [
+    "hooks server_memory",
+    "memory read_compact",
+    "hooks session_id",
+    "cli find",
+    "memory search"
+   ],
+   "invalid": []
+  },
+  "whats on my schedule tomorrow": {
+   "picks": [
+    "calendar get_upcoming_events",
+    "calendar list_events",
+    "calendar get_events_by_date",
+    "reminders list",
+    "time now"
+   ],
+   "invalid": []
+  },
+  "which commit changed the memory loader": {
+   "picks": [
+    "diff_rag query",
+    "diff_rag smart_search",
+    "git log",
+    "code_rag smart_search",
+    "diff_rag index_commits"
+   ],
+   "invalid": []
+  },
+  "why gold price is falling hard - since jan 2026 -": {
+   "picks": [
+    "market gold_regime_history",
+    "market gold_regime_projection",
+    "calendar get_noise_summary",
+    "calendar get_upcoming_events",
+    "vault_rag smart_search"
+   ],
+   "invalid": []
+  },
+  "write the draft in my apple mail and open": {
+   "picks": [
+    "mail compose",
+    "mail list_drafts",
+    "mail add_local_mailbox"
+   ],
+   "invalid": []
+  }
+ }
+}
