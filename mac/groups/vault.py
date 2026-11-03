@@ -145,3 +145,13 @@ def register(registry):
                    desc='show frequently searched keywords ranked by search count')
     def vault_vault_keyword_hints(ns):
         return call('vault', 'vault_keyword_hints', **given(ns, ('limit',)))
+
+    def vault_recent_args(p):
+        p.add_argument('--days', default=argparse.SUPPRESS, type=int)
+        p.add_argument('--kind', default=argparse.SUPPRESS)
+        p.add_argument('--since', default=argparse.SUPPRESS)
+
+    @registry.verb("vault", "recent", mode="read",
+                   desc="vault files created, edited or read today or in the last N days, from the vault's file log. kind: created, edited, both, read or all. Run `mac vault_log scan` first to see changes made since the last scan", args=vault_recent_args)
+    def vault_recent(ns):
+        return call('vault', 'recent', **given(ns, ('days', 'kind', 'since')))
