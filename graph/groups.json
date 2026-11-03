@@ -2,7 +2,7 @@
   "groups": {
     "astrology": ["astrology"],
     "communication": ["contacts", "imessage", "mail"],
-    "development": ["git"],
+    "development": ["git", "kitty"],
     "knowledge": ["code_rag", "diff_rag", "memory", "sysml", "vault", "vault_log", "vault_map", "vault_rag"],
     "markets": ["market", "nse_eod", "nse_live", "wyckoff"],
     "media": ["music", "podcasts", "sound"],

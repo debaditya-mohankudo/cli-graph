@@ -249,6 +249,34 @@
         "mcp-server-proxy-backend"
       ]
     },
+    "kitty-tab-guard": {
+      "confidence": 0.8,
+      "contracts": [
+        "`mac kitty` verbs take --tab as a numeric TAB id from `mac kitty tabs`; a title is never an address (a colon in a title breaks kitten's --match).",
+        "Tab id and window id are separate namespaces. send-text, send-key and get-text match `id:<window>`; close-tab matches `id:<tab>`. _resolve maps the tab id to its first window before acting.",
+        "A tab is guarded when any window has is_self or any foreground process is `claude`; run, read, interrupt and close refuse it with code `refused`, before any kitten call but ls.",
+        "run types the one-liner with send-text --stdin, submits with a separate send-key enter, then checks get-text for the whitespace-stripped command, so a wrapped line still verifies. --at/--retry build a single visible one-liner; --dry-run returns it unsent."
+      ],
+      "created_at": "2026-11-03T13:40:00+00:00",
+      "description": "`mac kitty` (tabs/open/run/read/interrupt/close) drives other kitty tabs over `kitten @`. It is self-contained: taskfw's kitty adapter was not reused because taskfw is not importable in cli-graph's env (mcp>=2.1.1 vs mcp<2) and the adapter lacks send/get-text/close.",
+      "evidence": [
+        "mac/groups/kitty.py",
+        "tests/test_kitty.py:KittyTest",
+        "tools/gen_permissions.py:ASK"
+      ],
+      "invariants": [
+        "read output is a hint only; real state lives in the database or logs the command wrote.",
+        "No hidden script files: everything run does is visible at the tab's prompt.",
+        "kitty run, interrupt and close are in gen_permissions.ASK and prompt; tabs, read and open are allowed.",
+        "Adding the kitty area made 'text someone' a confident-wrong find_cli hit until the read description dropped the word 'text' (task:f4bc132e); re-run tests/eval_find_cli.py after rewording kitty descriptions."
+      ],
+      "last_validated": "2026-11-03T13:40:00+00:00",
+      "module": "mac/groups/kitty.py",
+      "name": "kitty-tab-guard",
+      "related": [
+        "safari-tab-guard"
+      ]
+    },
     "mcp-cutover": {
       "confidence": 0.8,
       "contracts": [

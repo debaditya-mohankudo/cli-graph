@@ -40,6 +40,7 @@ ASK = {
     "connector": {"execute_action"},
     "vpn": {"disconnect"},
     "git": {"commit", "push"},
+    "kitty": {"run", "interrupt", "close"},
 }
 
 # Ways a shell command can name the launcher: the bare name on PATH, the
