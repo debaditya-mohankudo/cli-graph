@@ -45,10 +45,10 @@ mac <area> --help          # verbs, read/write mode, usage lines
 mac --help --json          # every command as JSON rows (feeds graph/generate.py)
 ```
 
-There are 251 verbs across 31 areas: `astrology`, `calendar`, `cli`, `code_rag`, `connector`, `contacts`,
+There are 253 verbs across 32 areas: `astrology`, `calendar`, `cli`, `code_rag`, `connector`, `contacts`,
 `diff_rag`, `git`, `hooks`, `imessage`, `kitty`, `mail`, `market`, `memory`, `music`, `notes`, `nse_eod`, `nse_live`,
 `podcasts`, `reminders`, `safari`, `sound`, `sysml`, `system`, `time`, `vault`, `vault_log`, `vault_map`, `vault_rag`,
-`vpn`, `wyckoff`. `nse_eod` and `nse_live` proxy NSE's hosted MCP servers; `vault_log` reads and appends to an insert-only SQLite log of vault file creates, edits and reads, by running the `vault_file_log.py` script of stock-tracker-mcp (`MAC_VAULT_LOG_SCRIPT` overrides its path); `cli find` is the `find_cli` lookup as a command. `memory`, `vault_map` and `hooks` wrap claude-hooks; `memory add` takes
+`stock`, `vpn`, `wyckoff`. `stock` runs stock-tracker-mcp's `fii_dii.py` (option-chain capture and walls; `MAC_STOCK_TRACKER_DIR` overrides the repo path). `nse_eod` and `nse_live` proxy NSE's hosted MCP servers; `vault_log` reads and appends to an insert-only SQLite log of vault file creates, edits and reads, by running the `vault_file_log.py` script of stock-tracker-mcp (`MAC_VAULT_LOG_SCRIPT` overrides its path); `cli find` is the `find_cli` lookup as a command. `memory`, `vault_map` and `hooks` wrap claude-hooks; `memory add` takes
 `--links` as a JSON list and `--body-file -` for long text. `scratch` and `think`
 were not ported (task:5ab623ca). `git` runs `git` directly: `add` takes explicit paths only,
 `commit` takes the staged files (or only the paths listed) and refuses a message without a
@@ -112,7 +112,7 @@ advice and never removes a seed.
 | productivity | calendar, notes, reminders, time |
 | knowledge | code_rag, diff_rag, memory, sysml, vault, vault_log, vault_map, vault_rag |
 | media | music, podcasts, sound |
-| markets | market, nse_eod, nse_live, wyckoff |
+| markets | market, nse_eod, nse_live, stock, wyckoff |
 | system | cli, hooks, system, vpn |
 | web | connector, safari |
 

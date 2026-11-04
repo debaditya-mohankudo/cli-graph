@@ -116,13 +116,27 @@ def describe(registry, area=None):
     ]
 
 
+def _area_groups():
+    """{group: [area, ...]} from graph/groups.json, or {} if it cannot be read."""
+    try:
+        from graph.groups import load
+        return load()["groups"]
+    except (ImportError, OSError, KeyError, ValueError):
+        return {}
+
+
 def help_text(registry, area=None):
     if area is None:
-        lines = ["usage: mac <area> <verb> [options]", "", "areas:"]
-        lines += [f"  {a}  ({len(registry.verbs(a))} verbs)" for a in registry.areas()]
+        lines = ["usage: mac <area> <verb> [options]"]
+        areas = set(registry.areas())
+        for group, members in [*_area_groups().items(), ("ungrouped", sorted(areas - set().union(*_area_groups().values())))]:
+            members = [m for m in members if m in areas]
+            if members:
+                lines += ["", f"{group}:"] + [f"  {m}  ({len(registry.verbs(m))} verbs)" for m in members]
         lines += ["", "mac <area> --help lists verbs; mac --help --json lists everything."]
         return "\n".join(lines)
-    lines = [f"mac {area} verbs:"]
+    group = next((g for g, m in _area_groups().items() if area in m), None)
+    lines = [f"mac {area} verbs:" + (f"  (group: {group})" if group else "")]
     for v in registry.verbs(area):
         lines.append(f"  {v.name} [{v.mode}]  {v.desc}")
         lines.append(f"      {usage_line(v)}")
