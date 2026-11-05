@@ -77,6 +77,8 @@
     {"phrase": "what is nifty doing", "expect": ["mac nse_live cm_get_index_quote", "mac nse_live cm_get_live_indices"], "source": "synonym"},
     {"phrase": "nse top gainers today", "expect": ["mac nse_live nse_get_gainers", "mac nse_live nse_get_market_movers"], "source": "synonym"},
     {"phrase": "option chain for banknifty", "expect": ["mac stock fii_dii_chain_api"], "source": "synonym"},
+    {"phrase": "price of EWY etf", "expect": ["mac stock us_quote"], "source": "synonym"},
+    {"phrase": "how has apple stock performed this year", "expect": ["mac stock us_performance"], "source": "synonym"},
     {"phrase": "book a table for dinner tonight", "expect": [], "source": "negative"},
     {"phrase": "mom birthday plan", "expect": [], "source": "negative"}
   ]
