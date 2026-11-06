@@ -277,6 +277,31 @@
         "safari-tab-guard"
       ]
     },
+    "mac-call-log": {
+      "confidence": 0.8,
+      "contracts": [
+        "`mac cli_log recent [--days N] [--area A] [--verb V]` and `mac cli_log history ID` return mcp_tool_calls rows with ts in local time (stored UTC).",
+        "A logging failure never changes a verb's output or exit code."
+      ],
+      "created_at": "2026-11-06T05:51:24.245078+00:00",
+      "description": "Every `mac` verb call is logged exactly once to local-mac's mcp_tool_calls table: dispatcher-routed verbs by tool_hooks.tool_called, all others by cli.py:_log_call via tool_hooks.log_call. `mac cli_log recent|history` reads it back.",
+      "evidence": [
+        "mac/cli.py:_log_call",
+        "mac/contract.py:ROUTED",
+        "mac/groups/_backend.py:call",
+        "mac/groups/cli_log.py",
+        "tests/test_call_log.py:CallLogTest"
+      ],
+      "invariants": [
+        "_backend.call sets the ROUTED ContextVar just before dispatcher.invoke and _run resets it per call, so a routed verb is never logged twice.",
+        "cli_log itself is not logged (UNLOGGED_AREAS), so reading the log does not grow it.",
+        "MAC_NO_CALL_LOG=1 disables logging; tests/conftest.py sets it so the suite never writes the real log."
+      ],
+      "last_validated": "2026-11-06T05:51:24.245091+00:00",
+      "module": "mac/cli.py",
+      "name": "mac-call-log",
+      "related": []
+    },
     "mac-stock-area": {
       "confidence": 0.8,
       "contracts": [
@@ -431,6 +456,6 @@
     }
   },
   "meta": {
-    "updated_at": "2026-11-05T14:46:06.266836+00:00"
+    "updated_at": "2026-11-06T05:51:24.245152+00:00"
   }
 }
