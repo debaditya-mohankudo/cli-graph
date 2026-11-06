@@ -9,7 +9,7 @@ def register(registry):
         p.add_argument('--force', default=argparse.SUPPRESS, action="store_true")
 
     @registry.verb("vault_rag", "index_vault", mode="write",
-                   desc='build semantic index from vault_index.sqlite sections using local Ollama embeddings', args=vault_rag_index_vault_args)
+                   desc='build semantic index from vault_index.sqlite sections using a local sentence-transformers model (no Ollama)', args=vault_rag_index_vault_args)
     def vault_rag_index_vault(ns):
         return call('vault_rag', 'index_vault', **given(ns, ('force',)))
 
