@@ -4,7 +4,7 @@
     "communication": ["contacts", "imessage", "mail"],
     "development": ["git", "kitty"],
     "knowledge": ["code_rag", "diff_rag", "memory", "sysml", "vault", "vault_log", "vault_map", "vault_rag"],
-    "markets": ["stock", "market", "metrics", "nse_eod", "nse_live", "wyckoff"],
+    "markets": ["stock", "market", "graph_metrics", "nse_eod", "nse_live", "wyckoff"],
     "media": ["music", "podcasts", "sound"],
     "productivity": ["calendar", "notes", "reminders", "time"],
     "system": ["cli", "cli_log", "hooks", "system", "vpn"],

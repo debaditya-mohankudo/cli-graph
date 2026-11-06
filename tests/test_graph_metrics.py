@@ -1,4 +1,4 @@
-"""`mac metrics`: what reaches graph_metrics, and how its JSON comes back (task:a7ff9fc6)."""
+"""`mac graph_metrics`: what reaches graph_metrics, and how its JSON comes back (task:a7ff9fc6)."""
 import json
 import os
 import subprocess
@@ -22,7 +22,7 @@ class MetricsVerbs(unittest.TestCase):
     def call(self, *argv, stdout='{"cmd": "x", "rows": 0}', returncode=0):
         done = subprocess.CompletedProcess([], returncode, stdout=stdout, stderr="")
         with mock.patch("mac.groups.stock.subprocess.run", return_value=done) as sp:
-            status, out, err = run("metrics", *argv)
+            status, out, err = run("graph_metrics", *argv)
         args = sp.call_args.args[0] if sp.called else None
         # everything after `-m <module> --json` is graph_metrics' own argv
         return status, out, err, (args[args.index("--json") + 1:] if args else None)

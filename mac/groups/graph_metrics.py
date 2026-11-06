@@ -1,4 +1,4 @@
-"""`mac metrics` — the dated metric store behind stock-tracker-mcp's ontology graphs (graph_metrics.db): market-data loaders, freshness and series queries, and hand-entered prints.
+"""`mac graph_metrics` — the dated metric store behind stock-tracker-mcp's ontology graphs (graph_metrics.db): market-data loaders, freshness and series queries, and hand-entered prints.
 
 stock-tracker-mcp's stock_tracker/utils/graph_metrics.py stays the one
 implementation: each verb runs `python -m stock_tracker.utils.graph_metrics
@@ -73,28 +73,28 @@ LOADERS = [
 
 def register(registry):
     for verb, cmd, desc in LOADERS:
-        @registry.verb("metrics", verb, mode="write", desc=desc, args=_start)
+        @registry.verb("graph_metrics", verb, mode="write", desc=desc, args=_start)
         def handler(ns, cmd=cmd):
             return _run(cmd, *_opts(ns, "start"))
 
-    @registry.verb("metrics", "load_kalshi", mode="write",
+    @registry.verb("graph_metrics", "load_kalshi", mode="write",
                    desc="load Kalshi prediction-market odds for the next FOMC Fed rate decision (hike, hold, cut) into the Fed rate-hike graph's metric store; returns rows written and each outcome's probability",
                    args=lambda p: p.add_argument("--event", default=UNSET, help="Kalshi event ticker (default: graph_metrics' current FOMC event)"))
     def load_kalshi(ns):
         return _run("load-kalshi", *_opts(ns, "event"))
 
-    @registry.verb("metrics", "load_flows", mode="write",
+    @registry.verb("graph_metrics", "load_flows", mode="write",
                    desc="load FII index-futures open interest and FII/DII cash flows from fii_dii.db onto the India market open graph's metric store; returns rows written per table")
     def load_flows(ns):
         return _run("load-flows")
 
-    @registry.verb("metrics", "load_bhavcopy", mode="write",
+    @registry.verb("graph_metrics", "load_bhavcopy", mode="write",
                    desc="load Nifty futures basis and option-chain positioning from NSE UDiFF F&O bhavcopy files (.csv or .csv.zip) into the India market open graph's metric store",
                    args=lambda p: p.add_argument("paths", nargs="+", help="bhavcopy files"))
     def load_bhavcopy(ns):
         return _run("load-bhavcopy", *[_abs(p) for p in ns.paths])
 
-    @registry.verb("metrics", "ingest_fred", mode="write",
+    @registry.verb("graph_metrics", "ingest_fred", mode="write",
                    desc="store a FRED pull fetched in Safari (the JSON a loader's Safari fallback leaves in window.__fred, saved to a file) into the graph metric store",
                    args=lambda p: p.add_argument("path", help="JSON file of {series_id: [[date, value], ...]}"))
     def ingest_fred(ns):
@@ -111,7 +111,7 @@ def register(registry):
                        help="default secondary")
         _graph_file(p, "default: us-macro for a shared plug node, ai-capex for an ai-capex node, else required")
 
-    @registry.verb("metrics", "record", mode="write",
+    @registry.verb("graph_metrics", "record", mode="write",
                    desc="record one hand-entered figure (rate-hike odds, a CDS level, any print with no feed) for a graph node in the metric store, source-tagged",
                    args=record_args)
     def record(ns):
@@ -124,7 +124,7 @@ def register(registry):
             p.add_argument(f, type=float, help="Rs crore")
         p.add_argument("source", help='e.g. "AMFI Monthly Note Sep 2026 p15"')
 
-    @registry.verb("metrics", "record_amfi_overseas", mode="write",
+    @registry.verb("graph_metrics", "record_amfi_overseas", mode="write",
                    desc="record one month of AMFI overseas fund-of-fund and overseas ETF net flow and AUM (Rs crore) in the metric store",
                    args=amfi_args)
     def record_amfi_overseas(ns):
@@ -136,7 +136,7 @@ def register(registry):
         _graph_file(p, "omit to see every graph's rows (shared plug nodes live under us-macro)")
         p.add_argument("--rows", type=int, default=UNSET, help="max rows, newest first (default 30)")
 
-    @registry.verb("metrics", "series", mode="read",
+    @registry.verb("graph_metrics", "series", mode="read",
                    desc="stored date series of one graph node's metrics from the metric store, newest first; an empty result says which other graph stores that node",
                    args=series_args)
     def series(ns):
@@ -147,7 +147,7 @@ def register(registry):
         _graph_file(p, "default: the India market open graph")
         p.add_argument("--as-of", default=UNSET, help="YYYY-MM-DD (default: the newest stored session)")
 
-    @registry.verb("metrics", "latest", mode="read",
+    @registry.verb("graph_metrics", "latest", mode="read",
                    desc="every node's latest stored metric values for one session of a graph, as {node: {metric: value}}",
                    args=latest_args)
     def latest(ns):
@@ -159,7 +159,7 @@ def register(registry):
                        help="only metrics older than the last NSE session")
         p.add_argument("--node", default=UNSET, help="substring filter on node id or metric")
 
-    @registry.verb("metrics", "freshness", mode="read",
+    @registry.verb("graph_metrics", "freshness", mode="read",
                    desc="which graph metrics are stale or current: newest stored date, source and row count per node and metric, checked against the last NSE session; run before any fallback fetch",
                    args=fresh_args)
     def freshness(ns):

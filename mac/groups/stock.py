@@ -90,7 +90,7 @@ print(json.dumps({
 
 def run_in_repo(python_args, *, marker, label):
     """Run `python <python_args>` in stock-tracker-mcp's environment and return
-    the JSON object on the last stdout line. Shared by `mac stock` and `mac metrics`;
+    the JSON object on the last stdout line. Shared by `mac stock` and `mac graph_metrics`;
     `marker` is the stock_tracker/utils file the verb needs."""
     repo = Path(os.environ.get("MAC_STOCK_TRACKER_DIR", DEFAULT_REPO))
     if not (repo / "stock_tracker" / "utils" / marker).is_file():
