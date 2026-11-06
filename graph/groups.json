@@ -7,7 +7,7 @@
     "markets": ["stock", "market", "nse_eod", "nse_live", "wyckoff"],
     "media": ["music", "podcasts", "sound"],
     "productivity": ["calendar", "notes", "reminders", "time"],
-    "system": ["cli", "hooks", "system", "vpn"],
+    "system": ["cli", "cli_log", "hooks", "system", "vpn"],
     "web": ["connector", "safari"]
   },
   "ungrouped": []

@@ -1,5 +1,11 @@
 """Output and failure contract shared by every verb."""
 import json
+from contextvars import ContextVar
+
+# True once a verb's call reached local-mac's dispatcher, which logs it to
+# mcp_tool_calls itself; mac.cli._run logs only the calls that did not
+# (task:80010ea1), so each call is logged exactly once.
+ROUTED = ContextVar("mac_routed", default=False)
 
 EXIT_OK = 0
 EXIT_ERROR = 1

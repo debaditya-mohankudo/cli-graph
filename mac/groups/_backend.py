@@ -18,7 +18,7 @@ import os
 import sys
 from pathlib import Path
 
-from mac.contract import Failure, raise_if_error
+from mac.contract import ROUTED, Failure, raise_if_error
 
 DEFAULT_SRC = Path.home() / "workspace" / "claude_for_mac_local" / "src"
 
@@ -81,6 +81,7 @@ def call(area, action, /, **kwargs):
     """Run the `<area>__<action>` handler through the dispatcher and translate its result."""
     d = dispatcher()
     refused = tool_hooks().Refused
+    ROUTED.set(True)  # dispatcher.invoke logs this call, including a refusal
     try:
         result = d.invoke(area, action, d.resolve(area, action), kwargs)
     except refused as exc:

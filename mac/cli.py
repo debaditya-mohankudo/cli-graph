@@ -1,12 +1,14 @@
 """Argument handling, help and dispatch for `mac <area> <verb>`."""
 import argparse
 import json
+import os
 import re
 import sys
+import time
 from datetime import date, datetime
 
 from mac.contract import (
-    EXIT_OK, EXIT_USAGE, Failure, apply_limit, dump, error_object,
+    EXIT_OK, EXIT_USAGE, ROUTED, Failure, apply_limit, dump, error_object,
 )
 from mac.registry import Registry, load_groups
 
@@ -143,6 +145,44 @@ def help_text(registry, area=None):
     return "\n".join(lines)
 
 
+# Areas whose calls are not logged: reading the call log should not grow it.
+UNLOGGED_AREAS = frozenset({"cli_log"})
+_TRUNCATE_LEN = 200
+_SECRET = re.compile(r"token|password|passwd|secret|api_?key", re.I)
+
+
+def _log_args(ns):
+    """The verb's own arguments, with long text cut and secret-looking values blanked."""
+    out = {}
+    for key, value in vars(ns).items():
+        if key in ("limit", "json") and value in (None, False):
+            continue
+        if _SECRET.search(key):
+            value = "[redacted]"
+        elif isinstance(value, str) and len(value) > _TRUNCATE_LEN:
+            value = f"{value[:_TRUNCATE_LEN]}... [{len(value)} chars]"
+        out[key] = value
+    return out
+
+
+def _log_call(verb, ns, start, *, error=None, result=None):
+    """Log a call that did not reach local-mac's dispatcher into mcp_tool_calls.
+
+    Dispatcher-routed calls are logged by tool_hooks.tool_called already (ROUTED).
+    Never raises and never prints: a lost row must not change a verb's output
+    or exit status (task:80010ea1).
+    """
+    if ROUTED.get() or verb.area in UNLOGGED_AREAS or os.environ.get("MAC_NO_CALL_LOG"):
+        return
+    try:
+        from mac.groups import _backend
+        _backend.tool_hooks().log_call(
+            verb.area, verb.name, _log_args(ns), ok=error is None, error=error,
+            duration_ms=int((time.monotonic() - start) * 1000), result=result)
+    except Exception:
+        pass
+
+
 def default_registry():
     registry = Registry()
     load_groups(registry)
@@ -168,12 +208,17 @@ def _run(args, registry, out, err):
         raise Failure("unknown_verb", f"unknown verb {rest[0]!r} in {area!r}; run `mac {area} --help`",
                       EXIT_USAGE)
     ns = build_parser(verb).parse_args(rest[1:])
+    ROUTED.set(False)
+    start = time.monotonic()
     try:
         result = verb.handler(ns)
-    except Failure:
+    except Failure as failure:
+        _log_call(verb, ns, start, error=f"{failure.code}: {failure.message}")
         raise
     except Exception as exc:
+        _log_call(verb, ns, start, error=f"internal: {type(exc).__name__}: {exc}")
         raise Failure("internal", f"{type(exc).__name__}: {exc}")
+    _log_call(verb, ns, start, result=result)
     data, cut = apply_limit(result, ns.limit)
     print(dump(data), file=out)
     if cut:
