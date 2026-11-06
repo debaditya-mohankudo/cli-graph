@@ -302,27 +302,56 @@
       "name": "mac-call-log",
       "related": []
     },
+    "mac-metrics-area": {
+      "confidence": 0.8,
+      "contracts": [
+        "graph_metrics is the one implementation; this module holds no python -c code and no copy of its logic",
+        "A graph_metrics {cmd, error} object becomes Failure(tool_error)",
+        "Options the caller omits are not forwarded (UNSET), so graph_metrics keeps its own defaults (Kalshi event, latest's graph file, series row cap)"
+      ],
+      "created_at": "2026-11-06T15:02:14.423880+00:00",
+      "description": "`mac metrics` verbs: one verb per stock-tracker-mcp graph_metrics subcommand (loaders, series, latest, freshness, record, record_amfi_overseas, ingest_fred). Each runs `python -m stock_tracker.utils.graph_metrics --json <subcommand>` through stock.run_in_repo and returns that JSON object.",
+      "evidence": [
+        "mac/groups/metrics.py:register",
+        "tests/test_metrics.py"
+      ],
+      "invariants": [
+        "series takes --rows, mapped to graph_metrics --limit, because mac's global --limit caps list results",
+        "File arguments are made absolute before the subprocess, which runs with cwd=stock-tracker-mcp",
+        "Depends on graph_metrics' --json flag (stock-tracker-mcp cc3ba3d): commit that repo first when the JSON shape changes"
+      ],
+      "last_validated": "2026-11-06T15:02:14.423901+00:00",
+      "module": "mac/groups/metrics.py",
+      "name": "mac-metrics-area",
+      "related": [
+        "mac-stock-area",
+        "generated-group-verbs"
+      ]
+    },
     "mac-stock-area": {
       "confidence": 0.8,
       "contracts": [
         "Every verb runs in stock-tracker-mcp's environment (uv run --project, MAC_STOCK_TRACKER_DIR overrides); cli-graph takes no yfinance or pandas dependency of its own",
         "us_quote returns one entry per ticker; a bad ticker yields {ticker, error} in the list rather than failing the whole call",
-        "us_quote session state comes from trading_date.effective_trading_datetime(exchange=\"NYSE\"): holidays and off-hours read session_open=false"
+        "us_quote session state comes from trading_date.effective_trading_datetime(exchange=\"NYSE\"): holidays and off-hours read session_open=false",
+        "run_in_repo(python_args, marker, label) is the one runner for every group that executes in stock-tracker-mcp (`mac stock`, `mac metrics`): repo lookup, MAC_STOCK_TRACKER_DIR override, backend_missing check on stock_tracker/utils/<marker>, and last-line JSON parsing live only here"
       ],
       "created_at": "2026-11-05T14:46:06.266307+00:00",
-      "description": "`mac stock` verbs: NSE option-chain capture/walls and US-listed quote/performance. Each verb runs an inline snippet inside stock-tracker-mcp's own uv environment via _run and returns its last stdout line as JSON.",
+      "description": "`mac stock` verbs: NSE option-chain capture/walls and US-listed quote/performance. Each verb runs an inline snippet inside stock-tracker-mcp's own uv environment via run_in_repo and returns its last stdout line as JSON.",
       "evidence": [
-        "mac/groups/stock.py:_run",
-        "mac/groups/stock.py:register"
+        "mac/groups/stock.py:register",
+        "mac/groups/stock.py:run_in_repo"
       ],
       "invariants": [
         "A snippet that prints no JSON line becomes Failure(tool_error) carrying the last 5 stderr lines",
         "us_quote reuses update_run.fetch_live_quote rather than its own price fetch"
       ],
-      "last_validated": "2026-11-05T14:46:06.266745+00:00",
+      "last_validated": "2026-11-06T15:02:10.133031+00:00",
       "module": "mac/groups/stock.py",
       "name": "mac-stock-area",
-      "related": []
+      "related": [
+        "mac-metrics-area"
+      ]
     },
     "mcp-cutover": {
       "confidence": 0.8,
@@ -456,6 +485,6 @@
     }
   },
   "meta": {
-    "updated_at": "2026-11-06T05:51:24.245152+00:00"
+    "updated_at": "2026-11-06T15:02:14.423937+00:00"
   }
 }
