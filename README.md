@@ -76,8 +76,17 @@ rejected.
 ## `find_cli`
 
 ```python
-find_cli(task: str, limit: int = 5, hops: int = 2, area: str = "") -> dict
+find_cli(task: str = "", limit: int = 5, hops: int = 2, area: str = "") -> dict
 ```
+
+The tool description is an index: the groups, each with a one-line purpose
+and its areas, and no verbs. There are two ways in. A caller who knows the
+area passes only `area` (empty `task`) and gets that area's commands from the
+graph: id, `desc`, `usage`, `mode`, its hand-written edges (`links`) and
+alias words. A group name gives the group's areas with their verb names;
+browse one of them next. A caller who doesn't know the area describes the
+task and gets the ranked search below. `mac cli find --area <area>` does the
+same browse.
 
 It returns `seeds`, the best BM25 matches for the task, and `neighbours`.
 Each entry has the command id, `desc`, `usage` line, `mode` (read/write) and

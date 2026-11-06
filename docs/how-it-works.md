@@ -23,6 +23,14 @@ The MCP tool takes `task`, `limit` (default 5), `hops` (default 2) and an
 optional `area` hint. `Finder` reloads the graph when the files change and
 reads usage counts on every call. `find()` itself is a pure function.
 
+An empty `task` with an `area` skips the steps below: `browse()` returns
+the area's commands (with usage, mode, edges and aliases) or, for a group,
+its areas and their verb names. So the description stays an index of areas,
+and verbs are read only when a task needs them. The caller-picks experiment
+(`tests/pick_from_index.py`) found the area-then-verb route picks the right
+command first more often than the ranker (67/77 vs 48/77), but it invents
+commands when nothing fits, so search stays the way in for unclear tasks.
+
 ### 1. Seeding: BM25 ranking (`rank.py`)
 
 Each command becomes a document made of its area, its verb split on `_`, its

@@ -101,3 +101,50 @@ def find(task, graph, edges=(), limit=DEFAULT_LIMIT, hops=2, usage=None, area=No
     if domains is not None:
         result["domains"] = _rank.resolve_domains(task, domains)
     return result
+
+
+def browse(area, graph, edges=(), usage=None):
+    """Every command of one area, or the areas of one group (task:6d619bfc).
+
+    The read-on-demand half of find_cli: the tool description lists groups
+    and areas, and a caller who knows the area lists its verbs here instead
+    of searching. Pure, like find().
+
+    area   ->  {browse, area, commands: [{id, mode, desc, usage, links?, aliases?}]}
+               links are the hand-written edges ({type, dir, to}); aliases are
+               the words alias_of maps onto the command.
+    group  ->  {browse, group, areas: [{area, verbs}]}  names only, since a
+               whole group's usage lines would be thousands of tokens; browse
+               one of its areas next.
+    unknown -> {browse, hint: {value, known: false, valid}} and nothing else.
+    """
+    info = _rank.hint_info(area, graph)
+    value = info["value"]
+    if not info["known"]:
+        return {"browse": value, "hint": info}
+    domains = graph["domains"]
+    if value not in domains:
+        return {"browse": value, "group": value,
+                "areas": [{"area": a, "verbs": domains[a]["verbs"]}
+                          for a in sorted(domains) if domains[a]["group"] == value]}
+    commands = command_ids(graph)
+    nodes = [n for n in graph["nodes"] if n["id"] in commands and n["area"] == value]
+    out = []
+    for n in sorted(nodes, key=lambda n: n["id"]):
+        cmd = {"id": n["id"], "mode": n["mode"], "desc": n["desc"], "usage": n["usage"]}
+        aliases = sorted(e["from"].split()[-1] for e in edges
+                         if e["type"] == "alias_of" and e["to"] == n["id"])
+        links = [{"type": e["type"], "dir": "out", "to": e["to"]} for e in edges
+                 if e["type"] != "alias_of" and e["from"] == n["id"]]
+        links += [{"type": e["type"], "dir": "in", "to": e["from"]} for e in edges
+                  if e["type"] != "alias_of" and e["to"] == n["id"]]
+        if links:
+            cmd["links"] = links
+        if aliases:
+            cmd["aliases"] = aliases
+        if usage is not None:
+            u = usage.get(n["id"]) or {}
+            cmd["count"] = u.get("count", 0)
+            cmd["last_used"] = u.get("last_used")
+        out.append(cmd)
+    return {"browse": value, "area": value, "commands": out}

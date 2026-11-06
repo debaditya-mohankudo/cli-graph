@@ -385,6 +385,44 @@ class UsageTest(unittest.TestCase):
             self.assertEqual(usage.load(empty), {})
 
 
+class BrowseTest(unittest.TestCase):
+    """find_cli.browse: an area's commands, a group's areas (task:6d619bfc)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.graph, cls.edges = find_cli.load()
+
+    def test_area_lists_every_command_of_that_area_and_nothing_else(self):
+        got = find_cli.browse("imessage", self.graph, self.edges)
+        want = {n["id"] for n in self.graph["nodes"]
+                if n["id"] in command_ids(self.graph) and n["area"] == "imessage"}
+        self.assertEqual({c["id"] for c in got["commands"]}, want)
+        self.assertTrue(all({"mode", "desc", "usage"} <= set(c) for c in got["commands"]))
+
+    def test_area_carries_edges_and_aliases(self):
+        cmds = {c["id"]: c for c in find_cli.browse("imessage", self.graph, self.edges)["commands"]}
+        send = cmds["mac imessage send"]
+        self.assertIn("text", send["aliases"])
+        self.assertIn({"type": "requires", "dir": "out", "to": "mac contacts search"}, send["links"])
+
+    def test_group_lists_its_areas_with_verb_names_only(self):
+        got = find_cli.browse("communication", self.graph, self.edges)
+        self.assertEqual([a["area"] for a in got["areas"]], ["contacts", "imessage", "mail"])
+        self.assertIn("send", dict((a["area"], a["verbs"]) for a in got["areas"])["imessage"])
+        self.assertNotIn("commands", got)
+
+    def test_name_that_is_both_area_and_group_lists_the_area(self):
+        self.assertIn("commands", find_cli.browse("astrology", self.graph, self.edges))
+
+    def test_unknown_area_reports_valid_names(self):
+        got = find_cli.browse("nope", self.graph, self.edges)
+        self.assertFalse(got["hint"]["known"])
+        self.assertIn("imessage", got["hint"]["valid"])
+
+    def test_area_name_is_normalised_like_a_hint(self):
+        self.assertEqual(find_cli.browse("Vault-RAG", self.graph, self.edges)["area"], "vault_rag")
+
+
 class ServerTest(unittest.TestCase):
     def test_server_exposes_exactly_one_small_tool(self):
         import asyncio
@@ -394,7 +432,8 @@ class ServerTest(unittest.TestCase):
         schema = json.dumps({"name": tools[0].name, "description": tools[0].description,
                              "inputSchema": tools[0].inputSchema})
         # ~tokens, chars/4. 400 until task:e7233af6 added one purpose line per
-        # group (499 with them); every session pays this, so keep it tight.
+        # group (499 with them); task:6d619bfc added browse and trimmed to 462.
+        # Every session pays this, so keep it tight.
         self.assertLess(len(schema) / 4, 500)
 
     def test_tool_call_returns_the_pure_result(self):

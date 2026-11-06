@@ -8,7 +8,9 @@ cli-graph's .venv with no `uv sync` step (like bin/mac):
 The graph and edges are re-read when their files change (find_cli.service),
 and usage counts on every call, because the server lives for a whole Claude
 session. The tool description and its area list are fixed at start: a new
-area works as a hint after a reload but is listed only after a restart.
+area works as a hint or browse target after a reload but is listed only
+after a restart. The description is the index; the verbs are read on demand
+by browsing an area (task:6d619bfc).
 """
 from mcp.server.fastmcp import FastMCP
 
@@ -33,26 +35,24 @@ def area_lines(graph):
 
 AREAS = "\n".join("    " + line for line in area_lines(FINDER.current()[0]))
 
-DESCRIPTION = """Find the `mac` CLI commands for a task. Returns seed commands (best
-match first) and their neighbours, each with its usage line, read/write
-mode and how often it has been run (count, last_used). Run the chosen
-command through Bash: `mac <area> <verb> --json`. no_match true means no
-command covers the task: say so rather than run something. confidence
-level "low" means the top seed matched only an incidental word: check its
-desc fits the task before running it.
+DESCRIPTION = """Find the `mac` CLI command for a task, then run it through Bash:
+`mac <area> <verb> --json`. Two ways in:
+- know the area: pass only `area` to list its commands (a group lists its
+  areas). Pick from the list.
+- otherwise: describe the task; get best-match seeds and neighbours.
+Each command has its usage line, read/write mode and run count. no_match
+true: no command covers the task, say so. confidence "low": only an
+incidental word matched, check desc fits before running.
 
-task: what you want to do, in plain words ("text someone", "read a note")
-limit: number of seed commands (default 5)
-hops: 0 seeds only, 1 adds linked commands, 2 also adds area siblings
-area: optional area or group you already know; boosts its commands, never
-    hides others; an unknown value is reported in hint. Groups (purpose,
-    then areas):
+task: plain words ("text someone"); empty to list `area`
+limit: seeds (default 5); hops: 0 seeds, 1 +linked, 2 +area siblings
+area: area or group; boosts a search, never hides. Groups (purpose, areas):
 %s
 """ % AREAS
 
 
 @mcp.tool(description=DESCRIPTION)
-def find_cli(task: str, limit: int = DEFAULT_LIMIT, hops: int = 2, area: str = "") -> dict:
+def find_cli(task: str = "", limit: int = DEFAULT_LIMIT, hops: int = 2, area: str = "") -> dict:
     return FINDER.answer(task, limit=limit, hops=hops, area=area)
 
 

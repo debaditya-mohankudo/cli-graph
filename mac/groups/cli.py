@@ -14,14 +14,15 @@ UNSET = argparse.SUPPRESS
 
 def register(registry):
     def find_args(p):
-        p.add_argument("task")
+        p.add_argument("task", nargs="?", default="",
+                       help="omit it and pass --area to list that area's commands")
         p.add_argument("--hops", type=int, default=2,
                        help="0 seeds only, 1 adds linked commands, 2 also adds area siblings")
         p.add_argument("--area", default="", help="an area or group you already know")
 
     @registry.verb("cli", "find", mode="read",
                    desc="find the mac commands for a task in plain words: seeds and neighbours with usage "
-                        "(--limit sets the number of seeds)",
+                        "(--limit sets the number of seeds); with only --area, list that area's commands",
                    args=find_args)
     def find(ns):
         result = Finder().answer(ns.task, limit=ns.limit or DEFAULT_LIMIT, hops=ns.hops, area=ns.area)

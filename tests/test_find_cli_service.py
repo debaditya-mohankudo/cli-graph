@@ -48,6 +48,14 @@ class FinderTests(unittest.TestCase):
         got = Finder(self.graph_path, self.edges_path).answer("x")
         self.assertEqual(set(got["error"]), {"code", "message"})
 
+    def test_empty_task_with_area_browses(self):
+        got = self.finder.answer("", area="git")
+        self.assertEqual(got["area"], "git")
+        self.assertIn("mac git status", [c["id"] for c in got["commands"]])
+
+    def test_empty_task_without_area_is_a_usage_error(self):
+        self.assertEqual(self.finder.answer("  ")["error"]["code"], "usage")
+
     def test_failure_inside_find_is_a_contract_error(self):
         with mock.patch("find_cli.service.find", side_effect=RuntimeError("boom")):
             got = self.finder.answer("x")
@@ -65,6 +73,12 @@ class MacCliFindTests(unittest.TestCase):
         status, out, _ = self.run_mac("cli", "find", "play a song", "--limit", "3", "--hops", "1")
         self.assertEqual(status, 0)
         self.assertEqual(json.loads(out), json.loads(json.dumps(server.find_cli("play a song", limit=3, hops=1))))
+
+    def test_area_only_browses_like_the_server(self):
+        from find_cli import server
+        status, out, _ = self.run_mac("cli", "find", "--area", "media")
+        self.assertEqual(status, 0)
+        self.assertEqual(json.loads(out), json.loads(json.dumps(server.find_cli(area="media"))))
 
     def test_failure_uses_the_mac_error_shape(self):
         with mock.patch("find_cli.service.find", side_effect=RuntimeError("boom")):
