@@ -72,6 +72,10 @@ that `mac` replaced (local-mac, astrology, wyckoff-analyzer, sysml-mcp,
 claude-hooks). `docs/how-it-works.md` explains how `find_cli` ranks and
 expands. The work is tracked under taskfw epic `9839b040`, and
 `epic-9839b040-status.md` is a dated snapshot of it.
+The write-up of this idea is the published artifact "Tools or a CLI":
+https://claude.ai/artifact/GNXWPq6XmyrRSv2S9tKTnS (private). Update it by
+republishing with that `url` so the link stays the same.
+
 Always run Python through `uv run`.
 
 Counts in the README (areas, verbs, group table) drift when a verb or area
