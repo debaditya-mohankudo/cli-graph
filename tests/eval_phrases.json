@@ -79,6 +79,12 @@
     {"phrase": "option chain for banknifty", "expect": ["mac stock fii_dii_chain_api"], "source": "synonym"},
     {"phrase": "price of EWY etf", "expect": ["mac stock us_quote"], "source": "synonym"},
     {"phrase": "how has apple stock performed this year", "expect": ["mac stock us_performance"], "source": "synonym"},
+    {"phrase": "load Kalshi fed odds", "expect": ["mac metrics load_kalshi"], "source": "synonym"},
+    {"phrase": "latest treasury yields", "expect": ["mac metrics load_treasury_par", "mac metrics series", "mac metrics load_us_macro"], "source": "synonym"},
+    {"phrase": "which graph metrics are stale", "expect": ["mac metrics freshness"], "source": "synonym"},
+    {"phrase": "download FRED series DFII10 real yield history", "expect": ["mac metrics load_us_macro", "mac metrics load_fed"], "source": "synonym"},
+    {"phrase": "record a hand-entered CDS level for a graph node", "expect": ["mac metrics record"], "source": "synonym"},
+    {"phrase": "store the FRED pull from safari", "expect": ["mac metrics ingest_fred"], "source": "synonym"},
     {"phrase": "book a table for dinner tonight", "expect": [], "source": "negative"},
     {"phrase": "mom birthday plan", "expect": [], "source": "negative"}
   ]

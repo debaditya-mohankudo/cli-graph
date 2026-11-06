@@ -88,17 +88,24 @@ print(json.dumps({
 """
 
 
-def _run(code, *args):
+def run_in_repo(python_args, *, marker, label):
+    """Run `python <python_args>` in stock-tracker-mcp's environment and return
+    the JSON object on the last stdout line. Shared by `mac stock` and `mac metrics`;
+    `marker` is the stock_tracker/utils file the verb needs."""
     repo = Path(os.environ.get("MAC_STOCK_TRACKER_DIR", DEFAULT_REPO))
-    if not (repo / "stock_tracker" / "utils" / "fii_dii.py").is_file():
+    if not (repo / "stock_tracker" / "utils" / marker).is_file():
         raise Failure("backend_missing", f"stock-tracker-mcp not found at {repo} (set MAC_STOCK_TRACKER_DIR)")
-    proc = subprocess.run(["uv", "run", "--project", str(repo), "python", "-c", code, *args],
+    proc = subprocess.run(["uv", "run", "--project", str(repo), "python", *python_args],
                           capture_output=True, text=True, cwd=repo)
     try:
         return json.loads(proc.stdout.strip().splitlines()[-1])
     except (IndexError, json.JSONDecodeError):
         tail = " | ".join(proc.stderr.strip().splitlines()[-5:])
-        raise Failure("tool_error", "stock verb gave no result" + (f" (stderr: {tail})" if tail else ""))
+        raise Failure("tool_error", f"{label} gave no result" + (f" (stderr: {tail})" if tail else ""))
+
+
+def _run(code, *args):
+    return run_in_repo(["-c", code, *args], marker="fii_dii.py", label="stock verb")
 
 
 def register(registry):

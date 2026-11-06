@@ -236,9 +236,9 @@ class FindOnCommittedGraphTest(unittest.TestCase):
     def test_incidental_word_matches_are_low_confidence(self):
         # task:d08ebd55: review probes no command covers
         # "what is nifty doing" was one until mac nse_live covered it;
-        # "...latest gold, DXY, US 10y quotes" lost its quote half to mac stock us_quote (task:3c99bd3b)
-        for q in ["download FRED series DFII10 real yield history",
-                  "what is the weather in pune"]:
+        # "...latest gold, DXY, US 10y quotes" lost its quote half to mac stock us_quote (task:3c99bd3b);
+        # "download FRED series DFII10 real yield history" became mac metrics load_us_macro (task:a7ff9fc6)
+        for q in ["what is the weather in pune"]:
             r = find_cli.find(q, self.graph, self.edges)
             self.assertFalse(r["no_match"], q)
             self.assertEqual(r["confidence"]["level"], "low", q)
