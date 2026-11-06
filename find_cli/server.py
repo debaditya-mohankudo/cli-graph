@@ -18,7 +18,20 @@ from find_cli.service import Finder
 mcp = FastMCP("find_cli")
 FINDER = Finder()
 
-AREAS = ", ".join(sorted(FINDER.current()[0]["domains"]))
+
+def area_lines(graph):
+    """The description's area list: groups with their purpose from
+    graph/groups.json, areas from the graph; bare names if groups.json
+    cannot be read."""
+    areas = sorted(graph["domains"])
+    try:
+        from graph import groups
+        return groups.describe(groups.load(), areas)
+    except (ImportError, OSError, KeyError, ValueError):
+        return [", ".join(areas)]
+
+
+AREAS = "\n".join("    " + line for line in area_lines(FINDER.current()[0]))
 
 DESCRIPTION = """Find the `mac` CLI commands for a task. Returns seed commands (best
 match first) and their neighbours, each with its usage line, read/write
@@ -31,9 +44,10 @@ desc fits the task before running it.
 task: what you want to do, in plain words ("text someone", "read a note")
 limit: number of seed commands (default 5)
 hops: 0 seeds only, 1 adds linked commands, 2 also adds area siblings
-area: optional area you already know (%s):
-    boosts that area's commands, never hides others; an unknown value is
-    reported in hint
+area: optional area or group you already know; boosts its commands, never
+    hides others; an unknown value is reported in hint. Groups (purpose,
+    then areas):
+%s
 """ % AREAS
 
 

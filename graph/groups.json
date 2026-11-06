@@ -10,5 +10,16 @@
     "system": ["cli", "cli_log", "hooks", "system", "vpn"],
     "web": ["connector", "safari"]
   },
+  "purposes": {
+    "astrology": "Vedic charts, dasha, transits, panchang",
+    "communication": "contacts, iMessage, Mail",
+    "development": "git, kitty terminal tabs",
+    "knowledge": "Obsidian vault, memory, semantic search over code and diffs, SysML",
+    "markets": "NSE and US prices, flows, Wyckoff, stored metrics",
+    "media": "music, podcasts, volume",
+    "productivity": "calendar, notes, reminders, timers",
+    "system": "Mac status, VPN, hook logs, mac CLI lookup and call log",
+    "web": "Safari, external connectors"
+  },
   "ungrouped": []
 }

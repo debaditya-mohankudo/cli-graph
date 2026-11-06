@@ -393,7 +393,9 @@ class ServerTest(unittest.TestCase):
         self.assertEqual([t.name for t in tools], ["find_cli"])
         schema = json.dumps({"name": tools[0].name, "description": tools[0].description,
                              "inputSchema": tools[0].inputSchema})
-        self.assertLess(len(schema) / 4, 400)  # ~tokens, chars/4
+        # ~tokens, chars/4. 400 until task:e7233af6 added one purpose line per
+        # group (499 with them); every session pays this, so keep it tight.
+        self.assertLess(len(schema) / 4, 500)
 
     def test_tool_call_returns_the_pure_result(self):
         from unittest import mock

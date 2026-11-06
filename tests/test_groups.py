@@ -16,6 +16,7 @@ from test_find_cli import TOY, TOY_EDGES
 
 AREAS = ["contacts", "imessage", "mail", "astrology"]
 SPEC = {"groups": {"communication": ["contacts", "imessage", "mail"]},
+        "purposes": {"communication": "contacts and messages"},
         "ungrouped": ["astrology"]}
 
 
@@ -55,13 +56,40 @@ class ValidateTest(unittest.TestCase):
 
     def test_an_empty_group_and_a_bad_name_fail(self):
         spec = {"groups": {"Comms": ["contacts"], "messaging": ["imessage", "mail"], "none": []},
+                "purposes": {"Comms": "c", "messaging": "m", "none": "n"},
                 "ungrouped": ["astrology"]}
         self.assertEqual(len(groups.validate(spec, AREAS)), 2)
 
     def test_a_one_area_group_is_valid(self):
         spec = {"groups": {"stars": ["astrology"], "messaging": ["contacts", "imessage", "mail"]},
+                "purposes": {"stars": "charts", "messaging": "messages"},
                 "ungrouped": []}
         self.assertEqual(groups.validate(spec, ["astrology", "contacts", "imessage", "mail"]), [])
+
+    def test_a_group_without_a_purpose_fails(self):
+        spec = copy.deepcopy(SPEC)
+        spec["purposes"]["communication"] = " "
+        self.assertEqual(groups.validate(spec, AREAS), ["group 'communication': needs a one-line purpose"])
+        del spec["purposes"]["communication"]
+        self.assertEqual(groups.validate(spec, AREAS), ["group 'communication': needs a one-line purpose"])
+
+    def test_a_purpose_for_no_group_fails(self):
+        spec = copy.deepcopy(SPEC)
+        spec["purposes"]["fax"] = "faxes"
+        self.assertEqual(groups.validate(spec, AREAS), ["purpose 'fax' names no group"])
+
+    def test_describe_lists_each_group_with_purpose_then_the_rest(self):
+        self.assertEqual(groups.describe(SPEC, AREAS),
+                         ["communication: contacts and messages (contacts, imessage, mail)",
+                          "other: (astrology)"])
+
+    def test_find_cli_description_names_every_area_and_group(self):
+        from find_cli import server
+        graph = json.loads((REPO / "graph" / "cli_graph.json").read_text())
+        for area in graph["domains"]:
+            self.assertRegex(server.DESCRIPTION, rf"[(, ]{area}[,)]")
+        for group, purpose in groups.load()["purposes"].items():
+            self.assertIn(f"{group}: {purpose} (", server.DESCRIPTION)
 
     def test_command_groups_skips_ungrouped_areas(self):
         got = groups.command_groups(GROUPED)
