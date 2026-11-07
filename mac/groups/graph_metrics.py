@@ -88,6 +88,11 @@ def register(registry):
     def load_flows(ns):
         return _run("load-flows")
 
+    @registry.verb("graph_metrics", "load_krx_flows", mode="write",
+                   desc="load Korea KRX investor flows (foreign, institution and retail net buying of KOSPI stocks and KOSPI 200 futures) from fii_dii.db onto the KOSPI open graph's foreign_net_flow_korea node, with the foreign selling or buying streak; run `mac kospi flows` first to fetch new sessions")
+    def load_krx_flows(ns):
+        return _run("load-krx-flows")
+
     @registry.verb("graph_metrics", "load_bhavcopy", mode="write",
                    desc="load Nifty futures basis and option-chain positioning from NSE UDiFF F&O bhavcopy files (.csv or .csv.zip) into the India market open graph's metric store",
                    args=lambda p: p.add_argument("paths", nargs="+", help="bhavcopy files"))
