@@ -85,6 +85,8 @@
     {"phrase": "download FRED series DFII10 real yield history", "expect": ["mac graph_metrics load_us_macro", "mac graph_metrics load_fed"], "source": "synonym"},
     {"phrase": "record a hand-entered CDS level for a graph node", "expect": ["mac graph_metrics record"], "source": "synonym"},
     {"phrase": "store the FRED pull from safari", "expect": ["mac graph_metrics ingest_fred"], "source": "synonym"},
+    {"phrase": "how much short position do fii have in kospi", "expect": ["mac kospi flows", "mac kospi pair"], "source": "transcript"},
+    {"phrase": "we can backfill one month of data for kospi", "expect": ["mac kospi backfill"], "source": "transcript"},
     {"phrase": "book a table for dinner tonight", "expect": [], "source": "negative"},
     {"phrase": "mom birthday plan", "expect": [], "source": "negative"}
   ]
