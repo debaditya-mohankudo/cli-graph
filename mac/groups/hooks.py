@@ -1,12 +1,18 @@
 """`mac hooks` — the hook server's event log, session id, checkpoint and hook logs, wrapping claude-hooks' hooks__* handlers.
 
+`last_response` reads the file claude-hooks' Stop hook overwrites after every
+response (~/.claude/last_response.md; CLAUDE_LAST_RESPONSE overrides).
 `session_id` and `checkpoint_query` call the hook server's HTTP port (8766)
 and report an error when it is not running.
 """
 import argparse
+import os
+from datetime import datetime
+from pathlib import Path
 
 from mac.groups._backend import given
 from mac.groups._hooks import call
+from mac.contract import Failure
 
 UNSET = argparse.SUPPRESS
 
@@ -39,3 +45,13 @@ def register(registry):
                    desc="query the hook server's log table by level, logger or message text", args=logs_args)
     def read_logs_sqlite(ns):
         return call("hooks", "read_logs_sqlite", **given(ns, ("level", "logger", "search", "limit", "format")))
+
+    @registry.verb("hooks", "last_response", mode="read",
+                   desc="the last assistant response text, saved by the Stop hook and overwritten each turn")
+    def last_response(ns):
+        path = Path(os.environ.get("CLAUDE_LAST_RESPONSE") or "~/.claude/last_response.md").expanduser()
+        try:
+            text = path.read_text()
+        except OSError:
+            raise Failure("not_found", f"no saved response at {path} (the Stop hook writes it)")
+        return {"path": str(path), "modified": datetime.fromtimestamp(path.stat().st_mtime).isoformat(timespec="seconds"), "text": text.rstrip("\n")}

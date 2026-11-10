@@ -45,7 +45,7 @@ mac <area> --help          # verbs, read/write mode, usage lines
 mac --help --json          # every command as JSON rows (feeds graph/generate.py)
 ```
 
-There are 280 verbs across 35 areas: `astrology`, `calendar`, `cli`, `cli_log`, `code_rag`, `connector`, `contacts`,
+There are 282 verbs across 35 areas: `astrology`, `calendar`, `cli`, `cli_log`, `code_rag`, `connector`, `contacts`,
 `diff_rag`, `git`, `graph_metrics`, `hooks`, `imessage`, `kitty`, `kospi`, `mail`, `market`, `memory`, `music`, `notes`, `nse_eod`, `nse_live`,
 `podcasts`, `reminders`, `safari`, `sound`, `sysml`, `system`, `time`, `vault`, `vault_log`, `vault_map`, `vault_rag`,
 `stock`, `vpn`, `wyckoff`. `stock` runs stock-tracker-mcp code in its environment (NSE option chains, US-listed quotes); `MAC_STOCK_TRACKER_DIR` overrides the repo path. `graph_metrics` does the same for stock-tracker-mcp's graph metric store: each verb runs `python -m stock_tracker.utils.graph_metrics --json <subcommand>` (loaders, `series`, `latest`, `freshness`, hand-entered `record`s) and returns its JSON, passing only the options the caller set. `kospi` wraps stock-tracker-mcp's `krx` and `nifty_kospi_pair` modules the same way: KOSPI closes, KRX foreign/institution/retail flows, SK hynix and Samsung foreign holding (Naver, cached in fii_dii.db) and the Nifty vs KOSPI pair checklist. `nse_eod` and `nse_live` proxy NSE's hosted MCP servers; `vault_log` reads and appends to an insert-only SQLite log of vault file creates, edits and reads, by running the `vault_file_log.py` script of stock-tracker-mcp (`MAC_VAULT_LOG_SCRIPT` overrides its path); `cli find` is the `find_cli` lookup as a command. `memory`, `vault_map` and `hooks` wrap claude-hooks; `memory add` takes

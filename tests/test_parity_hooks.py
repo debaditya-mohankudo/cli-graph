@@ -174,3 +174,17 @@ class MemoryRoundTripTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LastResponseTest(unittest.TestCase):
+    def test_reads_file_and_reports_missing(self):
+        with tempfile.TemporaryDirectory() as d:
+            f = Path(d) / "last.md"
+            with mock.patch.dict(os.environ, {"CLAUDE_LAST_RESPONSE": str(f)}):
+                status, out, err = run("hooks", "last_response")
+                self.assertNotEqual(status, 0)
+                self.assertIn("not_found", out + err)
+                f.write_text("hello\n")
+                status, out, _ = run("hooks", "last_response")
+                self.assertEqual(status, 0)
+                self.assertEqual(json.loads(out)["text"], "hello")
