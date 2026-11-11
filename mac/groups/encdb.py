@@ -24,7 +24,7 @@ REGISTRY = {
     "memory": (CLAUDE / "MEMORY.sqlite", "migrate",
                "the goal of the task; migrate once the prompt hook, mac memory and the scripts open via mac.encdb"),
     "tasks": (Path.home() / ".taskfw" / "tasks.db", "leave",
-              "taskfw store, 31 MB, plaintext; its daily snapshots go to iCloud (decision pending, task:8b0561d1)"),
+              "taskfw store, 31 MB, plaintext live; daily snapshots to iCloud are encrypted. Live file to be encrypted once task-framework opens via an encrypted-aware opener (task:8b0561d1)"),
     "server_memory": (CLAUDE / "server_memory.sqlite", "leave",
                       "hook-server event log, rolling ~1000 events, not synced; readers not yet on the opener"),
     "tool_hints": (ICLOUD / "tool_hints.sqlite", "leave",
