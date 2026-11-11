@@ -148,6 +148,31 @@ def register(registry):
         return _run("series", ns.node_id,
                     *_opts(ns, "metric", "graph_file", rows="--limit"))
 
+    def get_args(p):
+        p.add_argument("node_id", help="graph node id, e.g. us_treasury_yields; no graph needed")
+        p.add_argument("metric", nargs="?", default=UNSET, help="omit for every metric of the node")
+        p.add_argument("--as-of", default=UNSET, help="YYYY-MM-DD, only that date")
+        p.add_argument("--rows", type=int, default=UNSET, help="max rows, newest first")
+
+    @registry.verb("graph_metrics", "get", mode="read",
+                   desc="stored date series of one node (optionally one metric) from the node-keyed metric store, newest first; no graph file needed",
+                   args=get_args)
+    def get(ns):
+        argv = [ns.node_id] + ([ns.metric] if hasattr(ns, "metric") else [])
+        return _run("get", *argv, *_opts(ns, "as_of", rows="--limit"))
+
+    def set_args(p):
+        record_args(p)
+        p.add_argument("--new-metric", action="store_true", default=UNSET,
+                       help="allow a metric this node has never stored")
+
+    @registry.verb("graph_metrics", "set", mode="write",
+                   desc="set one figure for a node in the node-keyed metric store, source-tagged; the node's owner is resolved by the store and a metric the node has never stored is rejected unless --new-metric",
+                   args=set_args)
+    def set_(ns):
+        return _run("set", ns.node_id, ns.metric, ns.as_of, str(ns.value), ns.unit, ns.source,
+                    *_opts(ns, "confidence", "graph_file", "new_metric"))
+
     def latest_args(p):
         _graph_file(p, "default: the India market open graph")
         p.add_argument("--as-of", default=UNSET, help="YYYY-MM-DD (default: the newest stored session)")

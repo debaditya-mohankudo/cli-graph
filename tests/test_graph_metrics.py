@@ -46,6 +46,16 @@ class MetricsVerbs(unittest.TestCase):
         # mac's own --limit caps list results, so series' row cap is --rows on the verb
         self.assertEqual(self.call("series", "n", "--rows", "5")[3], ["series", "n", "--limit", "5"])
 
+    def test_get_takes_an_optional_positional_metric_and_no_graph(self):
+        self.assertEqual(self.call("get", "n")[3], ["get", "n"])
+        self.assertEqual(self.call("get", "n", "m", "--as-of", "2026-11-05", "--rows", "3")[3],
+                         ["get", "n", "m", "--as-of", "2026-11-05", "--limit", "3"])
+
+    def test_set_passes_new_metric_only_when_asked(self):
+        base = ["n", "m", "2026-11-05", "4.5", "pct", "src"]
+        self.assertEqual(self.call("set", *base)[3], ["set", *base])
+        self.assertEqual(self.call("set", *base, "--new-metric")[3], ["set", *base, "--new-metric"])
+
     def test_file_arguments_are_made_absolute(self):
         # graph_metrics runs with cwd = its repo, where the caller's relative path means nothing
         argv = self.call("ingest_fred", "pull.json")[3]
