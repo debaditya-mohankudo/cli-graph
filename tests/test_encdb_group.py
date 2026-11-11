@@ -83,3 +83,30 @@ def test_wal_sidecars_are_folded_in(tmp_path):
 def test_registry_covers_each_db_with_a_decision():
     assert {"memory", "server_memory", "tool_hints", "astrology", "vault_index"} <= set(grp.REGISTRY)
     assert all(v[1] in ("migrate", "leave") for v in grp.REGISTRY.values())
+
+
+def test_snapshot_of_encrypted_source_is_encrypted_and_prune_keeps_newest(tmp_path):
+    import os
+    import apsw
+    from mac import encdb
+    from mac.groups import encdb as g
+
+    key = "cd" * 32
+    src = tmp_path / "MEMORY.sqlite"
+    c = apsw.Connection(str(src))
+    c.pragma("cipher", "sqlcipher")
+    c.pragma("hexkey", key)
+    c.execute("create table t(x)")
+    c.execute("insert into t values (1),(2)")
+    c.close()
+    snaps = []
+    for i in range(4):
+        d = tmp_path / f"MEMORY_2026010{i}_000000.sqlite"
+        r = g.snapshot(src, d, key=key)
+        os.utime(d, (1000 + i, 1000 + i))
+        snaps.append(d)
+        assert r["encrypted"] and r["rows"] == 2
+        assert not d.read_bytes().startswith(encdb.PLAIN_HEADER)
+    gone = g.prune(tmp_path, "MEMORY_", 2)
+    assert sorted(gone) == sorted(str(s) for s in snaps[:2])
+    assert snaps[3].exists() and not snaps[0].exists()

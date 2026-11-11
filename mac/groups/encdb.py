@@ -23,6 +23,8 @@ CLAUDE = Path.home() / ".claude"
 REGISTRY = {
     "memory": (CLAUDE / "MEMORY.sqlite", "migrate",
                "the goal of the task; migrate once the prompt hook, mac memory and the scripts open via mac.encdb"),
+    "tasks": (Path.home() / ".taskfw" / "tasks.db", "leave",
+              "taskfw store, 31 MB, plaintext; its daily snapshots go to iCloud (decision pending, task:8b0561d1)"),
     "server_memory": (CLAUDE / "server_memory.sqlite", "leave",
                       "hook-server event log, rolling ~1000 events, not synced; readers not yet on the opener"),
     "tool_hints": (ICLOUD / "tool_hints.sqlite", "leave",
@@ -114,6 +116,73 @@ def migrate(path: Path, key: str | None = None) -> dict:
             "tables": len(after_counts), "rows": sum(after_counts.values()), "integrity": "ok"}
 
 
+BACKUP_DIR = ICLOUD / "backups"
+
+
+def _prefix(path: Path) -> str:
+    return {"MEMORY.sqlite": "MEMORY_", "tasks.db": "tasks_"}.get(path.name, path.stem + "_")
+
+
+def snapshot(path: Path, dest: Path, key: str | None = None, encrypt: bool = False) -> dict:
+    """Write a consistent snapshot of `path` to `dest` and verify it. Encrypted when the source is, or `encrypt`.
+
+    VACUUM INTO writes a single file with no -wal/-shm sidecars. A keyed URI makes the output
+    ciphertext, so an encrypted source never leaves a plaintext copy. The copy is reopened and its
+    table row counts and integrity_check must match the source or it is removed.
+    """
+    if not path.exists():
+        raise Failure("not_found", f"{path} does not exist")
+    if dest.exists():
+        raise Failure("usage", f"{dest} already exists")
+    apsw = encdb._binding()
+    enc_src = _state(path) == "encrypted"
+    enc_dst = enc_src or encrypt
+    hexkey = (key or encdb.read_key()) if (enc_dst or enc_src) else None
+    if hexkey is not None and not encdb._valid_key(hexkey):
+        raise Failure("usage", "key is not 64 hex characters")
+    src = apsw.Connection(str(path), flags=(apsw.SQLITE_OPEN_READONLY if enc_src else apsw.SQLITE_OPEN_READWRITE) | apsw.SQLITE_OPEN_URI)
+    try:
+        if enc_src:
+            src.pragma("cipher", "sqlcipher")
+            src.pragma("hexkey", hexkey)
+        src.setbusytimeout(10000)
+        target = f"{dest.as_uri()}?cipher=sqlcipher&hexkey={hexkey}" if enc_dst else dest.as_uri()
+        try:
+            src.execute("VACUUM INTO ?", (target,))
+            before = _counts(src)
+            dst = apsw.Connection(str(dest), flags=apsw.SQLITE_OPEN_READONLY)
+            try:
+                if enc_dst:
+                    dst.pragma("cipher", "sqlcipher")
+                    dst.pragma("hexkey", hexkey)
+                after, check = _counts(dst), _integrity(dst)
+            finally:
+                dst.close()
+        except BaseException:
+            dest.unlink(missing_ok=True)
+            raise
+    finally:
+        src.close()
+    if after != before or check != "ok":
+        dest.unlink(missing_ok=True)
+        raise Failure("tool_error", f"{dest.name}: snapshot does not match source ({before} vs {after}, integrity {check})")
+    return {"source": str(path), "snapshot": str(dest), "encrypted": enc_dst,
+            "tables": len(after), "rows": sum(after.values()), "integrity": "ok"}
+
+
+def prune(dest_dir: Path, prefix: str, keep: int) -> list[str]:
+    """Delete all but the `keep` newest `prefix*.sqlite` in dest_dir; a failed delete raises, never silent."""
+    files = sorted(dest_dir.glob(f"{prefix}*.sqlite"), key=lambda f: f.stat().st_mtime, reverse=True)
+    gone = []
+    for old in files[keep:]:
+        try:
+            old.unlink()
+        except OSError as e:
+            raise Failure("tool_error", f"could not prune {old}: {e}") from e
+        gone.append(str(old))
+    return gone
+
+
 def register(registry):
     def status_args(p):
         p.add_argument("--path", default=argparse.SUPPRESS, help="check this file instead of the registry")
@@ -141,3 +210,21 @@ def register(registry):
     def migrate_verb(ns):
         return migrate(_resolve(ns.target))
 
+
+    def backup_args(p):
+        p.add_argument("target", help="a registered name (see `mac encdb status`) or a file path")
+        p.add_argument("--dest-dir", default=str(BACKUP_DIR), help="where snapshots go (default: iCloud Databases/backups)")
+        p.add_argument("--keep", type=int, default=3, help="newest snapshots to keep per DB (default 3)")
+        p.add_argument("--encrypt", action="store_true", help="encrypt the snapshot even if the source is plaintext")
+
+    @registry.verb("encdb", "backup", mode="write",
+                   desc="write a verified snapshot of a personal SQLite DB, encrypted when the source is, and prune old ones",
+                   args=backup_args)
+    def backup_verb(ns):
+        path = _resolve(ns.target)
+        dest_dir = Path(ns.dest_dir).expanduser()
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        dest = dest_dir / f"{_prefix(path)}{time.strftime('%Y%m%d_%H%M%S')}.sqlite"
+        report = snapshot(path, dest, encrypt=ns.encrypt)
+        report["pruned"] = prune(dest_dir, _prefix(path), ns.keep)
+        return report
