@@ -47,7 +47,7 @@ def register(registry):
         return call("hooks", "read_logs_sqlite", **given(ns, ("level", "logger", "search", "limit", "format")))
 
     @registry.verb("hooks", "last_response", mode="read",
-                   desc="the last assistant response text, saved by the Stop hook and overwritten each turn")
+                   desc="the last assistant reply, saved by the Stop hook and overwritten each turn")
     def last_response(ns):
         path = Path(os.environ.get("CLAUDE_LAST_RESPONSE") or "~/.claude/last_response.md").expanduser()
         try:
