@@ -40,6 +40,7 @@ ASK = {
     "connector": {"execute_action"},
     "vpn": {"disconnect"},
     "curl": {"post"},
+    "encdb": {"migrate"},
     "git": {"commit", "push"},
     "kitty": {"run", "interrupt", "close"},
 }

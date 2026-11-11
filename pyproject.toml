@@ -10,6 +10,7 @@ dependencies = [
     # so the suite needs local-mac's dependencies. Taking them from its own
     # pyproject keeps one list instead of a copy that drifts.
     "claude-for-mac-local",
+    "apsw-sqlite3mc>=3.54.0.0",
 ]
 
 [tool.uv]

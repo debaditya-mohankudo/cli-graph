@@ -1,29 +1,34 @@
 """One opener for personal SQLite files that may be SQLCipher-encrypted.
 
     from mac.encdb import open_db
-    con = open_db("~/.claude/MEMORY.sqlite")             # read-write
-    con = open_db("~/.claude/MEMORY.sqlite", readonly=True)  # mode=ro URI
+    con = open_db("~/.claude/MEMORY.sqlite")                  # read-write
+    con = open_db("~/.claude/MEMORY.sqlite", readonly=True)   # read-only
 
 A file that is plain SQLite (or does not exist yet) opens with the stdlib
-`sqlite3`, so tests and unmigrated DBs keep working. A file that is not plain
-SQLite is treated as ciphertext: the key comes from the login Keychain, is
-applied right after connect, and is verified with one read. Every failure
-raises EncDBError with a message that says what to fix.
+`sqlite3`, so tests and unmigrated DBs keep working. Any other file is treated
+as ciphertext and opened with apsw-sqlite3mc (cipher=sqlcipher), keyed right
+after connect and verified with one read. Every failure raises EncDBError with
+a message that says what to fix.
 
-The key is cached per process, because a Keychain fetch costs ~20 ms and the
-prompt hook cannot pay that on every open.
+The key is the 64-hex-character line in secrets/memory.key, a git-crypt file
+in this repo (POC: this is the only place the key exists). The opener fails
+closed when the file is missing or is still git-crypt ciphertext.
+
+The encrypted connection is a thin sqlite3-shaped adapter (execute, executemany,
+executescript, commit, rollback, close, cursor, row_factory, context manager);
+anything beyond that is not supported.
 """
 from __future__ import annotations
 
 import sqlite3
-import subprocess
 from pathlib import Path
 
-KEYCHAIN_SERVICE = "memory-sqlite-key"
-KEYCHAIN_ACCOUNT = "claude"
+KEY_FILE = Path(__file__).resolve().parent.parent / "secrets" / "memory.key"
 PLAIN_HEADER = b"SQLite format 3\x00"
+GITCRYPT_MAGIC = b"\x00GITCRYPT"
+_HEX = set("0123456789abcdefABCDEF")
 
-_key_cache: dict[tuple[str, str], str] = {}
+_key_cache: dict[Path, str] = {}
 
 
 class EncDBError(RuntimeError):
@@ -40,65 +45,144 @@ def is_plain(path: Path) -> bool:
     return head == b"" or head == PLAIN_HEADER
 
 
-def read_key(service: str = KEYCHAIN_SERVICE, account: str = KEYCHAIN_ACCOUNT) -> str:
-    """Hex key from the login Keychain, cached for the life of the process."""
-    ck = (service, account)
-    if ck in _key_cache:
-        return _key_cache[ck]
+def _valid_key(k: str) -> bool:
+    return len(k) == 64 and set(k) <= _HEX
+
+
+def read_key(path: Path | None = None) -> str:
+    """Hex key from the key file, cached for the life of the process."""
+    kp = Path(path) if path else KEY_FILE
+    if kp in _key_cache:
+        return _key_cache[kp]
     try:
-        r = subprocess.run(
-            ["security", "find-generic-password", "-s", service, "-a", account, "-w"],
-            capture_output=True, text=True, timeout=10,
-        )
+        raw = kp.read_bytes()
     except FileNotFoundError as e:
-        raise EncDBError("`security` not found: Keychain is only available on macOS") from e
-    except subprocess.TimeoutExpired as e:
-        raise EncDBError("Keychain read timed out (locked, or an access prompt is waiting)") from e
-    if r.returncode == 44:
-        raise EncDBError(
-            f"Keychain item {service!r}/{account!r} is missing; store the key from "
-            "secrets/memory.key with `security add-generic-password`"
-        )
-    if r.returncode != 0:
-        raise EncDBError(
-            f"Keychain read failed (exit {r.returncode}): {r.stderr.strip() or 'locked or access denied'}"
-        )
-    key = r.stdout.strip()
-    if len(key) != 64 or any(c not in "0123456789abcdefABCDEF" for c in key):
-        raise EncDBError("Keychain key is not 64 hex characters")
-    _key_cache[ck] = key
+        raise EncDBError(f"key file {kp} is missing") from e
+    if raw.startswith(GITCRYPT_MAGIC):
+        raise EncDBError(f"key file {kp} is still git-crypt ciphertext; run `git-crypt unlock`")
+    key = raw.decode("ascii", "replace").strip()
+    if not _valid_key(key):
+        raise EncDBError(f"key file {kp} does not hold 64 hex characters")
+    _key_cache[kp] = key
     return key
+
+
+class _Cursor:
+    def __init__(self, con: "_Conn", cur):
+        self._con, self._cur = con, cur
+        self._names: list[str] | None = None
+
+    def _wrap(self, row):
+        rf = self._con.row_factory
+        if row is None or rf is None:
+            return row
+        if self._names is None:
+            self._names = [d[0] for d in self._cur.getdescription()]
+        return _Row(self._names, row) if rf is sqlite3.Row else rf(self, row)
+
+    def fetchone(self):
+        return self._wrap(next(self._cur, None))
+
+    def fetchall(self):
+        return [self._wrap(r) for r in self._cur]
+
+    def __iter__(self):
+        for r in self._cur:
+            yield self._wrap(r)
+
+    @property
+    def description(self):
+        return tuple((d[0], None, None, None, None, None, None) for d in self._cur.getdescription())
+
+
+class _Row(tuple):
+    """tuple with name lookup, the part of sqlite3.Row the callers use."""
+
+    def __new__(cls, names, values):
+        r = super().__new__(cls, values)
+        r._names = list(names)
+        return r
+
+    def __getitem__(self, i):
+        return super().__getitem__(self._names.index(i) if isinstance(i, str) else i)
+
+    def keys(self):
+        return list(self._names)
+
+
+class _Conn:
+    """sqlite3-shaped view of an apsw connection; writes open a transaction lazily."""
+
+    def __init__(self, raw):
+        self._raw = raw
+        self.row_factory = None
+
+    def execute(self, sql, params=()):
+        if not self._raw.in_transaction and sql.lstrip()[:6].upper() in ("INSERT", "UPDATE", "DELETE", "REPLACE"):
+            self._raw.execute("BEGIN")
+        return _Cursor(self, self._raw.execute(sql, tuple(params)))
+
+    def executemany(self, sql, seq):
+        if not self._raw.in_transaction:
+            self._raw.execute("BEGIN")
+        return _Cursor(self, self._raw.executemany(sql, [tuple(p) for p in seq]))
+
+    def executescript(self, script):
+        self.commit()
+        return _Cursor(self, self._raw.execute(script))
+
+    def cursor(self):
+        return self
+
+    def commit(self):
+        if self._raw.in_transaction:
+            self._raw.execute("COMMIT")
+
+    def rollback(self):
+        if self._raw.in_transaction:
+            self._raw.execute("ROLLBACK")
+
+    def close(self):
+        self._raw.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, et, ev, tb):
+        self.rollback() if et else self.commit()
+        return False
 
 
 def _binding():
     try:
-        import sqlcipher3  # type: ignore
+        import apsw  # type: ignore
     except ImportError as e:
         raise EncDBError(
-            "no SQLCipher binding: install sqlcipher (brew) and sqlcipher3, "
-            "then retry; the file is encrypted and plain sqlite3 cannot read it"
+            "no SQLCipher binding: `uv add apsw-sqlite3mc`; the file is encrypted "
+            "and plain sqlite3 cannot read it"
         ) from e
-    return sqlcipher3
+    return apsw
 
 
 def open_db(path: str | Path, *, readonly: bool = False, key: str | None = None, **kwargs):
-    """Open `path`, decrypting with the Keychain key when it is not plain SQLite."""
+    """Open `path`, decrypting with the key file when it is not plain SQLite."""
     p = Path(path).expanduser()
     if is_plain(p):
         if readonly:
             return sqlite3.connect(f"{p.as_uri()}?mode=ro", uri=True, **kwargs)
         return sqlite3.connect(str(p), **kwargs)
 
-    cipher = _binding()
+    apsw = _binding()
     hexkey = key or read_key()
-    if len(hexkey) != 64 or any(c not in "0123456789abcdefABCDEF" for c in hexkey):
+    if not _valid_key(hexkey):
         raise EncDBError("key is not 64 hex characters")
-    con = cipher.connect(f"{p.as_uri()}?mode=ro" if readonly else str(p), uri=readonly, **kwargs)
-    # PRAGMA key takes no bound parameters; the value is validated hex, not user text.
-    con.execute(f"PRAGMA key = \"x'{hexkey}'\"")
+    flags = apsw.SQLITE_OPEN_READONLY if readonly else apsw.SQLITE_OPEN_READWRITE
+    raw = apsw.Connection(str(p), flags=flags)
     try:
-        con.execute("SELECT count(*) FROM sqlite_master").fetchone()
+        raw.pragma("cipher", "sqlcipher")
+        raw.pragma("hexkey", hexkey)
+        raw.execute("SELECT count(*) FROM sqlite_master").fetchall()
     except Exception as e:
-        con.close()
+        raw.close()
         raise EncDBError(f"{p.name}: wrong key or not a SQLCipher database ({e})") from e
-    return con
+    return _Conn(raw)

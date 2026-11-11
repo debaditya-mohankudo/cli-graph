@@ -7,7 +7,7 @@
     "markets": ["stock", "market", "graph_metrics", "kospi", "nse_eod", "nse_live"],
     "media": ["music", "podcasts", "sound"],
     "productivity": ["calendar", "notes", "reminders", "time"],
-    "system": ["cli", "cli_log", "hooks", "system", "vpn"],
+    "system": ["cli", "cli_log", "encdb", "hooks", "system", "vpn"],
     "web": ["connector", "curl", "safari"]
   },
   "purposes": {
@@ -18,7 +18,7 @@
     "markets": "NSE, KOSPI and US prices, flows, Wyckoff signals, stored metrics",
     "media": "music, podcasts, volume",
     "productivity": "calendar, notes, reminders, timers",
-    "system": "Mac status, VPN, hook logs, mac CLI lookup and call log",
+    "system": "Mac status, VPN, hook logs, encrypted personal DBs, mac CLI lookup and call log",
     "web": "Safari, external connectors, audited HTTP fetch"
   },
   "ungrouped": []

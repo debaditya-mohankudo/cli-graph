@@ -8,7 +8,7 @@
     "markets": ["market", "stock", "stocks", "share", "shares", "price", "nse", "nifty", "ticker", "wyckoff", "portfolio", "sector", "trading", "eod"],
     "media": ["music", "song", "songs", "playlist", "podcast", "podcasts", "episode", "episodes", "volume", "sound", "audio"],
     "productivity": ["calendar", "event", "events", "meeting", "meetings", "appointment", "schedule", "reminder", "reminders", "todo"],
-    "system": ["battery", "sleep", "vpn", "wifi", "disk", "hooks", "cpu", "notification", "notify"],
+    "system": ["battery", "sleep", "vpn", "wifi", "disk", "hooks", "cpu", "notification", "notify", "encrypt", "encrypted", "encryption", "sqlcipher"],
     "web": ["web", "safari", "browser", "tab", "tabs", "url", "website", "connector"]
   }
 }

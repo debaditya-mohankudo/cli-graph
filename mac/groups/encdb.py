@@ -1,0 +1,143 @@
+"""`mac encdb` — which personal SQLite DBs are encrypted at rest, and migrate one (task:8b0561d1).
+
+`status` is read-only. `migrate` is the write verb (tools/gen_permissions.py makes it
+ask): it backs the file up first, writes an encrypted copy beside it, checks table row
+counts and integrity_check on the copy, and only then swaps it into place. Any mismatch
+leaves the original untouched and removes the copy.
+
+REGISTRY lists every personal DB with a decision. A DB moves to "migrate" only once every
+reader of it opens through mac.encdb; until then a migrated file would break that reader.
+"""
+import argparse
+import os
+import time
+from pathlib import Path
+
+from mac import encdb
+from mac.contract import Failure
+
+ICLOUD = Path.home() / "Library" / "Mobile Documents" / "com~apple~CloudDocs" / "Databases"
+CLAUDE = Path.home() / ".claude"
+
+# name -> (path, decision, why)
+REGISTRY = {
+    "memory": (CLAUDE / "MEMORY.sqlite", "migrate",
+               "the goal of the task; migrate once the prompt hook, mac memory and the scripts open via mac.encdb"),
+    "server_memory": (CLAUDE / "server_memory.sqlite", "leave",
+                      "hook-server event log, rolling ~1000 events, not synced; readers not yet on the opener"),
+    "tool_hints": (ICLOUD / "tool_hints.sqlite", "leave",
+                   "tool usage counts, low sensitivity; read by the prompt hook and find_cli"),
+    "astrology": (ICLOUD / "astrology.db", "leave",
+                  "birth data lives here and it syncs to iCloud: migrate next, after the astrology server opens via mac.encdb"),
+    "vault_index": (CLAUDE / "vault_index.sqlite", "leave",
+                    "derived index of vault notes, rebuildable; read by several vault tools"),
+}
+
+
+def _state(path: Path) -> str:
+    if not path.exists():
+        return "missing"
+    if not path.stat().st_size:
+        return "empty"
+    return "plain" if encdb.is_plain(path) else "encrypted"
+
+
+def _resolve(target: str) -> Path:
+    if target in REGISTRY:
+        return REGISTRY[target][0]
+    return Path(target).expanduser()
+
+
+def _counts(con) -> dict[str, int]:
+    names = [r[0] for r in con.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").fetchall()]
+    return {n: con.execute(f'SELECT count(*) FROM "{n}"').fetchone()[0] for n in names}
+
+
+def _integrity(con) -> str:
+    return "; ".join(str(r[0]) for r in con.execute("PRAGMA integrity_check").fetchall())
+
+
+def migrate(path: Path, key: str | None = None) -> dict:
+    """Encrypt `path` in place. Returns a report; raises Failure and leaves `path` untouched on any problem."""
+    if not path.exists():
+        raise Failure("not_found", f"{path} does not exist")
+    if _state(path) == "encrypted":
+        raise Failure("usage", f"{path.name} is already encrypted")
+    if _state(path) == "empty":
+        raise Failure("usage", f"{path.name} is empty; nothing to migrate")
+    apsw = encdb._binding()
+    hexkey = key or encdb.read_key()
+    if not encdb._valid_key(hexkey):
+        raise Failure("usage", "key is not 64 hex characters")
+
+    stamp = time.strftime("%Y%m%dT%H%M%S")
+    backup = path.with_name(f"{path.name}.pre-encrypt.{stamp}")
+    tmp = path.with_name(f"{path.name}.enc.{stamp}")
+    src = apsw.Connection(str(path), flags=apsw.SQLITE_OPEN_READWRITE | apsw.SQLITE_OPEN_URI)
+    try:
+        src.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchall()
+        before_counts, before_check = _counts(src), _integrity(src)
+        if before_check != "ok":
+            raise Failure("tool_error", f"{path.name} fails integrity_check before migration: {before_check}")
+        # Backup first: a consistent copy through the backup API, not a file copy of a live DB.
+        bk = apsw.Connection(str(backup))
+        with bk.backup("main", src, "main") as b:
+            b.step()
+        bk.close()
+
+        # The backup API cannot cross ciphers, so VACUUM INTO a keyed URI writes the ciphertext.
+        src.execute("VACUUM INTO ?", (f"{tmp.as_uri()}?cipher=sqlcipher&hexkey={hexkey}",))
+        dst = apsw.Connection(str(tmp))
+        try:
+            dst.pragma("cipher", "sqlcipher")
+            dst.pragma("hexkey", hexkey)
+            after_counts, after_check = _counts(dst), _integrity(dst)
+        finally:
+            dst.close()
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
+    finally:
+        src.close()
+
+    if after_counts != before_counts or after_check != "ok":
+        tmp.unlink(missing_ok=True)
+        raise Failure("tool_error",
+                      f"{path.name}: encrypted copy does not match (counts {before_counts} vs {after_counts}, "
+                      f"integrity {after_check}); original untouched, backup at {backup}")
+
+    for side in ("-wal", "-shm"):  # stale sidecars of the plaintext file must not outlive it
+        Path(str(path) + side).unlink(missing_ok=True)
+    os.replace(tmp, path)
+    return {"path": str(path), "state": "encrypted", "backup": str(backup),
+            "tables": len(after_counts), "rows": sum(after_counts.values()), "integrity": "ok"}
+
+
+def register(registry):
+    def status_args(p):
+        p.add_argument("--path", default=argparse.SUPPRESS, help="check this file instead of the registry")
+
+    @registry.verb("encdb", "status", mode="read",
+                   desc="which personal SQLite DBs are encrypted at rest or plaintext, with the migrate-or-leave decision for each",
+                   args=status_args)
+    def status(ns):
+        if hasattr(ns, "path"):
+            p = Path(ns.path).expanduser()
+            return [{"name": p.name, "path": str(p), "state": _state(p)}]
+        out = []
+        for name, (p, decision, why) in REGISTRY.items():
+            sidecars = [s for s in ("-wal", "-shm") if Path(str(p) + s).exists()]
+            out.append({"name": name, "path": str(p), "state": _state(p), "decision": decision,
+                        "why": why, **({"sidecars": sidecars} if sidecars else {})})
+        return out
+
+    def migrate_args(p):
+        p.add_argument("target", help="a registered name (see `mac encdb status`) or a file path")
+
+    @registry.verb("encdb", "migrate", mode="write",
+                   desc="encrypt a plaintext SQLite DB in place with the memory key; backs up first and checks row counts and integrity",
+                   args=migrate_args)
+    def migrate_verb(ns):
+        return migrate(_resolve(ns.target))
+
