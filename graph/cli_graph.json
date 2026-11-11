@@ -8,7 +8,7 @@
     "media": ["music", "podcasts", "sound"],
     "productivity": ["calendar", "notes", "reminders", "time"],
     "system": ["cli", "cli_log", "hooks", "system", "vpn"],
-    "web": ["connector", "safari"]
+    "web": ["connector", "curl", "safari"]
   },
   "domains": {
     "astrology": {"group": "astrology", "verbs": ["aq_aspects_on_house", "aq_bhava_chalit", "aq_current_dasha", "aq_dasha_timeline", "aq_navamsha", "aq_neecha_bhanga", "aq_pd_timeline", "aq_planets", "aq_predict_events", "aq_predict_events_batch", "aq_pushkar_navamsa", "aq_strength_summary", "aq_upcoming_transitions", "aq_vargottama", "aq_yogas", "d10", "d12", "d9", "gochar_dasha_tally", "gochar_house", "gochar_summary", "mahadasha", "panchang_date", "panchang_rahukaal", "panchang_today", "planets_date", "planets_lagna", "planets_today", "tarabala"]},
@@ -18,6 +18,7 @@
     "code_rag": {"group": "knowledge", "verbs": ["index_files", "query", "smart_search"]},
     "connector": {"group": "web", "verbs": ["execute_action", "health", "list_actions"]},
     "contacts": {"group": "communication", "verbs": ["search"]},
+    "curl": {"group": "web", "verbs": ["get", "log", "post"]},
     "diff_rag": {"group": "knowledge", "verbs": ["index_commits", "query", "smart_search"]},
     "git": {"group": "development", "verbs": ["add", "commit", "diff", "log", "push", "status"]},
     "graph_metrics": {"group": "markets", "verbs": ["freshness", "get", "ingest_fred", "latest", "load_ai_capex", "load_bhavcopy", "load_etf_premium", "load_fed", "load_fii_flows", "load_flows", "load_kalshi", "load_krx_flows", "load_treasury_par", "load_us_macro", "load_us_open", "record", "record_amfi_overseas", "series", "set"]},
@@ -93,6 +94,9 @@
     {"area": "connector", "cli": "mac", "desc": "health-check the local OpenConnector container (GET /v1/health)", "id": "mac connector health", "kind": "command", "mode": "read", "usage": "mac connector health [-h] [--limit LIMIT] [--json]", "verb": "health"},
     {"area": "connector", "cli": "mac", "desc": "list available OpenConnector Actions, optionally filtered by provider service (e.g. 'gmail')", "id": "mac connector list_actions", "kind": "command", "mode": "read", "usage": "mac connector list_actions [-h] [--limit LIMIT] [--json] [--service SERVICE]", "verb": "list_actions"},
     {"area": "contacts", "cli": "mac", "desc": "search contacts by name via Contacts.app", "id": "mac contacts search", "kind": "command", "mode": "read", "usage": "mac contacts search [-h] [--limit LIMIT] [--json] [--include-email] name", "verb": "search"},
+    {"area": "curl", "cli": "mac", "desc": "HTTP GET an allowlisted https URL (NSE, FRED, Yahoo); audited, redirects re-checked, body capped", "id": "mac curl get", "kind": "command", "mode": "read", "usage": "mac curl get [-h] [--limit LIMIT] [--json] [--via VIA] url", "verb": "get"},
+    {"area": "curl", "cli": "mac", "desc": "audit log of mac curl requests: time, session, method, host, path, status, bytes, outcome", "id": "mac curl log", "kind": "command", "mode": "read", "usage": "mac curl log [-h] [--limit LIMIT] [--json] [--host HOST] [--since SINCE]", "verb": "log"},
+    {"area": "curl", "cli": "mac", "desc": "HTTP POST to an allowlisted https URL; audited, asks for confirmation on every call", "id": "mac curl post", "kind": "command", "mode": "write", "usage": "mac curl post [-h] [--limit LIMIT] [--json] --data DATA url", "verb": "post"},
     {"area": "diff_rag", "cli": "mac", "desc": "build or update a repo's git diff search index from its commits", "id": "mac diff_rag index_commits", "kind": "command", "mode": "write", "usage": "mac diff_rag index_commits [-h] [--limit LIMIT] [--json] [--repo REPO] [--since SINCE] [--max-commits MAX_COMMITS]", "verb": "index_commits"},
     {"area": "diff_rag", "cli": "mac", "desc": "which commit changed something: semantic search over a repo's git diff history", "id": "mac diff_rag query", "kind": "command", "mode": "read", "usage": "mac diff_rag query [-h] [--limit LIMIT] [--json] [--repo REPO] [--k K] query", "verb": "query"},
     {"area": "diff_rag", "cli": "mac", "desc": "search git diff history filtered by author or file pattern", "id": "mac diff_rag smart_search", "kind": "command", "mode": "read", "usage": "mac diff_rag smart_search [-h] [--limit LIMIT] [--json] [--repo REPO] [--k K] [--author AUTHOR] [--file-pattern FILE_PATTERN] query", "verb": "smart_search"},

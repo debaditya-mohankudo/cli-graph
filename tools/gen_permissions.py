@@ -39,6 +39,7 @@ ASK = {
     "system": {"process_kill", "sleep_now"},
     "connector": {"execute_action"},
     "vpn": {"disconnect"},
+    "curl": {"post"},
     "git": {"commit", "push"},
     "kitty": {"run", "interrupt", "close"},
 }

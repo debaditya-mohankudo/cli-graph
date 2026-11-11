@@ -8,7 +8,7 @@
     "media": ["music", "podcasts", "sound"],
     "productivity": ["calendar", "notes", "reminders", "time"],
     "system": ["cli", "cli_log", "hooks", "system", "vpn"],
-    "web": ["connector", "safari"]
+    "web": ["connector", "curl", "safari"]
   },
   "purposes": {
     "astrology": "Vedic charts, dasha, transits, panchang",
@@ -19,7 +19,7 @@
     "media": "music, podcasts, volume",
     "productivity": "calendar, notes, reminders, timers",
     "system": "Mac status, VPN, hook logs, mac CLI lookup and call log",
-    "web": "Safari, external connectors"
+    "web": "Safari, external connectors, audited HTTP fetch"
   },
   "ungrouped": []
 }
