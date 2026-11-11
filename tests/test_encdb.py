@@ -125,3 +125,17 @@ def test_key_file_read_and_trimmed(tmp_path):
     k = tmp_path / "k"
     k.write_text(KEY + "\n")
     assert encdb.read_key(k) == KEY
+
+
+def test_encrypted_cursor_has_rowcount_lastrowid_and_sqlite3_errors(tmp_path):
+    p = tmp_path / "enc.sqlite"
+    _encrypted(p)
+    con = encdb.open_db(p, key=KEY)
+    cur = con.execute("insert into t values (2, 'b')")
+    assert cur.rowcount == 1 and cur.lastrowid == 2
+    assert con.execute("update t set y='z' where x=99").rowcount == 0
+    assert con.execute("select x from t").rowcount == -1
+    con.commit()
+    with pytest.raises(sqlite3.OperationalError):
+        con.execute("select * from no_such_table")
+    con.close()

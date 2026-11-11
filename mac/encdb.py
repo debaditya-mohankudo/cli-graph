@@ -15,7 +15,8 @@ in this repo (POC: this is the only place the key exists). The opener fails
 closed when the file is missing or is still git-crypt ciphertext.
 
 The encrypted connection is a thin sqlite3-shaped adapter (execute, executemany,
-executescript, commit, rollback, close, cursor, row_factory, context manager);
+executescript, commit, rollback, close, cursor, row_factory, context manager; cursors carry
+rowcount and lastrowid, and apsw errors surface as sqlite3.OperationalError/IntegrityError);
 anything beyond that is not supported.
 """
 from __future__ import annotations
@@ -67,10 +68,25 @@ def read_key(path: Path | None = None) -> str:
     return key
 
 
+_DML = ("INSERT", "UPDATE", "DELETE", "REPLACE")
+
+
+def _translate(exc: Exception) -> Exception:
+    """apsw error -> the sqlite3 class callers already catch (e.g. a bad FTS5 query)."""
+    apsw = _binding()
+    if isinstance(exc, apsw.ConstraintError):
+        return sqlite3.IntegrityError(str(exc))
+    if isinstance(exc, apsw.Error):
+        return sqlite3.OperationalError(str(exc))
+    return exc
+
+
 class _Cursor:
-    def __init__(self, con: "_Conn", cur):
+    def __init__(self, con: "_Conn", cur, dml: bool = False):
         self._con, self._cur = con, cur
         self._names: list[str] | None = None
+        self.rowcount = con._raw.changes() if dml else -1
+        self.lastrowid = con._raw.last_insert_rowid() if dml else None
 
     def _wrap(self, row):
         rf = self._con.row_factory
@@ -81,14 +97,23 @@ class _Cursor:
         return _Row(self._names, row) if rf is sqlite3.Row else rf(self, row)
 
     def fetchone(self):
-        return self._wrap(next(self._cur, None))
+        try:
+            return self._wrap(next(self._cur, None))
+        except Exception as e:
+            raise _translate(e) from e
 
     def fetchall(self):
-        return [self._wrap(r) for r in self._cur]
+        try:
+            return [self._wrap(r) for r in self._cur]
+        except Exception as e:
+            raise _translate(e) from e
 
     def __iter__(self):
-        for r in self._cur:
-            yield self._wrap(r)
+        try:
+            for r in self._cur:
+                yield self._wrap(r)
+        except Exception as e:
+            raise _translate(e) from e
 
     @property
     def description(self):
@@ -118,29 +143,45 @@ class _Conn:
         self.row_factory = None
 
     def execute(self, sql, params=()):
-        if not self._raw.in_transaction and sql.lstrip()[:6].upper() in ("INSERT", "UPDATE", "DELETE", "REPLACE"):
-            self._raw.execute("BEGIN")
-        return _Cursor(self, self._raw.execute(sql, tuple(params)))
+        dml = sql.lstrip()[:6].upper() in _DML
+        try:
+            if not self._raw.in_transaction and dml:
+                self._raw.execute("BEGIN")
+            return _Cursor(self, self._raw.execute(sql, params if isinstance(params, dict) else tuple(params)), dml)
+        except Exception as e:
+            raise _translate(e) from e
 
     def executemany(self, sql, seq):
-        if not self._raw.in_transaction:
-            self._raw.execute("BEGIN")
-        return _Cursor(self, self._raw.executemany(sql, [tuple(p) for p in seq]))
+        try:
+            if not self._raw.in_transaction:
+                self._raw.execute("BEGIN")
+            return _Cursor(self, self._raw.executemany(sql, [tuple(p) for p in seq]), True)
+        except Exception as e:
+            raise _translate(e) from e
 
     def executescript(self, script):
         self.commit()
-        return _Cursor(self, self._raw.execute(script))
+        try:
+            return _Cursor(self, self._raw.execute(script))
+        except Exception as e:
+            raise _translate(e) from e
 
     def cursor(self):
         return self
 
     def commit(self):
-        if self._raw.in_transaction:
-            self._raw.execute("COMMIT")
+        try:
+            if self._raw.in_transaction:
+                self._raw.execute("COMMIT")
+        except Exception as e:
+            raise _translate(e) from e
 
     def rollback(self):
-        if self._raw.in_transaction:
-            self._raw.execute("ROLLBACK")
+        try:
+            if self._raw.in_transaction:
+                self._raw.execute("ROLLBACK")
+        except Exception as e:
+            raise _translate(e) from e
 
     def close(self):
         self._raw.close()
