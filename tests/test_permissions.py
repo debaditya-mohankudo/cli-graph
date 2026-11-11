@@ -38,7 +38,7 @@ class RulesTest(unittest.TestCase):
 
     def test_reads_and_non_destructive_writes_are_allowed(self):
         allow, _ = gp.rules(GRAPH)
-        for cmd in ("mail read", "vault append", "wyckoff db_init_state",
+        for cmd in ("mail read", "vault append", "stock db_init_state",
                     "calendar add_event", "reminders create"):
             self.assertIn(f"Bash(mac {cmd} *)", allow)
 

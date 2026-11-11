@@ -1,4 +1,4 @@
-"""Parity of `mac astrology`, `mac wyckoff` and `mac sysml` with their MCP servers (task:25e053bc).
+"""Parity of `mac astrology`, `mac stock` (wyckoff server) and `mac sysml` with their MCP servers (task:25e053bc).
 
 These verbs run the server's own tool over MCP (mac/groups/_mcp_proxy.py), so
 parity is mostly about the two translations around that call:
@@ -9,6 +9,7 @@ parity is mostly about the two translations around that call:
 These servers are permanently CLI-only, so there is no MCP counterpart to
 compare against: every test stubs the proxy and starts no server.
 """
+import importlib
 import io
 import json
 import os
@@ -24,6 +25,7 @@ sys.path[:0] = [str(REPO), str(REPO / "tools"), str(REPO / "tests")]
 import gen_mcp_groups
 from _helpers import run
 from mac.cli import default_registry, describe
+from mac.registry import Registry
 from mac.contract import Failure
 from mac.groups import _mcp_proxy
 
@@ -44,9 +46,14 @@ def text_result(*texts, is_error=False):
     return types.SimpleNamespace(content=blocks, isError=is_error)
 
 
+# `mac stock` carries the wyckoff server's verbs, generated into their own module.
+SERVER_OF = {"stock": "wyckoff"}
+
+
 def stub_proxy(area, returns="ok"):
     """Replace call_tool in the generated module for `area`; data_block keeps working on what it returns."""
-    return mock.patch(f"mac.groups.{area}.call_tool", return_value=returns)
+    module = gen_mcp_groups.MODULE.get(SERVER_OF.get(area, area), area)
+    return mock.patch(f"mac.groups.{module}.call_tool", return_value=returns)
 
 
 class UnwrapTest(unittest.TestCase):
@@ -114,7 +121,12 @@ class CoverageTest(unittest.TestCase):
     def test_modes_match_the_reviewed_write_table(self):
         entries = describe(default_registry())
         for area in AREAS:
-            verbs = {e["verb"]: e["mode"] for e in entries if e["area"] == area}
+            module = importlib.import_module(f"mac.groups.{gen_mcp_groups.MODULE.get(area, area)}")
+            own = Registry()
+            module.register(own)
+            proxied = {e["verb"] for e in describe(own)}
+            verbs = {e["verb"]: e["mode"] for e in entries
+                     if e["area"] == gen_mcp_groups.target(area) and e["verb"] in proxied}
             self.assertTrue(verbs, area)
             writes = {v for v, mode in verbs.items() if mode == "write"}
             self.assertEqual(writes, WRITE.get(area, set()), area)
@@ -138,13 +150,13 @@ class ForwardingTest(unittest.TestCase):
         (["astrology", "aq_current_dasha", "someone", "--as-of", "2026-01-01"], "aq__current_dasha",
          {"person": "someone", "as_of": "2026-01-01"}),
         (["astrology", "gochar_summary"], "gochar__summary", {}),
-        (["wyckoff", "next_step", "tcs", "--done", "step_0", "step_1"], "next_step",
+        (["stock", "next_step", "tcs", "--done", "step_0", "step_1"], "next_step",
          {"slug": "tcs", "done": ["step_0", "step_1"]}),
-        (["wyckoff", "classify_announcements", "tcs", "--items", '[{"headline": "h"}]', "--threshold", "0.5"],
+        (["stock", "classify_announcements", "tcs", "--items", '[{"headline": "h"}]', "--threshold", "0.5"],
          "classify_announcements", {"slug": "tcs", "items": [{"headline": "h"}], "threshold": 0.5}),
-        (["wyckoff", "update_short_volume", "aapl", "--backfill-sessions", "3"], "update_short_volume",
+        (["stock", "update_short_volume", "aapl", "--backfill-sessions", "3"], "update_short_volume",
          {"slug": "aapl", "backfill_sessions": 3}),
-        (["wyckoff", "signal_weight_table"], "signal_weight_table", {}),
+        (["stock", "signal_weight_table"], "signal_weight_table", {}),
         (["sysml", "get_symbols", "--kind", "part def", "--definitions-only"], "getSymbols",
          {"kind": "part def", "definitionsOnly": True}),
         (["sysml", "parse", "--code", "package P;"], "parse", {"code": "package P;"}),
@@ -156,7 +168,7 @@ class ForwardingTest(unittest.TestCase):
             with self.subTest(argv=argv), stub_proxy(argv[0]) as fake:
                 status, out, err = run(*argv)
                 self.assertEqual(status, 0, err)
-                fake.assert_called_once_with(argv[0], tool, **arguments)
+                fake.assert_called_once_with(SERVER_OF.get(argv[0], argv[0]), tool, **arguments)
 
     def test_code_file_and_stdin(self):
         path = REPO / "tests" / "_tmp_model.sysml"
@@ -178,7 +190,7 @@ class ForwardingTest(unittest.TestCase):
                          ["sysml", "parse", "--code-file", "/nonexistent/m.sysml"],
                          ["sysml", "preview", "--diagram-type", "bogus"],
                          ["astrology", "d9", "[1]"],
-                         ["wyckoff", "classify_announcements", "s", "--items", '{"a": 1}']):
+                         ["stock", "classify_announcements", "s", "--items", '{"a": 1}']):
                 with self.subTest(argv=argv):
                     status, _, err = run(*argv)
                     self.assertEqual((status, json.loads(err)["error"]["code"]), (2, "usage"))

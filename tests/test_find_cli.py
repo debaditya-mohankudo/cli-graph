@@ -218,7 +218,7 @@ class FindOnCommittedGraphTest(unittest.TestCase):
     GUARDS = [
         ("check sleep schedule", "mac system sleep_status", 3),
         ("get today's events", "mac calendar get_upcoming_events", 1),
-        ("check spring or sos for deepak", "mac wyckoff check_spring_or_sos", 1),
+        ("check spring or sos for deepak", "mac stock check_spring_or_sos", 1),
         ("check status of vpn", "mac vpn status", 1),
         ("list my reminders", "mac reminders list", 1),
     ]
