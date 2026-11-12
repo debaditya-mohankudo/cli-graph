@@ -2,7 +2,7 @@
   "groups": {
     "astrology": ["astrology"],
     "communication": ["contacts", "imessage", "mail"],
-    "development": ["git", "kitty"],
+    "development": ["claude", "git", "kitty"],
     "knowledge": ["code_rag", "diff_rag", "memory", "sysml", "vault", "vault_log", "vault_map", "vault_rag"],
     "markets": ["stock", "market", "graph_metrics", "kospi", "nse_eod", "nse_live"],
     "media": ["music", "podcasts", "sound"],
@@ -13,7 +13,7 @@
   "purposes": {
     "astrology": "Vedic charts, dasha, transits, panchang",
     "communication": "contacts, iMessage, Mail",
-    "development": "git, kitty terminal tabs",
+    "development": "git, kitty terminal tabs, headless claude root+fork sessions",
     "knowledge": "Obsidian vault, memory, semantic search over code and diffs, SysML",
     "markets": "NSE, KOSPI and US prices, flows, Wyckoff signals, stored metrics",
     "media": "music, podcasts, volume",
