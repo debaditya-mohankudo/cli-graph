@@ -25,6 +25,31 @@
       "name": "bin-mac-interpreter-selection",
       "related": []
     },
+    "claude-root-fork": {
+      "confidence": 0.8,
+      "contracts": [
+        "root returns {root, cwd, primed}; fork returns {root, fork, kept, result, cost_usd, turns}",
+        "root and fork must share --cwd (sessions are stored per working directory)",
+        "--isolation minimal (default) keeps only find_cli and taskfw MCP servers (read from ~/.claude.json); none keeps the full setup",
+        "fork discards its transcript unless --keep"
+      ],
+      "created_at": "2026-11-12T11:57:08.591462+00:00",
+      "description": "`mac claude root` primes a headless session; `mac claude fork` runs a task in a throwaway --resume --fork-session branch and returns only the final answer, so the root never grows.",
+      "evidence": [
+        "mac/groups/claude.py:_isolation",
+        "mac/groups/claude.py:_claude",
+        "tests/test_claude.py"
+      ],
+      "invariants": [
+        "the caller never resumes the root directly",
+        "claude failures, timeouts and missing MCP definitions raise Failure tool_error",
+        "minimal isolation still receives harness-injected reminders (email, attribution); it strips user config only"
+      ],
+      "last_validated": "2026-11-12T11:57:08.591480+00:00",
+      "module": "mac/groups/claude.py",
+      "name": "claude-root-fork",
+      "related": []
+    },
     "find-cli": {
       "confidence": 0.8,
       "contracts": [
@@ -485,6 +510,6 @@
     }
   },
   "meta": {
-    "updated_at": "2026-11-06T15:02:14.423937+00:00"
+    "updated_at": "2026-11-12T11:57:08.591542+00:00"
   }
 }
