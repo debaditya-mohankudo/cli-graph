@@ -108,3 +108,18 @@ def register(registry):
                    args=lambda p: p.add_argument("names", nargs="+", metavar="name"))
     def validate(ns):
         return call("memory", "validate", names=ns.names)
+
+    def audit_args(p):
+        p.add_argument("action", nargs="?", default="list", choices=("list", "mark", "report"),
+                       help="list the newest audit rows (default), mark one, or print the precision report")
+        p.add_argument("--n", type=int, default=UNSET, help="list: how many rows")
+        p.add_argument("--unmarked", action="store_true", default=UNSET, help="list: only rows with no verdict")
+        p.add_argument("--id", type=int, default=UNSET, help="mark: the audit row id")
+        p.add_argument("--useful", default=UNSET, help="mark: comma-separated injected memories that helped")
+        p.add_argument("--noise", default=UNSET, help="mark: comma-separated injected memories that did not")
+
+    @registry.verb("memory", "audit", mode="write",
+                   desc="review the memory-injection audit log: list prompts with scored and injected memories, mark each useful or noise, report precision per memory",
+                   args=audit_args)
+    def audit(ns):
+        return call("memory", "audit", **given(ns, ("action", "n", "unmarked", "id", "useful", "noise")))

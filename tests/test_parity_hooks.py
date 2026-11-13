@@ -53,6 +53,9 @@ class ForwardingTest(unittest.TestCase):
         (["memory", "stale", "--unhit-days", "9", "--limit", "3"], "memory", "stale",
          {"unhit_days": 9, "limit": 3}),
         (["memory", "validate", "a", "b"], "memory", "validate", {"names": ["a", "b"]}),
+        (["memory", "audit"], "memory", "audit", {"action": "list"}),
+        (["memory", "audit", "mark", "--id", "3", "--useful", "a,b", "--noise", "c"], "memory", "audit",
+         {"action": "mark", "id": 3, "useful": "a,b", "noise": "c"}),
         (["vault_map", "overview", "--dir", "Market", "--depth", "2"], "vault_map", "overview",
          {"dir": "Market", "depth": 2}),
         (["vault_map", "node", "n"], "vault_map", "node", {"id": "n"}),
@@ -109,7 +112,7 @@ class ModesTest(unittest.TestCase):
                  for v in default_registry().verbs(a)}
         self.assertEqual({k for k, m in modes.items() if m == "write"},
                          {("memory", "add"), ("memory", "add_batch"), ("memory", "delete"),
-                          ("memory", "validate")})
+                          ("memory", "validate"), ("memory", "audit")})
 
     def test_scratch_and_think_are_not_ported(self):
         areas = default_registry().areas()
