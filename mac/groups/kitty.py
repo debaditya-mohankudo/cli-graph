@@ -4,7 +4,8 @@ Every verb addresses a tab by its numeric id, never by title: a title can contai
 breaks kitty's `--match`, and titles are not unique. Tab ids and window ids are different
 namespaces; `--tab` takes a TAB id (the `id` that `mac kitty tabs` prints) and each verb resolves
 it to that tab's window before acting. A tab that runs `claude` (this session's tab included) is
-refused, so a verb can never type into or close a live agent session.
+refused, so a verb can never type into or close a live agent session. The one exception is `notify`,
+which accepts ONLY a claude tab and types one tagged line into it.
 
 Commands typed by `run` are visible at the tab's prompt: no hidden script files.
 """
@@ -74,11 +75,17 @@ def _tabs(raw=None):
     return rows
 
 
-def _resolve(tab_id):
-    """The tab row for a tab id; refuses an unknown tab and a claude session tab."""
+def _resolve(tab_id, claude=False):
+    """The tab row for a tab id; refuses an unknown tab and a claude session tab.
+
+    `claude=True` flips the guard (only `notify` uses it): a claude tab is accepted, any other refused.
+    """
     for row in _tabs():
         if row["tab"] == tab_id:
-            if row["guarded"]:
+            if claude:
+                if not row["guarded"]:
+                    raise Failure("refused", f"tab {tab_id} is not a claude session; notify only targets claude tabs")
+            elif row["guarded"]:
                 raise Failure("refused", f"tab {tab_id} runs a claude session; mac kitty will not act on it")
             if row["window"] is None:
                 raise Failure("tool_error", f"tab {tab_id} has no window")
@@ -96,6 +103,32 @@ def _screen(window, lines=None):
 def _squash(text):
     """Whitespace-free form of text, so a command the terminal wrapped still matches."""
     return re.sub(r"\s+", "", text)
+
+
+def prompt_text(screen):
+    """Text typed in a claude prompt box, or None when no box is found.
+
+    The box is the last block between two lines of `─`; its first line starts with `❯`.
+    """
+    lines = screen.rstrip("\n").splitlines()
+    rules = [i for i, ln in enumerate(lines) if ln.strip() and set(ln.strip()) == {"─"}]
+    if len(rules) < 2:
+        return None
+    block = lines[rules[-2] + 1:rules[-1]]
+    if not block or not block[0].lstrip().startswith("❯"):
+        return None
+    first = block[0].lstrip()[1:]
+    return " ".join([first, *block[1:]]).replace("\xa0", " ").strip()
+
+
+def notify_line(sender, body):
+    """The one tagged line `notify` types; a body with a line break is refused, not collapsed."""
+    if re.search(r"[\r\n\x00-\x08\x0b-\x1f\x7f\u2028\u2029]", body + sender):
+        raise Failure("usage", "--from and --body must be one line with no control characters", 2)
+    body, sender = body.strip(), sender.strip()
+    if not body or not sender:
+        raise Failure("usage", "--from and --body must be non-empty", 2)
+    return f"[AUTOMATED from {sender}, not the user] {body}"
 
 
 def _seconds(text):
@@ -220,3 +253,38 @@ def register(registry):
         _resolve(ns.tab)
         _kitten("close-tab", "--match", f"id:{ns.tab}")
         return {"tab": ns.tab, "closed": True}
+
+    def notify_args(p):
+        p.add_argument("--to", type=int, required=True, help="claude tab id from `mac kitty tabs` (guarded=true)")
+        p.add_argument("--from", dest="sender", required=True, help="who is sending, shown in the tag")
+        p.add_argument("--body", required=True, help="one-line message")
+        p.add_argument("--force", action="store_true", help="send even if the prompt holds unsent text")
+
+    @registry.verb("kitty", "notify", mode="write",
+                   desc="send a message to a claude tab: type one tagged line "
+                        "('[AUTOMATED from <sender>, not the user] ...') into a claude session's prompt and "
+                        "submit it, so a shell side tab can hand a result to its parent session. Reports "
+                        "busy and sends nothing if the prompt holds unsent text (--force overrides)",
+                   args=notify_args)
+    def notify(ns):
+        line = notify_line(ns.sender, ns.body)
+        row = _resolve(ns.to, claude=True)
+        window = row["window"]
+        match = f"id:{window}"
+        before = prompt_text(_screen(window))
+        if before is None:
+            raise Failure("tool_error", f"tab {ns.to}: no claude prompt box on screen; not sending")
+        if before and not ns.force:
+            return {"tab": ns.to, "window": window, "sent": False, "busy": True,
+                    "unsent": before[:80]}
+        _kitten("send-text", "--match", match, "--stdin", stdin=line)
+        time.sleep(SETTLE_S)
+        _kitten("send-key", "--match", match, "enter")
+        for attempt in (1, 2):
+            time.sleep(SETTLE_S)
+            if not prompt_text(_screen(window)):
+                return {"tab": ns.to, "window": window, "sent": True, "verified": True, "message": line,
+                        "enter_retried": attempt == 2}
+            if attempt == 1:
+                _kitten("send-key", "--match", match, "enter")
+        raise Failure("tool_error", f"typed into tab {ns.to} but its prompt did not empty after a retry")

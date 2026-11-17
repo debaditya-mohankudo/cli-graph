@@ -54,7 +54,12 @@ were not ported (task:5ab623ca). `git` runs `git` directly: `add` takes explicit
 `commit` takes the staged files (or only the paths listed) and refuses a message without a
 `task:<id>`, and `commit` and `push` ask before running (task:fcc92c98). `kitty` drives other kitty tabs by tab id
 (never title) through `kitten @`, refuses a tab running `claude`, and types `run` commands visibly at the
-prompt; `run`, `interrupt` and `close` ask before running (task:f4bc132e).
+prompt; `run`, `interrupt` and `close` ask before running (task:f4bc132e). `notify` is the one verb that targets
+a claude tab (and refuses any other): it types a single line tagged `[AUTOMATED from <sender>, not the user]` into
+the prompt and submits it, reports `busy` without sending if the prompt holds unsent text (`--force` overrides), and
+fails unless the prompt box emptied (one enter retry). It is how a shell side tab, which has no `SendMessage`, hands a
+result to its parent session: the india-open `auction_read.sh` ends with its raw `kitten @ send-text` / `send-key enter`
+lines, which become `mac kitty notify --to <claude tab id> --from "<tab name>" --body "<message>"` (task:74d04f51).
 
 **Contract.** Results go to stdout as JSON. Failures go to stderr as
 `{"error": {"code": ..., "message": ...}}`, with exit code 1, or 2 for usage

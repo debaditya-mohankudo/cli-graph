@@ -42,7 +42,7 @@ ASK = {
     "curl": {"post"},
     "encdb": {"migrate"},
     "git": {"commit", "push"},
-    "kitty": {"run", "interrupt", "close"},
+    "kitty": {"run", "interrupt", "close", "notify"},
 }
 
 # Ways a shell command can name the launcher: the bare name on PATH, the

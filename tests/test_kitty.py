@@ -44,6 +44,33 @@ class Fake:
         return [a[0] for a, _ in self.calls]
 
 
+RULE = "─" * 40
+
+
+def box(text=""):
+    return f"history ❯ old\n{RULE}\n❯\xa0{text}\n{RULE}\n  status\n"
+
+
+class ClaudeFake(Fake):
+    """Screen of claude tab 1 modelled as a prompt box: send-text fills it, enter submits (empties) it."""
+
+    def __init__(self, unsent="", enter_works_on=1):
+        super().__init__()
+        self.unsent, self.enters, self.enter_works_on = unsent, 0, enter_works_on
+
+    def __call__(self, *args, stdin=None):
+        out = super().__call__(*args, stdin=stdin)
+        if args[0] == "send-text":
+            self.unsent += stdin
+        if args[0] == "send-key" and args[-1] == "enter":
+            self.enters += 1
+            if self.enters >= self.enter_works_on:
+                self.unsent = ""
+        if args[0] == "get-text":
+            return box(self.unsent)
+        return out
+
+
 def mac(fake, *argv):
     out, err = io.StringIO(), io.StringIO()
     with mock.patch.object(kitty, "_kitten", fake), mock.patch.object(kitty, "SETTLE_S", 0):
@@ -127,6 +154,76 @@ class KittyTest(unittest.TestCase):
         for extra in (("--at", "25:00"), ("--retry", "2", "--every", "ten")):
             status, _, _ = mac(Fake(), "run", "--tab", "5", "x", "--dry-run", *extra)
             self.assertEqual(status, 2, extra)
+
+
+class NotifyTest(unittest.TestCase):
+    def test_types_the_tagged_line_then_a_separate_enter_and_verifies(self):
+        fake = ClaudeFake()
+        status, out, _ = mac(fake, "notify", "--to", "1", "--from", "tab 4", "--body", "PASS 1 stored")
+        res = json.loads(out)
+        self.assertEqual(status, 0)
+        self.assertTrue(res["sent"] and res["verified"])
+        self.assertEqual(res["message"], "[AUTOMATED from tab 4, not the user] PASS 1 stored")
+        self.assertEqual(fake.typed(), res["message"])
+        self.assertEqual(fake.verbs(), ["ls", "get-text", "send-text", "send-key", "get-text"])
+        matches = [a[a.index("--match") + 1] for a, _ in fake.calls if a[0] in ("send-text", "send-key")]
+        self.assertEqual(matches, ["id:1", "id:1"])
+
+    def test_a_line_break_in_body_or_sender_is_refused_before_any_kitten_call(self):
+        for argv in (("--from", "s", "--body", "a\nb"), ("--from", "s\r", "--body", "a"),
+                     ("--from", "s", "--body", "a\x1bb"), ("--from", "s", "--body", "  ")):
+            fake = ClaudeFake()
+            status, _, _ = mac(fake, "notify", "--to", "1", *argv)
+            self.assertEqual(status, 2, argv)
+            self.assertEqual(fake.calls, [], argv)
+
+    def test_unsent_text_in_the_prompt_is_busy_and_nothing_is_typed(self):
+        fake = ClaudeFake(unsent="half a thought")
+        status, out, _ = mac(fake, "notify", "--to", "1", "--from", "s", "--body", "hi")
+        res = json.loads(out)
+        self.assertEqual(status, 0)
+        self.assertTrue(res["busy"] and not res["sent"])
+        self.assertNotIn("send-text", fake.verbs())
+        self.assertNotIn("send-key", fake.verbs())
+
+    def test_force_sends_despite_unsent_text(self):
+        fake = ClaudeFake(unsent="half")
+        status, out, _ = mac(fake, "notify", "--to", "1", "--from", "s", "--body", "hi", "--force")
+        self.assertEqual(status, 0)
+        self.assertTrue(json.loads(out)["sent"])
+        self.assertIn("send-text", fake.verbs())
+
+    def test_enter_is_retried_once_then_succeeds(self):
+        fake = ClaudeFake(enter_works_on=2)
+        status, out, _ = mac(fake, "notify", "--to", "1", "--from", "s", "--body", "hi")
+        self.assertEqual(status, 0)
+        self.assertTrue(json.loads(out)["enter_retried"])
+        self.assertEqual(fake.enters, 2)
+
+    def test_fails_when_the_prompt_never_empties(self):
+        fake = ClaudeFake(enter_works_on=99)
+        status, out, err = mac(fake, "notify", "--to", "1", "--from", "s", "--body", "hi")
+        self.assertNotEqual(status, 0)
+        self.assertIn("did not empty", out + err)
+        self.assertEqual(fake.enters, 2)
+
+    def test_non_claude_tab_is_refused_by_notify(self):
+        fake = Fake()
+        status, out, err = mac(fake, "notify", "--to", "5", "--from", "s", "--body", "hi")
+        self.assertNotEqual(status, 0)
+        self.assertIn("refused", out + err)
+        self.assertEqual(fake.verbs(), ["ls"])
+
+    def test_no_prompt_box_on_screen_is_an_error_not_a_send(self):
+        fake = Fake(screen="plain output\n")
+        status, _, _ = mac(fake, "notify", "--to", "1", "--from", "s", "--body", "hi")
+        self.assertNotEqual(status, 0)
+        self.assertNotIn("send-text", fake.verbs())
+
+    def test_prompt_text_reads_only_the_last_box(self):
+        self.assertEqual(kitty.prompt_text(box()), "")
+        self.assertEqual(kitty.prompt_text(box("abc")), "abc")
+        self.assertIsNone(kitty.prompt_text("no box"))
 
 
 if __name__ == "__main__":
