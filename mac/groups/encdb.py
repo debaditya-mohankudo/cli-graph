@@ -34,7 +34,7 @@ REGISTRY = {
     "vault_file_log": (CLAUDE / "vault_file_log.sqlite", "leave",
                        "append-only vault change log; kept off iCloud (disk I/O errors), snapshotted daily to iCloud backups"),
     "vault_index": (CLAUDE / "vault_index.sqlite", "leave",
-                    "derived index of vault notes, rebuildable; read by several vault tools"),
+                    "derived index of vault notes (the vault_map DB), rebuildable; read by several vault tools; snapshotted daily to iCloud backups"),
 }
 
 
