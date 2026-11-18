@@ -31,6 +31,8 @@ REGISTRY = {
                    "tool usage counts, low sensitivity; read by the prompt hook and find_cli"),
     "astrology": (ICLOUD / "astrology.db", "leave",
                   "birth data lives here and it syncs to iCloud: migrate next, after the astrology server opens via mac.encdb"),
+    "vault_file_log": (CLAUDE / "vault_file_log.sqlite", "leave",
+                       "append-only vault change log; kept off iCloud (disk I/O errors), snapshotted daily to iCloud backups"),
     "vault_index": (CLAUDE / "vault_index.sqlite", "leave",
                     "derived index of vault notes, rebuildable; read by several vault tools"),
 }

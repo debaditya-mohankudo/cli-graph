@@ -1,6 +1,6 @@
 """`mac vault_log` — when vault files were created, edited and read, from the log kept inside the vault.
 
-The log is a SQLite file (`Claude/vault_file_log.sqlite` in the vault) kept by
+The log is a SQLite file (`~/.claude/vault_file_log.sqlite`, snapshotted daily to iCloud) kept by
 stock-tracker-mcp's scripts/vault_file_log.py, which stays the one
 implementation: each verb runs it with --json and returns its result. The log is
 append-only (every write is an INSERT; triggers abort UPDATE and DELETE), so the
