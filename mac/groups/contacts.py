@@ -10,6 +10,6 @@ def register(registry):
         p.add_argument('--include-email', default=argparse.SUPPRESS, action="store_true")
 
     @registry.verb("contacts", "search", mode="read",
-                   desc='search contacts by name via Contacts.app', args=contacts_search_args)
+                   desc='search contacts by name via Contacts.app, shortest names first', args=contacts_search_args)
     def contacts_search(ns):
-        return call('contacts', 'search', **given(ns, ('name', 'include_email')))
+        return call('contacts', 'search', **given(ns, ('name', 'include_email', 'limit')))

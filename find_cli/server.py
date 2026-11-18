@@ -12,12 +12,12 @@ area works as a hint or browse target after a reload but is listed only
 after a restart. The description is the index; the verbs are read on demand
 by browsing an area (task:6d619bfc).
 """
-from mcp.server.fastmcp import FastMCP
+from mcp.server import MCPServer
 
 from find_cli import DEFAULT_LIMIT
 from find_cli.service import Finder
 
-mcp = FastMCP("find_cli")
+mcp = MCPServer("find_cli")
 FINDER = Finder()
 
 

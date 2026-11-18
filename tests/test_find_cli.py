@@ -430,7 +430,7 @@ class ServerTest(unittest.TestCase):
         tools = asyncio.run(server.mcp.list_tools())
         self.assertEqual([t.name for t in tools], ["find_cli"])
         schema = json.dumps({"name": tools[0].name, "description": tools[0].description,
-                             "inputSchema": tools[0].inputSchema})
+                             "inputSchema": tools[0].input_schema})
         # ~tokens, chars/4. 400 until task:e7233af6 added one purpose line per
         # group (499 with them); task:6d619bfc added browse and trimmed to 462.
         # Every session pays this, so keep it tight.
