@@ -108,8 +108,9 @@ def fuzzy(term, docs):
     return sorted(w for w in vocab if one_edit(term, w))
 
 
-def documents(graph, edges=()):
-    """{command id: token list}, in sorted id order."""
+def documents(graph, edges=(), tags=None):
+    """{command id: token list}, in sorted id order. tags ({id: [word]}, see
+    graph.tags) adds each command's search words beside its alias verbs."""
     commands = {n["id"]: n for n in graph["nodes"] if n["kind"] == "command"}
     extra = {}
     for e in edges:
@@ -118,7 +119,8 @@ def documents(graph, edges=()):
     docs = {}
     for cid in sorted(commands):
         n = commands[cid]
-        text = " ".join([n["area"], n["verb"], n["desc"], *sorted(extra.get(cid, []))])
+        text = " ".join([n["area"], n["verb"], n["desc"], *sorted(extra.get(cid, [])),
+                          *(tags or {}).get(cid, [])])
         docs[cid] = tokens(text)
     return docs
 
@@ -223,13 +225,13 @@ def ordered(score_map):
     return sorted(score_map, key=lambda cid: (-score_map[cid], cid))
 
 
-def seeds(query, graph, edges=(), limit=5, hint=None, domains=None):
+def seeds(query, graph, edges=(), limit=5, hint=None, domains=None, tags=None):
     """The top `limit` commands with a positive score, as (id, score) pairs.
 
     With a hint the list is reordered by the boost, but the best seed without
     the hint always stays: if the boost pushed it out, it takes the last slot.
     """
-    docs = documents(graph, edges)
+    docs = documents(graph, edges, tags)
     groups = command_groups(graph)
     s = scores(query, docs, groups, hint, domains)
     out = [(cid, s[cid]) for cid in ordered(s) if s[cid] > 0][:max(limit, 0)]

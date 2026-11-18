@@ -71,7 +71,7 @@
         "tests/eval_find_cli.py --domains prints layer off -> on for the even half (index parity, vocabulary source), odd half (test), held-out (counts only) and eval_prompts.json no-fit rows (guards); report only, exit code unchanged. 2026-11-01: odd top-1 22->22/36, seed 34->34, guards confident-wrong 46/61->46/61; even top-1 21->24."
       ],
       "created_at": "2026-10-26T13:18:06.872864+00:00",
-      "description": "find_cli maps a plain-language task phrase to a small subgraph of `mac` commands. rank.py scores commands with stdlib BM25 over area + verb + desc + alias names to pick seeds. expand.py adds neighbours: hand-written edges at hops 1-2 plus up to 3 same-area siblings per seed. find() combines the two. server.py exposes it as the single MCP tool `find_cli`, launched by bin/find_cli on cli-graph's own .venv (no uv sync at launch; FIND_CLI_PYTHON overrides the interpreter). find_cli/service.py Finder is shared with the CLI fallback `mac cli find`, so both return the same result for the same input. An optional domain layer (graph/domains.json, task:a70134dd) maps plain words to the closed group set before ranking; it is off in the server.",
+      "description": "find_cli maps a plain-language task phrase to a small subgraph of `mac` commands. rank.py scores commands with stdlib BM25 over area + verb + desc + alias names + hand-written tags (graph/tags.json, task:802cfc3e) to pick seeds. expand.py adds neighbours: hand-written edges at hops 1-2 plus up to 3 same-area siblings per seed. find() combines the two. server.py exposes it as the single MCP tool `find_cli`, launched by bin/find_cli on cli-graph's own .venv (no uv sync at launch; FIND_CLI_PYTHON overrides the interpreter). find_cli/service.py Finder is shared with the CLI fallback `mac cli find`, so both return the same result for the same input. An optional domain layer (graph/domains.json, task:a70134dd) maps plain words to the closed group set before ranking; it is off in the server.",
       "evidence": [
         "find_cli/__init__.py:find",
         "find_cli/rank.py:seeds",
@@ -99,6 +99,7 @@
       ],
       "invariants": [
         "Reads only the committed graph/cli_graph.json and graph/edges.json, never a live CLI.",
+        "Tags (graph/tags.json) join the BM25 document but never feed confidence(): find() recomputes confidence on documents without them, as with the domain layer. Finder reloads tags on their own stamp, so current() stays a (graph, edges) pair.",
         "Every returned id is a command node (graph.validate_edges.command_ids); alias_of names only add BM25 text to their canonical command and are never returned or expanded.",
         "rank.py and expand.py import no `mcp`, so the eval (597ac09d) and tests run under system python3.",
         "find() never opens the usage DB: usage counts are an argument, so find() stays a pure function and the eval/tests run without ~/.claude.",

@@ -1,0 +1,9 @@
+{
+  "about": "Search words per command that its desc lacks (task:802cfc3e). BM25 reads them beside the alias verbs; confidence does not. Keep a tag only if tests/eval_find_cli.py does not drop.",
+  "tags": {
+    "mac imessage send": ["sms", "text"],
+    "mac memory add": ["remember", "save"],
+    "mac safari read": ["active", "page"],
+    "mac vault append": ["add"]
+  }
+}

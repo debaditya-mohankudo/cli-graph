@@ -10,6 +10,12 @@ has no model inside it.
   mode.
 - `graph/edges.json` is hand-written. It holds relations a description can't
   express: `feeds`, `requires`, `prefer_over` and `alias_of`.
+- `graph/tags.json` is hand-written: search words per command that its desc
+  lacks ("sms", "text" for imessage send). They join the command's BM25
+  document beside its alias verbs, so a wording gap needs no reworded desc.
+  Tags rank but never certify: confidence reads documents without them, so a
+  tag-only hit shows low confidence. Keep a tag only if `tests/eval_find_cli.py`
+  does not drop (compare with `--no-tags`).
 - `graph/groups.json` assigns areas to groups, such as "communication".
 - `graph/domains.json` lists, for each group, plain words that mean that
   group without naming it ("friend", "ping" mean communication). It is the

@@ -443,7 +443,8 @@ class ServerTest(unittest.TestCase):
         graph, edges = server.FINDER.current()
         with mock.patch("find_cli.service._usage.load", return_value=counts):
             got = server.find_cli("play a song")
-        self.assertEqual(got, find_cli.find("play a song", graph, edges, usage=counts))
+        self.assertEqual(got, find_cli.find("play a song", graph, edges, usage=counts,
+                                        tags=server.FINDER.tags()))
 
 if __name__ == "__main__":
     unittest.main()

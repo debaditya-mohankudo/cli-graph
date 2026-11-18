@@ -47,7 +47,11 @@ REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 
 import find_cli
+from graph import tags as _tags
 from graph.validate_edges import command_ids
+
+# graph/tags.json, loaded by main() unless --no-tags (task:802cfc3e)
+TAGS = {}
 
 FIXTURE = REPO / "tests" / "eval_phrases.json"
 HELDOUT = REPO / "tests" / "eval_heldout.json"
@@ -94,7 +98,7 @@ def score(phrases, graph, edges, limit=find_cli.DEFAULT_LIMIT, hops=2, oracle=Fa
     rows = []
     for p in phrases:
         r = find_cli.find(p["phrase"], graph, edges, limit=limit, hops=hops,
-                           area=oracle_area(p) if oracle else None, domains=domains)
+                           area=oracle_area(p) if oracle else None, domains=domains, tags=TAGS)
         seeds = [s["id"] for s in r["seeds"]]
         ids = seeds + [n["id"] for n in r["neighbours"]]
         ranks = [seeds.index(c) + 1 for c in p["expect"] if c in seeds]
@@ -226,8 +230,12 @@ def main(argv=None):
     ap.add_argument("--hops", type=int, default=2)
     ap.add_argument("--domains", action="store_true",
                     help="also compare the domain layer off and on (task:a70134dd)")
+    ap.add_argument("--no-tags", action="store_true",
+                    help="ignore graph/tags.json, for the before/after comparison (task:802cfc3e)")
     args = ap.parse_args(argv)
 
+    global TAGS
+    TAGS = {} if args.no_tags else _tags.load()
     graph, edges = find_cli.load()
     phrases = load_fixture()
     heldout = load_fixture(HELDOUT) if HELDOUT.exists() else []

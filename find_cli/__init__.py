@@ -45,7 +45,7 @@ DEFAULT_LIMIT = 5
 
 
 def load(graph_path=GRAPH, edges_path=EDGES):
-    """(graph, edges) from the committed files."""
+    """(graph, edges) from the committed files (tags: graph.tags.load)."""
     with open(graph_path) as f:
         graph = json.load(f)
     with open(edges_path) as f:
@@ -54,7 +54,7 @@ def load(graph_path=GRAPH, edges_path=EDGES):
 
 
 def find(task, graph, edges=(), limit=DEFAULT_LIMIT, hops=2, usage=None, area=None,
-         domains=None):
+         domains=None, tags=None):
     """Seeds and neighbours for task. See the module docstring for the shape.
 
     usage ({id: {"count", "last_used"}}, see find_cli.usage) is passed in by
@@ -67,11 +67,11 @@ def find(task, graph, edges=(), limit=DEFAULT_LIMIT, hops=2, usage=None, area=No
     """
     commands = command_ids(graph)
     nodes = {n["id"]: n for n in graph["nodes"] if n["id"] in commands}
-    docs = _rank.documents(graph, edges)
+    docs = _rank.documents(graph, edges, tags)
     info_hint = _rank.hint_info(area, graph) if area else None
     hint = info_hint["value"] if info_hint and info_hint["known"] else None
     scores = _rank.scores(task, docs, command_groups(graph), hint, domains)
-    seed_pairs = [(cid, s) for cid, s in _rank.seeds(task, graph, edges, limit, hint, domains)
+    seed_pairs = [(cid, s) for cid, s in _rank.seeds(task, graph, edges, limit, hint, domains, tags)
                   if cid in commands]
     neighbours = _expand.expand([cid for cid, _ in seed_pairs], graph, edges,
                                 scores=scores, hops=hops)
@@ -87,7 +87,10 @@ def find(task, graph, edges=(), limit=DEFAULT_LIMIT, hops=2, usage=None, area=No
 
     # The domain layer reorders but never certifies: confidence reads the
     # scores without it, so a domain word alone cannot turn "low" into "high".
-    plain = _rank.scores(task, docs, command_groups(graph), hint) if domains else scores
+    # Tags rank the same way: confidence reads documents without them (task:802cfc3e).
+    if tags:
+        docs = _rank.documents(graph, edges)
+    plain = _rank.scores(task, docs, command_groups(graph), hint) if domains or tags else scores
     conf = _rank.confidence(task, docs, plain)
     result = {
         "query": task,
