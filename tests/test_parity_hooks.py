@@ -106,13 +106,33 @@ class ForwardingTest(unittest.TestCase):
             call.assert_not_called()
 
 
+class WebSearchCacheForwardingTest(unittest.TestCase):
+    CASES = [
+        (["hooks", "web_search_get", "q"], "get", {"query": "q"}),
+        (["hooks", "web_search_get", "q", "--mode", "extended", "--allow-stale"], "get",
+         {"query": "q", "mode": "extended", "allow_stale": True}),
+        (["hooks", "web_search_find", "t"], "find", {"text": "t"}),
+        (["hooks", "web_search_stats"], "stats", {}),
+        (["hooks", "web_search_put", "q", "--result", "r", "--ttl-s", "60"], "put",
+         {"query": "q", "result": "r", "ttl_s": 60}),
+        (["hooks", "web_search_purge", "--days", "0"], "purge", {"days": 0.0}),
+    ]
+
+    def test_each_verb_forwards_to_the_cache_handler(self):
+        for argv, action, kwargs in self.CASES:
+            with self.subTest(argv=argv), mock.patch("mac.groups.hooks.call", return_value={}) as call:
+                self.assertEqual(run(*argv)[0], 0)
+                call.assert_called_once_with("web_search_cache", action, **kwargs)
+
+
 class ModesTest(unittest.TestCase):
     def test_write_verbs_are_marked_write(self):
         modes = {(v.area, v.name): v.mode for a in ("memory", "vault_map", "hooks")
                  for v in default_registry().verbs(a)}
         self.assertEqual({k for k, m in modes.items() if m == "write"},
                          {("memory", "add"), ("memory", "add_batch"), ("memory", "delete"),
-                          ("memory", "validate"), ("memory", "audit")})
+                          ("memory", "validate"), ("memory", "audit"),
+                          ("hooks", "web_search_put"), ("hooks", "web_search_purge")})
 
     def test_scratch_and_think_are_not_ported(self):
         areas = default_registry().areas()

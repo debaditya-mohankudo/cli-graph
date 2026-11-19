@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 
 from mac.groups._backend import given
-from mac.groups._hooks import call
+from mac.groups._hooks import call, text_or_file
 from mac.contract import Failure
 
 UNSET = argparse.SUPPRESS
@@ -55,3 +55,45 @@ def register(registry):
         except OSError:
             raise Failure("not_found", f"no saved response at {path} (the Stop hook writes it)")
         return {"path": str(path), "modified": datetime.fromtimestamp(path.stat().st_mtime).isoformat(timespec="seconds"), "text": text.rstrip("\n")}
+
+
+    # WebSearch result cache (claude-hooks src/tools/web_search_cache.py, SQLite).
+    # The PostToolUse hook stores every WebSearch; the PreToolUse hook serves fresh hits.
+    @registry.verb("hooks", "web_search_get", mode="read",
+                   desc="a cached WebSearch result for a query (hit or miss, with its age); --allow-stale also returns an expired one",
+                   args=lambda p: (p.add_argument("query"),
+                                   p.add_argument("--mode", default=UNSET, choices=("standard", "extended")),
+                                   p.add_argument("--allow-stale", dest="allow_stale", action="store_true", default=UNSET)))
+    def web_search_get(ns):
+        return call("web_search_cache", "get", query=ns.query, **given(ns, ("mode", "allow_stale")))
+
+    @registry.verb("hooks", "web_search_find", mode="read",
+                   desc="stored WebSearch queries or results containing a text, newest first, fresh or not",
+                   args=lambda p: p.add_argument("text"))
+    def web_search_find(ns):
+        return call("web_search_cache", "find", text=ns.text, **given(ns, ("limit",)))
+
+    @registry.verb("hooks", "web_search_stats", mode="read",
+                   desc="WebSearch cache row counts: total, fresh, stale and hits served")
+    def web_search_stats(ns):
+        return call("web_search_cache", "stats")
+
+    def put_args(p):
+        p.add_argument("query")
+        p.add_argument("--result", default=None, help="the result text")
+        p.add_argument("--result-file", dest="result_file", default=None, help="read the result from PATH (- for stdin)")
+        p.add_argument("--mode", default=UNSET, choices=("standard", "extended"))
+        p.add_argument("--ttl-s", dest="ttl_s", type=int, default=UNSET, help="override the TTL rule, in seconds")
+
+    @registry.verb("hooks", "web_search_put", mode="write",
+                   desc="store a WebSearch result under a query (the hook does this automatically; use for results found another way)",
+                   args=put_args)
+    def web_search_put(ns):
+        text_or_file(ns, "result", "--result", required=True)
+        return call("web_search_cache", "put", query=ns.query, result=ns.result, **given(ns, ("mode", "ttl_s")))
+
+    @registry.verb("hooks", "web_search_purge", mode="write",
+                   desc="delete cached WebSearch rows older than --days (0 clears the cache)",
+                   args=lambda p: p.add_argument("--days", type=float, required=True))
+    def web_search_purge(ns):
+        return call("web_search_cache", "purge", days=ns.days)
