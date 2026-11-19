@@ -11,6 +11,10 @@ from mac.groups._backend import call, given
 
 UNSET = argparse.SUPPRESS
 
+# The only lists `mac reminders` may read or write (user decision 2026-11-19: everything but `home`).
+# A wrong --list is a usage error here, not an AppleScript error or a write to the wrong list.
+REMINDER_LISTS = ("market-watch-reminders", "kitty-comm", "Reminders")
+
 
 def _items(result, key):
     """The MCP tools wrap lists as {key: [...]}; the CLI returns the bare list so --limit applies."""
@@ -23,7 +27,7 @@ def register(registry):
         return _items(call("reminders", "lists"), "lists")
 
     def list_args(p):
-        p.add_argument("--list", default=UNSET)
+        p.add_argument("--list", default=UNSET, choices=REMINDER_LISTS)
         p.add_argument("--include-completed", action="store_true", default=UNSET)
 
     @registry.verb("reminders", "list", mode="read", desc="list reminders, optionally from one list",
@@ -34,7 +38,7 @@ def register(registry):
 
     def create_args(p):
         p.add_argument("title")
-        p.add_argument("--list", default=UNSET)
+        p.add_argument("--list", default=UNSET, choices=REMINDER_LISTS)
         p.add_argument("--due-date", default=UNSET, type=iso_datetime,
                        help="ISO-8601, e.g. 2026-04-11T09:00:00")
         p.add_argument("--notes", default=UNSET)

@@ -117,10 +117,10 @@ class TranslationTest(unittest.TestCase):
     def test_string_results_pass_through(self):
         reminders = mock.Mock(handle_create=mock.Mock(return_value="Created reminder 'r' in 'L'"))
         with handlers(reminders):
-            status, out, _ = run("reminders", "create", "r", "--list", "L", "--due-date", "2026-11-01T09:00:00")
+            status, out, _ = run("reminders", "create", "r", "--list", "kitty-comm", "--due-date", "2026-11-01T09:00:00")
         self.assertEqual((status, json.loads(out)), (0, "Created reminder 'r' in 'L'"))
         reminders.handle_create.assert_called_once_with(
-            title="r", list="L", due_date="2026-11-01T09:00:00")
+            title="r", list="kitty-comm", due_date="2026-11-01T09:00:00")
 
     def test_missing_source_tree_is_a_failure(self):
         with mock.patch.dict(os.environ, {"MAC_MCP_SRC": "/nonexistent/src"}):
@@ -145,11 +145,11 @@ class ForwardingTest(unittest.TestCase):
         ("notes", ["delete", "t"], "delete", {"title": "t"}),
         ("notes", ["delete", "t", "--folder", "F"], "delete", {"title": "t", "folder": "F"}),
         ("reminders", ["list"], "list", {}),
-        ("reminders", ["list", "--list", "L", "--include-completed"], "list",
-         {"list": "L", "include_completed": True}),
+        ("reminders", ["list", "--list", "kitty-comm", "--include-completed"], "list",
+         {"list": "kitty-comm", "include_completed": True}),
         ("reminders", ["create", "r"], "create", {"title": "r"}),
-        ("reminders", ["create", "r", "--list", "L", "--notes", "n", "--recurrence", "daily"], "create",
-         {"title": "r", "list": "L", "notes": "n", "recurrence": "daily"}),
+        ("reminders", ["create", "r", "--list", "kitty-comm", "--notes", "n", "--recurrence", "daily"], "create",
+         {"title": "r", "list": "kitty-comm", "notes": "n", "recurrence": "daily"}),
         ("reminders", ["update", "x"], "update", {"id": "x"}),
         ("reminders", ["update", "x", "--title", "T", "--due-date", "2026-11-01T09:00:00"], "update",
          {"id": "x", "title": "T", "due_date": "2026-11-01T09:00:00"}),
@@ -223,6 +223,33 @@ class HookTest(unittest.TestCase):
                 _backend.call("imessage", "send", to="Nobody", text="hi")
         self.assertEqual(caught.exception.code, "blocked")
         self.assertIn("found no matching contact", caught.exception.message)
+
+
+class ReminderListEnumTest(unittest.TestCase):
+    """--list is limited to REMINDER_LISTS; the handler is never reached for any other list."""
+
+    def test_home_and_unknown_lists_are_usage_errors_and_call_nothing(self):
+        reminders = mock.Mock()
+        for verb, argv in (("create", ("x",)), ("list", ())):
+            for bad in ("home", "nope"):
+                with handlers(reminders):
+                    status, _, err = run("reminders", verb, *argv, "--list", bad)
+                self.assertEqual((status, json.loads(err)["error"]["code"]), (2, "usage"), (verb, bad))
+        reminders.handle_create.assert_not_called()
+        reminders.handle_list.assert_not_called()
+
+    def test_every_allowed_list_is_accepted(self):
+        from mac.groups.reminders import REMINDER_LISTS
+        for name in REMINDER_LISTS:
+            reminders = mock.Mock(handle_list=mock.Mock(return_value={"reminders": []}))
+            with handlers(reminders):
+                status, _, _ = run("reminders", "list", "--list", name)
+            self.assertEqual(status, 0, name)
+
+    def test_kitty_comm_list_is_in_the_enum(self):
+        from mac.groups import kitty
+        from mac.groups.reminders import REMINDER_LISTS
+        self.assertIn(kitty.COMM_LIST, REMINDER_LISTS)
 
 
 if __name__ == "__main__":
