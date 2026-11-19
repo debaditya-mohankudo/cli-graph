@@ -508,9 +508,31 @@
         "generated-group-verbs",
         "mcp-handler-backend"
       ]
+    },
+    "system-notifications-verb": {
+      "confidence": 0.8,
+      "contracts": [
+        "Returns JSON entries with id (AXIdentifier UUID), title, body and age; --watch emits each id once and --for bounds it.",
+        "Reads only an open panel: with it closed NotificationCenter has no window.",
+        "Fails with a message naming the fix when Accessibility permission or the NotificationCenter process is missing, rather than returning an empty list."
+      ],
+      "created_at": "2026-11-19T04:36:23.943134+00:00",
+      "description": "Hand-written `mac system notifications` verb that reads the open macOS Notification Center panel through System Events accessibility, with no Full Disk Access.",
+      "evidence": [
+        "mac/groups/system_notifications.py",
+        "tests/test_system_notifications.py"
+      ],
+      "invariants": [
+        "app is null on every entry because the AX tree exposes only a role description for the group.",
+        "The AppleScript indexes a pre-fetched `entire contents` list; iterating it with `repeat with e in` returns nothing."
+      ],
+      "last_validated": "2026-11-19T04:36:23.943699+00:00",
+      "module": "mac/groups/system_notifications.py",
+      "name": "system-notifications-verb",
+      "related": []
     }
   },
   "meta": {
-    "updated_at": "2026-11-12T11:57:08.591542+00:00"
+    "updated_at": "2026-11-19T04:36:23.943777+00:00"
   }
 }
