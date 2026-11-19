@@ -38,6 +38,10 @@ WRITE = {
     "vault_rag": {"index_vault", "index_file", "remove_section"},
 }
 
+# Verbs hand-written in their own module (mac/groups/system_notifications.py, task:8fed2511), not
+# generated from local-mac, so they are absent from DOMAIN_MAP.
+HAND_WRITTEN = {"system": {"notifications"}}
+
 SAMPLE = {"int": "3", "float": "1.5", "list_int": "3",
           "iso_date": "2026-11-01", "iso_datetime": "2026-11-01T09:00:00"}
 
@@ -58,7 +62,8 @@ class CoverageTest(unittest.TestCase):
     def test_every_domain_map_tool_has_a_verb_with_the_right_mode(self):
         entries = describe(default_registry())
         for area in AREAS:
-            verbs = {e["verb"]: e["mode"] for e in entries if e["area"] == area}
+            verbs = {e["verb"]: e["mode"] for e in entries
+                     if e["area"] == area and e["verb"] not in HAND_WRITTEN.get(area, set())}
             self.assertEqual(set(verbs), set(domain_map()[area][1]), area)
             writes = {v for v, mode in verbs.items() if mode == "write"}
             self.assertEqual(writes, WRITE.get(area, set()), area)
