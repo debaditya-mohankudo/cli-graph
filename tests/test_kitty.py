@@ -12,6 +12,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from mac.cli import default_registry, main  # noqa: E402
+from mac.contract import Failure  # noqa: E402
 from mac.groups import kitty  # noqa: E402
 
 LS = [{"id": 1, "tabs": [
@@ -224,6 +225,111 @@ class NotifyTest(unittest.TestCase):
         self.assertEqual(kitty.prompt_text(box()), "")
         self.assertEqual(kitty.prompt_text(box("abc")), "abc")
         self.assertIsNone(kitty.prompt_text("no box"))
+
+
+COMM_ROWS = [
+    {"id": "x-apple-reminder://A", "title": "[reader -> you] auction read failed", "list": "kitty-comm",
+     "completed": False, "dueDate": "d", "notes": "{}"},
+    {"id": "x-apple-reminder://B", "title": "[reader -> 5] hi", "list": "kitty-comm", "completed": False},
+    {"id": "x-apple-reminder://C", "title": "[reader -> 15] hi", "list": "kitty-comm", "completed": False},
+    {"id": "x-apple-reminder://D", "title": "not a tab message", "list": "kitty-comm", "completed": False},
+]
+
+
+COMM_LIST_NAME = "kitty-comm"
+
+
+class FakeReminders:
+    def __init__(self, lists=("kitty-comm", "Reminders"), rows=COMM_ROWS,
+                 created="Created reminder 'x' in 'kitty-comm' (id x-apple-reminder://NEW)"):
+        self.calls, self.lists, self.rows, self.created = [], lists, rows, created
+
+    def __call__(self, area, verb, **kw):
+        self.calls.append((verb, kw))
+        if verb == "list":
+            if COMM_LIST_NAME not in self.lists:
+                raise Failure("tool_error", f"Reminder list not found: {kw['list']}")
+            return [r for r in self.rows if kw.get("include_completed") or not r["completed"]]
+        if verb == "create":
+            if COMM_LIST_NAME not in self.lists:
+                raise Failure("tool_error", "Reminders got an error: Can’t get list \"kitty-comm\". (-1728)")
+            return self.created
+        return "ok"
+
+
+def comm(rem, *argv, fake=None):
+    out, err = io.StringIO(), io.StringIO()
+    with mock.patch.object(kitty, "call", rem), mock.patch.object(kitty, "_kitten", fake or Fake()), \
+            mock.patch.object(kitty, "SETTLE_S", 0):
+        status = main(["kitty", *argv], default_registry(), out, err)
+    return status, out.getvalue(), err.getvalue()
+
+
+class CommTest(unittest.TestCase):
+    def test_send_creates_a_titled_reminder_with_json_notes_and_returns_the_id(self):
+        rem = FakeReminders()
+        status, out, _ = comm(rem, "comm_send", "--from", "reader", "--to", "you", "read failed")
+        self.assertEqual(status, 0)
+        self.assertEqual(json.loads(out)["id"], "x-apple-reminder://NEW")
+        verb, kw = [c for c in rem.calls if c[0] == "create"][0]
+        self.assertEqual((kw["title"], kw["list"]), ("[reader -> you] read failed", "kitty-comm"))
+        self.assertEqual(json.loads(kw["notes"])["to"], "you")
+        self.assertRegex(kw["due_date"], r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d$")
+
+    def test_send_refuses_tags_that_would_not_parse_back(self):
+        for flag, bad in (("--from", "a]b"), ("--to", "x -> y"), ("--to", " ")):
+            argv = {"--from": "r", "--to": "you"} | {flag: bad}
+            status, _, _ = comm(FakeReminders(), "comm_send", "--from", argv["--from"], "--to", argv["--to"], "b")
+            self.assertNotEqual(status, 0, (flag, bad))
+
+    def test_send_fails_clearly_when_the_list_is_missing(self):
+        rem = FakeReminders(lists=("Reminders",))
+        status, _, err = comm(rem, "comm_send", "--from", "r", "--to", "you", "b")
+        self.assertNotEqual(status, 0)
+        self.assertIn("does not exist", err)
+
+    def test_send_fails_loudly_if_the_id_cannot_be_read(self):
+        status, _, err = comm(FakeReminders(created="Created reminder"), "comm_send", "--from", "r", "--to", "you", "b")
+        self.assertNotEqual(status, 0)
+        self.assertIn("id", err)
+
+    def test_inbox_matches_the_recipient_tag_exactly(self):
+        status, out, _ = comm(FakeReminders(), "comm_inbox", "--to", "5")
+        self.assertEqual([m["id"] for m in json.loads(out)], ["x-apple-reminder://B"])
+        _, out, _ = comm(FakeReminders(), "comm_inbox", "--to", "you")
+        self.assertEqual(json.loads(out)[0]["body"], "auction read failed")
+
+    def test_inbox_include_completed_is_forwarded(self):
+        rem = FakeReminders()
+        comm(rem, "comm_inbox", "--to", "you", "--include-completed")
+        self.assertTrue([c for c in rem.calls if c[0] == "list"][0][1]["include_completed"])
+
+    def test_ack_completes_by_id(self):
+        rem = FakeReminders()
+        status, out, _ = comm(rem, "comm_ack", "x-apple-reminder://A")
+        self.assertEqual((status, json.loads(out)["acked"]), (0, True))
+        self.assertIn(("complete", {"id": "x-apple-reminder://A"}), rem.calls)
+
+    def test_ack_refuses_an_id_outside_kitty_comm_and_completes_nothing(self):
+        rem = FakeReminders()
+        for rid in ("x-apple-reminder://ELSEWHERE", "x-apple-reminder://D"):  # D is a non-message row
+            status, _, err = comm(rem, "comm_ack", rid)
+            self.assertNotEqual(status, 0)
+        self.assertNotIn("complete", [c[0] for c in rem.calls])
+
+    def test_a_busy_doorbell_never_fails_the_send(self):
+        status, out, _ = comm(FakeReminders(), "comm_send", "--from", "r", "--to", "you", "b", "--notify", "1",
+                              fake=ClaudeFake(unsent="typing"))
+        row = json.loads(out)
+        self.assertEqual(status, 0)
+        self.assertTrue(row["id"])
+        self.assertTrue(row["doorbell"]["busy"])
+
+    def test_doorbell_rings_a_free_claude_tab_with_the_reminder_id(self):
+        fake = ClaudeFake()
+        status, out, _ = comm(FakeReminders(), "comm_send", "--from", "r", "--to", "you", "b", "--notify", "1", fake=fake)
+        self.assertEqual(status, 0)
+        self.assertIn("x-apple-reminder://NEW", fake.typed())
 
 
 if __name__ == "__main__":

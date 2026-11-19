@@ -14,15 +14,22 @@ import re
 import subprocess
 import sys
 import time
-from datetime import datetime
+import json
+from datetime import datetime, timedelta
 
+from mac.cli import iso_datetime
 from mac.contract import Failure
+from mac.groups._backend import call
 
 KITTEN_TIMEOUT_S = 20
 GUARDED_COMMANDS = {"claude"}
 HHMM = re.compile(r"([01]\d|2[0-3]):([0-5]\d)")
 EVERY = re.compile(r"(\d+)([smh])")
 SETTLE_S = 0.4
+COMM_LIST = "kitty-comm"
+COMM_TITLE = re.compile(r"\[([^\]]+?) -> ([^\]]+?)\] (.*)")
+COMM_ID = re.compile(r"\(id (x-apple-reminder://[^)\s]+)\)\s*$")
+COMM_DUE_MIN = 1
 
 
 def _socket():
@@ -53,7 +60,6 @@ def _kitten(*args, stdin=None):
 
 
 def _ls():
-    import json
     return json.loads(_kitten("ls") or "[]")
 
 
@@ -163,6 +169,53 @@ def _tab_arg(p):
     p.add_argument("--tab", type=int, required=True, help="tab id from `mac kitty tabs` (never a title)")
 
 
+def _comm_tag(value, flag):
+    """A mailbox tag (sender or recipient): one line, no `]` or ` -> `, so the title parses back exactly."""
+    value = (value or "").strip()
+    if not value or re.search(r"[\x00-\x1f\x7f\u2028\u2029\]]| -> ", value):
+        raise Failure("usage", f"{flag} must be a non-empty one-line tag without ']' or ' -> '", 2)
+    return value
+
+
+def comm_parse(row):
+    """One kitty-comm reminder row as {id, from, to, body, due, completed}, or None if it is not a tab message."""
+    m = COMM_TITLE.fullmatch(row.get("title", ""))
+    if not m:
+        return None
+    return {"id": row["id"], "from": m.group(1), "to": m.group(2), "body": m.group(3),
+            "due": row.get("dueDate"), "completed": row.get("completed", False)}
+
+
+def _comm_rows(include_completed=False):
+    extra = {"include_completed": True} if include_completed else {}
+    rows = call("reminders", "list", list=COMM_LIST, **extra)
+    return rows["reminders"] if isinstance(rows, dict) else rows
+
+
+def _notify(to, sender, body, force):
+    line = notify_line(sender, body)
+    row = _resolve(to, claude=True)
+    window = row["window"]
+    match = f"id:{window}"
+    before = prompt_text(_screen(window))
+    if before is None:
+        raise Failure("tool_error", f"tab {to}: no claude prompt box on screen; not sending")
+    if before and not force:
+        return {"tab": to, "window": window, "sent": False, "busy": True,
+                "unsent": before[:80]}
+    _kitten("send-text", "--match", match, "--stdin", stdin=line)
+    time.sleep(SETTLE_S)
+    _kitten("send-key", "--match", match, "enter")
+    for attempt in (1, 2):
+        time.sleep(SETTLE_S)
+        if not prompt_text(_screen(window)):
+            return {"tab": to, "window": window, "sent": True, "verified": True, "message": line,
+                    "enter_retried": attempt == 2}
+        if attempt == 1:
+            _kitten("send-key", "--match", match, "enter")
+    raise Failure("tool_error", f"typed into tab {to} but its prompt did not empty after a retry")
+
+
 def register(registry):
     @registry.verb("kitty", "tabs", mode="read",
                    desc="list kitty tabs: tab id, window id, title, cwd, foreground command, guarded "
@@ -267,24 +320,63 @@ def register(registry):
                         "busy and sends nothing if the prompt holds unsent text (--force overrides)",
                    args=notify_args)
     def notify(ns):
-        line = notify_line(ns.sender, ns.body)
-        row = _resolve(ns.to, claude=True)
-        window = row["window"]
-        match = f"id:{window}"
-        before = prompt_text(_screen(window))
-        if before is None:
-            raise Failure("tool_error", f"tab {ns.to}: no claude prompt box on screen; not sending")
-        if before and not ns.force:
-            return {"tab": ns.to, "window": window, "sent": False, "busy": True,
-                    "unsent": before[:80]}
-        _kitten("send-text", "--match", match, "--stdin", stdin=line)
-        time.sleep(SETTLE_S)
-        _kitten("send-key", "--match", match, "enter")
-        for attempt in (1, 2):
-            time.sleep(SETTLE_S)
-            if not prompt_text(_screen(window)):
-                return {"tab": ns.to, "window": window, "sent": True, "verified": True, "message": line,
-                        "enter_retried": attempt == 2}
-            if attempt == 1:
-                _kitten("send-key", "--match", match, "enter")
-        raise Failure("tool_error", f"typed into tab {ns.to} but its prompt did not empty after a retry")
+        return _notify(ns.to, ns.sender, ns.body, ns.force)
+
+    def send_args(p):
+        p.add_argument("body", help="one-line message")
+        p.add_argument("--from", dest="sender", required=True, help="sender tag, e.g. 'india-open reader'")
+        p.add_argument("--to", required=True, help="recipient tag: 'you' or a tab tag; exact match in comm_inbox")
+        p.add_argument("--due", default=None, type=iso_datetime, help="ISO-8601 due time (default: about 1 minute out)")
+        p.add_argument("--notify", type=int, default=None,
+                       help="claude tab id to ring with the reminder id; a busy tab never fails the send")
+
+    @registry.verb("kitty", "comm_send", mode="write",
+                   desc="leave a durable message for the user or another tab: a reminder in the kitty-comm "
+                        "list titled '[from -> to] body'. --notify TAB also rings a claude tab. Returns the id",
+                   args=send_args)
+    def comm_send(ns):
+        sender, to = _comm_tag(ns.sender, "--from"), _comm_tag(ns.to, "--to")
+        notify_line(sender, ns.body)  # the one-line / non-empty rules, shared with notify
+        body = ns.body.strip()
+        due = ns.due or (datetime.now() + timedelta(minutes=COMM_DUE_MIN)).strftime("%Y-%m-%dT%H:%M:%S")
+        payload = json.dumps({"from": sender, "to": to, "body": body,
+                              "sent": datetime.now().isoformat(timespec="seconds")})
+        try:
+            text = call("reminders", "create", title=f"[{sender} -> {to}] {body}", list=COMM_LIST,
+                        due_date=due, notes=payload)
+        except Failure as exc:
+            if "Can’t get list" in str(exc) or "Can't get list" in str(exc):
+                raise Failure("tool_error", f"Reminders list '{COMM_LIST}' does not exist; create it in "
+                                            "Reminders.app (mac has no list-creation verb)")
+            raise
+        m = COMM_ID.search(str(text))
+        if not m:
+            raise Failure("tool_error", f"reminder created but its id could not be read from: {text!r}")
+        out = {"id": m.group(1), "from": sender, "to": to, "body": body, "due": due}
+        if ns.notify is not None:
+            try:
+                out["doorbell"] = _notify(ns.notify, sender, f"{to}: {body} (reminder {m.group(1)})", False)
+            except Failure as exc:
+                out["doorbell"] = {"sent": False, "error": str(exc)}
+        return out
+
+    def inbox_args(p):
+        p.add_argument("--to", required=True, help="recipient tag")
+        p.add_argument("--include-completed", action="store_true")
+
+    @registry.verb("kitty", "comm_inbox", mode="read",
+                   desc="messages left for a recipient in the kitty-comm list (open ones; "
+                        "--include-completed adds acknowledged ones)",
+                   args=inbox_args)
+    def comm_inbox(ns):
+        msgs = [m for m in map(comm_parse, _comm_rows(ns.include_completed)) if m and m["to"] == ns.to.strip()]
+        return msgs
+
+    @registry.verb("kitty", "comm_ack", mode="write", desc="acknowledge a kitty-comm message: complete its reminder by id",
+                   args=lambda p: p.add_argument("id"))
+    def comm_ack(ns):
+        # Only a message in kitty-comm may be completed: `reminders complete` takes any id in Reminders.
+        if ns.id not in {m["id"] for m in map(comm_parse, _comm_rows(True)) if m}:
+            raise Failure("usage", f"{ns.id} is not a message in the '{COMM_LIST}' list; nothing completed", 2)
+        call("reminders", "complete", id=ns.id)
+        return {"id": ns.id, "acked": True}
