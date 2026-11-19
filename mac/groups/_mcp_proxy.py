@@ -12,7 +12,7 @@ astrology and 2s for wyckoff, measured 2026-10-26.
 Result mapping, the same as _backend's for local-mac handlers:
   - each text block is parsed as JSON (left as a string if it is not JSON);
     one block becomes the result, several become a list;
-  - isError, or a dict result with an "error" key, becomes Failure('tool_error');
+  - is_error (isError before mcp 2.x), or a dict result with an "error" key, becomes Failure('tool_error');
   - a server that cannot start becomes Failure('backend_missing'), with the
     tail of its stderr.
 
@@ -92,7 +92,8 @@ def _value(text):
 def unwrap(result):
     """The mac result for a CallToolResult; raises Failure for an error result."""
     texts = [block.text for block in result.content if getattr(block, "type", None) == "text"]
-    if result.isError:
+    # mcp 2.x renamed isError to is_error; accept either.
+    if getattr(result, "is_error", getattr(result, "isError", False)):
         raise Failure("tool_error", " ".join(texts) or "tool reported an error")
     values = [_value(t) for t in texts]
     return raise_if_error(values[0] if len(values) == 1 else values)

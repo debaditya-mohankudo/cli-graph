@@ -43,7 +43,7 @@ SYSML = "package P {\n  part def A;\n  part def B { part a : A; }\n}\n"
 
 def text_result(*texts, is_error=False):
     blocks = [types.SimpleNamespace(type="text", text=t) for t in texts]
-    return types.SimpleNamespace(content=blocks, isError=is_error)
+    return types.SimpleNamespace(content=blocks, is_error=is_error)
 
 
 # `mac stock` carries the wyckoff server's verbs, generated into their own module.
