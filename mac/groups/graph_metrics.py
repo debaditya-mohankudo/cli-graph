@@ -83,6 +83,12 @@ def register(registry):
     def load_kalshi(ns):
         return _run("load-kalshi", *_opts(ns, "event"))
 
+    @registry.verb("graph_metrics", "load_cot", mode="write",
+                   desc="load CFTC Commitments of Traders (COT) COMEX gold futures-only non-commercial positioning (net long, long, short, open interest, net as % of OI) onto the gold graph's comex_futures_positioning node; takes the newest posted report (Tuesday as-of, released Friday 15:30 ET) and optionally backfills earlier weeks",
+                   args=lambda p: p.add_argument("--weeks", type=int, default=UNSET, help="earlier weeks to backfill from the CFTC archive (default 0)"))
+    def load_cot(ns):
+        return _run("load-cot", *_opts(ns, "weeks"))
+
     @registry.verb("graph_metrics", "load_flows", mode="write",
                    desc="load FII index-futures open interest and FII/DII cash flows from fii_dii.db onto the India market open graph's metric store; returns rows written per table")
     def load_flows(ns):
