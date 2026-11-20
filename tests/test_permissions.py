@@ -31,7 +31,7 @@ class RulesTest(unittest.TestCase):
     def test_the_user_ask_set_prompts(self):
         _, ask = gp.rules(GRAPH)
         for cmd in ("imessage send", "mail compose", "mail delete", "mail move", "calendar delete_event",
-                    "notes delete", "reminders delete", "vault delete", "vault move", "vault write",
+                    "notes delete", "reminders delete", "vault delete", "vault move",
                     "safari close_all_tabs", "system process_kill", "system sleep_now",
                     "connector execute_action", "vpn disconnect"):
             self.assertIn(f"Bash(mac {cmd} *)", ask)

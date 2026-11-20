@@ -42,6 +42,7 @@ class ForwardingTest(unittest.TestCase):
         ("mail", ["move", "7", "Useful", "--src-folder", "Spam"], "move",
          {"message_ids": [7], "dest_mailbox": "Useful", "src_folder": "Spam"}),
         ("mail", ["add_local_mailbox", "Finance"], "add_local_mailbox", {"name": "Finance"}),
+        ("mail", ["post_local", "claude", "s", "--body", "b"], "post_local", {"mailbox": "claude", "subject": "s", "body": "b"}),
         ("imessage", ["send", "+15550100", "hi"], "send", {"recipient": "+15550100", "message": "hi"}),
         ("imessage", ["send", "+15550100", "hi", "--delay-seconds", "5"], "send",
          {"recipient": "+15550100", "message": "hi", "delay_seconds": 5}),

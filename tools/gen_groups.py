@@ -47,7 +47,7 @@ WRITE = {
     "system": {"process_kill", "sleep_now", "sleep_in", "sleep_cancel",
                "sleep_winddown", "clipboard_write", "notify"},
     "connector": {"execute_action"},
-    "mail": {"compose", "delete", "move", "add_local_mailbox"},
+    "mail": {"compose", "delete", "move", "add_local_mailbox", "post_local"},
     "imessage": {"send"},
     "vault": {"write", "append", "delete", "move"},
     "vault_rag": {"index_vault", "index_file", "remove_section"},

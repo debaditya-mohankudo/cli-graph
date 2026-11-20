@@ -87,3 +87,13 @@ def register(registry):
                    desc='create a new On My Mac mailbox in Mail.app and register it in LOCAL_MAILBOXES', args=mail_add_local_mailbox_args)
     def mail_add_local_mailbox(ns):
         return call('mail', 'add_local_mailbox', **given(ns, ('name',)))
+
+    def mail_post_local_args(p):
+        p.add_argument('mailbox')
+        p.add_argument('subject')
+        p.add_argument('--body', default=argparse.SUPPRESS)
+
+    @registry.verb("mail", "post_local", mode="write",
+                   desc='post a message straight into an On My Mac mailbox, with no send and no SMTP', args=mail_post_local_args)
+    def mail_post_local(ns):
+        return call('mail', 'post_local', **given(ns, ('mailbox', 'subject', 'body')))
