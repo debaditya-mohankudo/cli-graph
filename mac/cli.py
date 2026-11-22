@@ -8,7 +8,7 @@ import time
 from datetime import date, datetime
 
 from mac.contract import (
-    EXIT_OK, EXIT_USAGE, ROUTED, Failure, apply_limit, dump, error_object,
+    EXIT_OK, EXIT_USAGE, ROUTED, Failure, Plain, apply_limit, dump, error_object,
 )
 from mac.registry import Registry, load_groups
 
@@ -220,7 +220,9 @@ def _run(args, registry, out, err):
         raise Failure("internal", f"{type(exc).__name__}: {exc}")
     _log_call(verb, ns, start, result=result)
     data, cut = apply_limit(result, ns.limit)
-    print(dump(data), file=out)
+    text = dump(data)
+    if text or not isinstance(data, Plain):
+        print(text, file=out)
     if cut:
         print(dump({"truncated": cut}), file=err)
     return EXIT_OK

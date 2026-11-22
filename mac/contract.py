@@ -42,5 +42,12 @@ def apply_limit(data, limit):
     return data[:limit], {"shown": limit, "total": len(data)}
 
 
+class Plain(str):
+    """A verb result printed as-is instead of JSON-quoted: for a screen of text (task:3f30d74d).
+    An empty Plain prints nothing, for a verb that already drew to the terminal itself."""
+
+
 def dump(data):
+    if isinstance(data, Plain):
+        return str(data)
     return json.dumps(data, ensure_ascii=False, default=str)

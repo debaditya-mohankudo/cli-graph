@@ -11,6 +11,7 @@ Commands typed by `run` are visible at the tab's prompt: no hidden script files.
 """
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -18,7 +19,10 @@ import json
 from datetime import datetime, timedelta
 
 from mac.cli import iso_datetime
-from mac.contract import Failure
+from pathlib import Path
+
+from mac.contract import Failure, Plain
+from mac.groups import _kitty_dashboard as dash
 from mac.groups._backend import call
 
 KITTEN_TIMEOUT_S = 20
@@ -237,6 +241,42 @@ def register(registry):
             if row["window"] == window:
                 return {"tab": row["tab"], "window": window, "title": row["title"], "cwd": row["cwd"]}
         raise Failure("tool_error", f"launched window {window} but found no tab for it")
+
+    def dashboard_args(p):
+        p.add_argument("--view", choices=("all", "turn", "next"), default="all",
+                       help="all: event feed; turn: prompt + final summary; next: pending plan items")
+        p.add_argument("-n", type=int, default=15, help="events to show")
+        p.add_argument("-i", "--interval", type=float, default=2.0, help="seconds between redraws")
+        p.add_argument("--once", action="store_true", help="print once and exit (use this from a script)")
+
+    @registry.verb("kitty", "dashboard", mode="read",
+                   desc="read-only live view of the claude-hooks session state (task, prompts, tool calls, "
+                        "plan, turn summary) for a kitty split; redraws until Esc. --once prints one "
+                        "screen and exits; without it the call does not return",
+                   args=dashboard_args)
+    def dashboard(ns):
+        if ns.once:
+            width, height = dash._size()
+            return Plain(dash.snapshot(ns.n, width, ns.view, height=height))
+        dash.run_live(ns.n, ns.interval, ns.view)
+        return Plain("")
+
+    @registry.verb("kitty", "layout", mode="write",
+                   desc="open the claude dashboard in kitty: one 'turn' tab (prompt + final summary) with "
+                        "the pending next steps in a parallel vsplit; returns the two window ids",
+                   args=lambda p: p.add_argument("-i", "--interval", type=float, default=1.0,
+                                                 help="seconds between redraws in both panes"))
+    def layout(ns):
+        mac = shutil.which("mac") or str(Path(__file__).resolve().parents[2] / "bin" / "mac")
+        if not os.access(mac, os.X_OK):
+            raise Failure("tool_error", f"cannot find an executable mac to run in the panes: {mac}")
+
+        def pane(view):
+            return [mac, "kitty", "dashboard", "--view", view, "-i", str(ns.interval)]
+
+        turn = int(_kitten("launch", "--type=tab", "--tab-title", "turn", *pane("turn")).strip())
+        nxt = int(_kitten("launch", "--location=vsplit", "--keep-focus", *pane("next")).strip())
+        return {"turn": turn, "next": nxt}
 
     def run_args(p):
         _tab_arg(p)
