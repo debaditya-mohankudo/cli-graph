@@ -275,6 +275,33 @@
         "mcp-server-proxy-backend"
       ]
     },
+    "kitty-dashboard-viewer": {
+      "confidence": 0.8,
+      "contracts": [
+        "--once returns a Plain result (printed as-is); -i draws to the terminal itself and returns an empty Plain",
+        "A missing or locked DB fails soft: one line on screen, never an exception",
+        "Env overrides CLAUDE_SERVER_MEMORY_DB, CLAUDE_DASHBOARD_PLAN, CLAUDE_DASHBOARD_TURN and CLAUDE_DASHBOARD_NOTE are honoured",
+        "tests/test_kitty_dashboard.py pins the plan/turn/note JSON shapes claude-hooks writes; claude-hooks pins the same shapes in tests/test_dashboard_contract.py, and a shape change updates both"
+      ],
+      "created_at": "2026-11-22T23:47:49.382121+00:00",
+      "description": "Renderer behind `mac kitty dashboard` and `mac kitty layout`, moved from claude-hooks kitty/dashboard.py (task:3f30d74d). Read-only: it renders server_memory.sqlite events plus the hook-written dashboard_plan.json, dashboard_turn.json and Claude-written dashboard_note.md. Those files are the only interface to claude-hooks.",
+      "evidence": [
+        "mac/groups/_kitty_dashboard.py:snapshot",
+        "mac/groups/_kitty_dashboard.py:run_live",
+        "mac/groups/_kitty_dashboard.py:read_plan",
+        "mac/contract.py:Plain",
+        "tests/test_kitty_dashboard.py"
+      ],
+      "invariants": [
+        "Opens the DB read-only",
+        "Never imports or calls into claude-hooks; the state files are the whole interface",
+        "`mac kitty layout` launches panes with the absolute path to mac, not a bare `mac` on kitty's PATH"
+      ],
+      "last_validated": "2026-11-22T23:47:49.382139+00:00",
+      "module": "mac/groups/_kitty_dashboard.py",
+      "name": "kitty-dashboard-viewer",
+      "related": []
+    },
     "kitty-tab-guard": {
       "confidence": 0.8,
       "contracts": [
@@ -533,6 +560,6 @@
     }
   },
   "meta": {
-    "updated_at": "2026-11-19T04:36:23.943777+00:00"
+    "updated_at": "2026-11-22T23:47:49.382174+00:00"
   }
 }
