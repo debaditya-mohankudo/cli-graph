@@ -1,4 +1,8 @@
-"""`mac safari` — Safari via the local-mac safari__* handlers, with the tab guard enforced.
+"""`mac browser` (was `mac safari`, task:b72e2cc7) — a Playwright Firefox via the local-mac `safari` handlers, with the tab guard enforced.
+
+The local-mac handlers keep the area name `safari` (DOMAIN_MAP key); they now drive a
+Firefox daemon by default and AppleScript Safari only with MAC_BROWSER=safari. The
+"front tab" is the daemon's active page.
 
 Every Safari handler that acts on a page (navigate, js, read, screenshot,
 close_tab, reload, back, forward) targets the front window's current tab, and
@@ -45,7 +49,7 @@ def guard(ns):
     if not host_matches(url, ns.expect_host):
         raise Failure("blocked",
                       f"front tab is {url or '(no URL)'!r}, not {ns.expect_host!r}; "
-                      "it may be the user's tab. Open yours with `mac safari open <url> --new-window` "
+                      "it may be the user's tab. Open yours with `mac browser open <url> --new-window` "
                       "or ask the user to bring it to the front.")
 
 
@@ -60,24 +64,24 @@ def register(registry):
         p.add_argument("--new-window", default=UNSET, action="store_true",
                        help="open in a new front window, so guarded verbs act on it")
 
-    @registry.verb("safari", "open", mode="write",
+    @registry.verb("browser", "open", mode="write",
                    desc="open a URL in a new Safari tab (allowlist enforced)", args=open_args)
     def open_url(ns):
         return call("safari", "open", **given(ns, ("url", "new_window")))
 
-    @registry.verb("safari", "current_url", mode="read", desc="URL of Safari's front tab")
+    @registry.verb("browser", "current_url", mode="read", desc="URL of Safari's front tab")
     def current_url(ns):
         return call("safari", "current_url")
 
-    @registry.verb("safari", "current_title", mode="read", desc="title of Safari's front tab")
+    @registry.verb("browser", "current_title", mode="read", desc="title of Safari's front tab")
     def current_title(ns):
         return call("safari", "current_title")
 
-    @registry.verb("safari", "list_tabs", mode="read", desc="list all open Safari tabs")
+    @registry.verb("browser", "list_tabs", mode="read", desc="list all open Safari tabs")
     def list_tabs(ns):
         return call("safari", "list_tabs")
 
-    @registry.verb("safari", "close_all_tabs", mode="write",
+    @registry.verb("browser", "close_all_tabs", mode="write",
                    desc="close every Safari tab, including the user's")
     def close_all_tabs(ns):
         return call("safari", "close_all_tabs")
@@ -89,7 +93,7 @@ def register(registry):
                 args(p)
             _expect_host(p)
 
-        @registry.verb("safari", action, mode=mode, desc=desc, args=configure)
+        @registry.verb("browser", action, mode=mode, desc=desc, args=configure)
         def run(ns):
             guard(ns)
             return call("safari", action, **given(ns, params))

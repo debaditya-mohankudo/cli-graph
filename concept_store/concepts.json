@@ -515,21 +515,21 @@
         "Optional flags default to argparse.SUPPRESS and go through given(); read's mode is not restricted with choices, so the handler's own list is the only one"
       ],
       "created_at": "2026-10-26T11:13:57.778128+00:00",
-      "description": "Hand-written `mac safari` group. Every verb acting on Safari's front tab requires --expect-host and refuses with 'blocked' unless the front tab's host matches, so a js/read/close_tab can't land on the user's tab.",
+      "description": "Hand-written `mac browser` group (was `mac safari`, task:b72e2cc7; the local-mac handlers keep the area name safari and drive a Playwright Firefox daemon by default, AppleScript Safari with MAC_BROWSER=safari). Every verb acting on the front tab requires --expect-host and refuses with 'blocked' unless the front tab's host matches, so a js/read/close_tab can't land on the user's tab.",
       "evidence": [
-        "mac/groups/safari.py:guard",
-        "mac/groups/safari.py:host_matches",
-        "tests/test_vault_safari.py:SafariGuardTest",
-        "tests/test_vault_safari.py:SafariForwardingTest",
+        "mac/groups/browser.py:guard",
+        "mac/groups/browser.py:host_matches",
+        "tests/test_vault_browser.py:SafariGuardTest",
+        "tests/test_vault_browser.py:SafariForwardingTest",
         "~/.claude/skills/safari-tab-check/SKILL.md"
       ],
       "invariants": [
         "A guard refusal is decided before dispatcher.invoke, so mcp_tool_calls has no blocked=1 row for it, only the current_url probe",
         "Check and action are two osascript calls; a tab switch between them is still possible",
-        "tests/test_vault_safari.py pins coverage of DOMAIN_MAP safari, modes (SAFARI_WRITE), exact forwarded kwargs per verb, and the guard; CoverageTest in test_simple_groups.py does not cover safari"
+        "tests/test_vault_browser.py pins coverage of DOMAIN_MAP safari, modes (SAFARI_WRITE), exact forwarded kwargs per verb, and the guard; CoverageTest in test_simple_groups.py does not cover safari"
       ],
       "last_validated": "2026-10-26T11:13:57.778150+00:00",
-      "module": "mac/groups/safari.py",
+      "module": "mac/groups/browser.py",
       "name": "safari-tab-guard",
       "related": [
         "generated-group-verbs",

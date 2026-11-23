@@ -36,7 +36,7 @@ ASK = {
     "notes": {"delete"},
     "reminders": {"delete"},
     "vault": {"delete", "move"},
-    "safari": {"close_all_tabs"},
+    "browser": {"close_all_tabs"},
     "system": {"process_kill", "sleep_now"},
     "connector": {"execute_action"},
     "vpn": {"disconnect"},

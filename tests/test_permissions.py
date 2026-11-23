@@ -32,7 +32,7 @@ class RulesTest(unittest.TestCase):
         _, ask = gp.rules(GRAPH)
         for cmd in ("imessage send", "mail compose", "mail delete", "mail move", "calendar delete_event",
                     "notes delete", "reminders delete", "vault delete", "vault move",
-                    "safari close_all_tabs", "system process_kill", "system sleep_now",
+                    "browser close_all_tabs", "system process_kill", "system sleep_now",
                     "connector execute_action", "vpn disconnect"):
             self.assertIn(f"Bash(mac {cmd} *)", ask)
 

@@ -108,11 +108,11 @@
   },
   "check active page on safari": {
    "picks": [
-    "safari current_url",
-    "safari current_title",
-    "safari read",
-    "safari list_tabs",
-    "safari screenshot"
+    "browser current_url",
+    "browser current_title",
+    "browser read",
+    "browser list_tabs",
+    "browser screenshot"
    ],
    "invalid": []
   },
@@ -141,10 +141,10 @@
   },
   "check live on NSE in Safari": {
    "picks": [
-    "safari open",
+    "browser open",
     "nse_live cm_get_stock_quote",
-    "safari navigate",
-    "safari read",
+    "browser navigate",
+    "browser read",
     "nse_live cm_get_live_indices"
    ],
    "invalid": []
@@ -294,7 +294,7 @@
     "imessage send",
     "contacts search",
     "system clipboard_read",
-    "safari current_url",
+    "browser current_url",
     "imessage read"
    ],
    "invalid": []

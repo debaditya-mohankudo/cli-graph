@@ -8,7 +8,7 @@
     "media": ["music", "podcasts", "sound"],
     "productivity": ["calendar", "notes", "reminders", "time"],
     "system": ["cli", "cli_log", "encdb", "hooks", "system", "vpn"],
-    "web": ["connector", "curl", "safari"]
+    "web": ["connector", "curl", "browser"]
   },
   "purposes": {
     "astrology": "Vedic charts, dasha, transits, panchang",

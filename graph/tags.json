@@ -3,7 +3,7 @@
   "tags": {
     "mac imessage send": ["sms", "text"],
     "mac memory add": ["remember", "save"],
-    "mac safari read": ["active", "page"],
+    "mac browser read": ["active", "page"],
     "mac vault append": ["add"]
   }
 }

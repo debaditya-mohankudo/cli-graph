@@ -1,4 +1,4 @@
-"""`mac vault` / `mac safari`: vault containment and the safari tab guard (task:0c64fa90).
+"""`mac vault` / `mac browser`: vault containment and the safari tab guard (task:0c64fa90).
 
 vault is generated, so its coverage, modes and freshness are checked with the
 other generated groups in test_simple_groups.py. Here: a path outside the
@@ -21,7 +21,7 @@ sys.path[:0] = [str(Path(__file__).resolve().parent.parent), str(Path(__file__).
 from _helpers import run, stub_dispatcher
 from mac.cli import default_registry, describe
 from mac.groups import _backend
-from mac.groups.safari import host_matches
+from mac.groups.browser import host_matches
 
 GUARDED = {"navigate", "close_tab", "reload", "back", "forward", "js", "read", "screenshot"}
 # Reviewed by hand, like the WRITE tables for the generated groups.
@@ -54,12 +54,12 @@ class FakeSafari:
 
 class SafariCoverageTest(unittest.TestCase):
     def test_every_domain_map_tool_has_a_verb_with_the_right_mode(self):
-        verbs = {e["verb"]: e["mode"] for e in describe(default_registry(), "safari")}
+        verbs = {e["verb"]: e["mode"] for e in describe(default_registry(), "browser")}
         self.assertEqual(set(verbs), set(_backend.dispatcher().DOMAIN_MAP["safari"][1]))
         self.assertEqual({v for v, m in verbs.items() if m == "write"}, SAFARI_WRITE)
 
     def test_guarded_verbs_require_expect_host(self):
-        usage = {e["verb"]: e["usage"] for e in describe(default_registry(), "safari")}
+        usage = {e["verb"]: e["usage"] for e in describe(default_registry(), "browser")}
         for verb, line in usage.items():
             with self.subTest(verb=verb):
                 self.assertEqual("--expect-host HOST" in line and "[--expect-host" not in line,
@@ -76,7 +76,7 @@ class SafariCoverageTest(unittest.TestCase):
             pick = lambda a, b: front if b == "current_url" and action != "current_url" else fake
             guard = ["--expect-host", "example.com"] if action in GUARDED else []
             with self.subTest(verb=action), stub_dispatcher(pick):
-                status, out, err = run("safari", action, *argv.get(action, []), *guard)
+                status, out, err = run("browser", action, *argv.get(action, []), *guard)
                 self.assertEqual((status, json.loads(out)), (0, "ok"), err)
                 fake.assert_called_once()
 
@@ -104,7 +104,7 @@ class SafariForwardingTest(unittest.TestCase):
             with self.subTest(argv=argv):
                 fake = FakeSafari()
                 with stub_dispatcher(fake.resolve):
-                    status, _, err = run("safari", *argv)
+                    status, _, err = run("browser", *argv)
                 self.assertEqual(status, 0, err)
                 self.assertEqual(fake.calls, [(action, kwargs)])
 
@@ -117,7 +117,7 @@ class SafariGuardTest(unittest.TestCase):
             with self.subTest(verb=verb):
                 fake = FakeSafari()
                 with stub_dispatcher(fake.resolve):
-                    status, _, err = run("safari", verb, *extra)
+                    status, _, err = run("browser", verb, *extra)
                 self.assertEqual((status, json.loads(err)["error"]["code"]), (2, "usage"))
                 self.assertEqual(fake.calls, [])
 
@@ -125,7 +125,7 @@ class SafariGuardTest(unittest.TestCase):
         # The 2026-10-15 failure: js meant for FRED ran in the user's YouTube tab.
         fake = FakeSafari(front="https://www.youtube.com/watch?v=x")
         with stub_dispatcher(fake.resolve):
-            status, _, err = run("safari", "js", "window.x=1", "--expect-host", "fred.stlouisfed.org")
+            status, _, err = run("browser", "js", "window.x=1", "--expect-host", "fred.stlouisfed.org")
         error = json.loads(err)["error"]
         self.assertEqual((status, error["code"]), (1, "blocked"))
         self.assertIn("youtube.com", error["message"])
@@ -134,7 +134,7 @@ class SafariGuardTest(unittest.TestCase):
     def test_no_front_tab_url_is_blocked(self):
         fake = FakeSafari(front="")
         with stub_dispatcher(fake.resolve):
-            status, _, err = run("safari", "close_tab", "--expect-host", "example.com")
+            status, _, err = run("browser", "close_tab", "--expect-host", "example.com")
         self.assertEqual((status, json.loads(err)["error"]["code"]), (1, "blocked"))
         self.assertEqual(fake.calls, [])
 
