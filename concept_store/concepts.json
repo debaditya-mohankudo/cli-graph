@@ -255,17 +255,17 @@
         "Handlers return str in every case including failures (e.g. 'Code RAG index not found ...'), never a dict with 'error', so raise_if_error passes that text through unchanged — only a raised ValueError inside the handler becomes a tool_error (task:eaca1271)."
       ],
       "created_at": "2026-10-28T15:18:11.519634+00:00",
-      "description": "Adapter that runs claude-hooks' src/tools/<module>.handle_<action> handlers as a subprocess of claude-hooks' own interpreter (via _hooks_runner.py), skipping the claude-hooks MCP server's Ollama/tool_hints bootstrap. Backs memory, vault_map, hooks (task:5ab623ca) and, as of task:eaca1271, code_rag and diff_rag.",
+      "description": "Adapter that runs claude-hooks' src/tools/<module>.handle_<action> handlers as a subprocess of claude-hooks' own interpreter (via _hooks_runner.py), skipping the claude-hooks MCP server's Ollama/tool_hints bootstrap. Backs memory, vault_map, hooks (task:5ab623ca). code_rag and diff_rag were removed with their claude-hooks handlers (task:65891ed8).",
       "evidence": [
         "mac/groups/_hooks.py:call",
         "mac/groups/_hooks_runner.py",
-        "mac/groups/code_rag.py:query",
-        "mac/groups/diff_rag.py:query",
+        "mac/groups/memory.py:register",
+        "tests/test_hooks_contract.py:HookHandlerContractTest",
         "tests/test_parity_hooks.py:ForwardingTest"
       ],
       "invariants": [
-        "Per-call cost is dominated by interpreter/import startup, not the work itself: memory/vault_map/hooks ~0.2-0.6s; code_rag/diff_rag ~1.4s because importing them pulls in llama_index + numpy in claude-hooks' venv (embedding call itself is ~0.1-0.3s).",
-        "Accepted cold-start precedent: task:25e053bc's _mcp_proxy servers (0.4-2s) and this module's own code_rag/diff_rag numbers both sit inside what the epic already tolerates, so cold start alone is not a reason to keep a capability on MCP (Keep what doesn't fit)."
+        "Per-call cost is dominated by interpreter/import startup, not the work itself: memory/vault_map/hooks ~0.2-0.6s.",
+        "Accepted cold-start precedent: task:25e053bc's _mcp_proxy servers (0.4-2s) sit inside what the epic already tolerates, so cold start alone is not a reason to keep a capability on MCP (Keep what doesn't fit)."
       ],
       "last_validated": "2026-10-28T15:18:11.519677+00:00",
       "module": "mac/groups/_hooks.py",

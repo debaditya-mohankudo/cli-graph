@@ -423,14 +423,9 @@
    ]
   },
   "find the function that builds the dispatcher in the repo code": {
-   "picks": [
-    "code_rag smart_search",
-    "code_rag query"
-   ],
+   "picks": [],
    "invalid": [],
    "areas": [
-    "code_rag",
-    "diff_rag",
     "vault_rag"
    ]
   },
@@ -776,14 +771,9 @@
    ]
   },
   "semantic search the claude-hooks code for where tool handlers are dispatched": {
-   "picks": [
-    "code_rag query",
-    "code_rag smart_search"
-   ],
+   "picks": [],
    "invalid": [],
    "areas": [
-    "code_rag",
-    "diff_rag",
     "vault_rag"
    ]
   },
@@ -850,13 +840,11 @@
   "show the recent commits": {
    "picks": [
     "git log",
-    "git status",
-    "diff_rag query"
+    "git status"
    ],
    "invalid": [],
    "areas": [
-    "git",
-    "diff_rag"
+    "git"
    ]
   },
   "text someone": {
@@ -894,16 +882,12 @@
   },
   "what did I change in src/tools last month, by commit diff": {
    "picks": [
-    "diff_rag smart_search",
-    "diff_rag query",
     "git log",
     "git diff"
    ],
    "invalid": [],
    "areas": [
-    "diff_rag",
-    "git",
-    "code_rag"
+    "git"
    ]
   },
   "what files changed in the repo": {
@@ -966,16 +950,11 @@
   },
   "which commit changed the memory loader": {
    "picks": [
-    "diff_rag query",
-    "diff_rag smart_search",
-    "git log",
-    "code_rag smart_search"
+    "git log"
    ],
    "invalid": [],
    "areas": [
-    "git",
-    "diff_rag",
-    "code_rag"
+    "git"
    ]
   },
   "why gold price is falling hard - since jan 2026 -": {

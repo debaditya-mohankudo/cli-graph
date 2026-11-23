@@ -314,11 +314,7 @@
    "invalid": []
   },
   "find the function that builds the dispatcher in the repo code": {
-   "picks": [
-    "code_rag smart_search",
-    "code_rag query",
-    "diff_rag smart_search"
-   ],
+   "picks": [],
    "invalid": []
   },
   "find which vault folder holds my notes on this topic": {
@@ -575,10 +571,7 @@
    "invalid": []
   },
   "semantic search the claude-hooks code for where tool handlers are dispatched": {
-   "picks": [
-    "code_rag smart_search",
-    "code_rag query"
-   ],
+   "picks": [],
    "invalid": []
   },
   "send a text message to a contact": {
@@ -633,7 +626,6 @@
     "git log",
     "git status",
     "git diff",
-    "diff_rag query",
     "hooks server_memory"
    ],
    "invalid": []
@@ -670,11 +662,8 @@
   },
   "what did I change in src/tools last month, by commit diff": {
    "picks": [
-    "diff_rag query",
-    "diff_rag smart_search",
     "git log",
-    "git diff",
-    "diff_rag index_commits"
+    "git diff"
    ],
    "invalid": []
   },
@@ -722,11 +711,7 @@
   },
   "which commit changed the memory loader": {
    "picks": [
-    "diff_rag query",
-    "diff_rag smart_search",
-    "git log",
-    "code_rag smart_search",
-    "diff_rag index_commits"
+    "git log"
    ],
    "invalid": []
   },

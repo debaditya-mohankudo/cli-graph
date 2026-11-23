@@ -24,7 +24,7 @@ so a CLI call and an MCP call share one code path.
 | `bin/mac` | Launcher. Runs `python -m mac` under this repo's uv `.venv` (`~/bin/mac` is a symlink to it). |
 | `mac/` | The dispatcher: argument parsing, help, the output/error contract (`contract.py`), and one module per area under `mac/groups/`. |
 | `mac/groups/_backend.py` | Runs local-mac's handlers in-process through its own `dispatcher.resolve` / `invoke`, so the same logging and safety gates apply. |
-| `mac/groups/_hooks.py` | Runs claude-hooks' `src/tools` handlers (`memory`, `vault_map`, `hooks`, `code_rag`, `diff_rag`) in a subprocess of claude-hooks' own interpreter, via `_hooks_runner.py`. No MCP server and no Ollama start-up; about 0.3s a call (`code_rag`/`diff_rag`: about 1.4s, the llama_index import). |
+| `mac/groups/_hooks.py` | Runs claude-hooks' `src/tools` handlers (`memory`, `vault_map`, `hooks`, `web_search_cache`) in a subprocess of claude-hooks' own interpreter, via `_hooks_runner.py`. No MCP server and no Ollama start-up; about 0.3s a call. |
 | `mac/groups/_mcp_proxy.py` | Runs a separate MCP server's tool for each call (`astrology`, `wyckoff` (its verbs are `mac stock`), `sysml` over stdio; `nse_eod`, `nse_live` over HTTP to NSE's hosted servers, retried up to 25 times because NSE drops most new sessions). The stdio servers have their own venvs or are Node bundles. |
 | `graph/cli_graph.json` | Command graph **generated** from `mac --help --json`: a `groups` and a `domains` overview first, then one node per command. Never hand-edited. |
 | `graph/edges.json` | Hand-written edges between commands: `alias_of`, `requires`, `feeds`, `prefer_over`. |
@@ -46,9 +46,9 @@ mac <area> --help          # verbs, read/write mode, usage lines
 mac --help --json          # every command as JSON rows (feeds graph/generate.py)
 ```
 
-There are 289 verbs across 36 areas: `astrology`, `calendar`, `cli`, `cli_log`, `code_rag`, `connector`, `contacts`, `curl`,
-`diff_rag`, `encdb`, `git`, `graph_metrics`, `hooks`, `imessage`, `kitty`, `kospi`, `mail`, `market`, `memory`, `music`, `notes`, `nse_eod`, `nse_live`,
-`podcasts`, `reminders`, `safari`, `sound`, `sysml`, `system`, `time`, `vault`, `vault_log`, `vault_map`, `vault_rag`,
+There are 301 verbs across 35 areas: `astrology`, `browser`, `calendar`, `claude`, `cli`, `cli_log`, `connector`, `contacts`, `curl`,
+`encdb`, `git`, `graph_metrics`, `hooks`, `imessage`, `kitty`, `kospi`, `mail`, `market`, `memory`, `music`, `notes`, `nse_eod`, `nse_live`,
+`podcasts`, `reminders`, `sound`, `sysml`, `system`, `time`, `vault`, `vault_log`, `vault_map`, `vault_rag`,
 `stock`, `vpn`. `stock` runs stock-tracker-mcp code in its environment (NSE option chains, US-listed quotes) and also carries the 13 tracker verbs of stock-tracker-mcp's MCP server (Wyckoff analysis, `update_run`, `db_init_state`, `next_step`, ...; generated into `mac/groups/stock_mcp.py`, formerly the `wyckoff` area); `MAC_STOCK_TRACKER_DIR` overrides the repo path. `graph_metrics` does the same for stock-tracker-mcp's graph metric store: each verb runs `python -m stock_tracker.utils.graph_metrics --json <subcommand>` (loaders, `series`, `latest`, `freshness`, hand-entered `record`s) and returns its JSON, passing only the options the caller set. `kospi` wraps stock-tracker-mcp's `krx` and `nifty_kospi_pair` modules the same way: KOSPI closes, KRX foreign/institution/retail flows, SK hynix and Samsung foreign holding (Naver, cached in fii_dii.db) and the Nifty vs KOSPI pair checklist. `nse_eod` and `nse_live` proxy NSE's hosted MCP servers; `vault_log` reads and appends to an insert-only SQLite log of vault file creates, edits and reads, by running the `vault_file_log.py` script of stock-tracker-mcp (`MAC_VAULT_LOG_SCRIPT` overrides its path); `cli find` is the `find_cli` lookup as a command. `encdb` reports which personal SQLite DBs are encrypted at rest (`status`, with a migrate-or-leave decision per DB) and encrypts one in place (`migrate`: backup first, row counts and `integrity_check` verified before the swap; asks every call). The key is `secrets/memory.key` (git-crypt), read by `mac/encdb.py`, the one opener for these files (apsw-sqlite3mc, `cipher=sqlcipher`). `curl` is the audited HTTP client: `get` fetches an allowlisted https URL (hosts in `mac/groups/curl.py`, redirects re-checked hop by hop, body capped with the full copy saved to a file), `post` is its write-mode twin that prompts every call, and `log` reads the per-request audit table (`~/.claude/mac_curl_audit.sqlite`: time, session, method, host, path, status, bytes, sha256; never bodies or headers). `memory`, `vault_map` and `hooks` wrap claude-hooks; `memory add` takes
 `--links` as a JSON list and `--body-file -` for long text. `scratch` and `think`
 were not ported (task:5ab623ca). `git` runs `git` directly: `add` takes explicit paths only,
@@ -125,7 +125,7 @@ advice and never removes a seed.
 | communication | contacts, imessage, mail |
 | development | git, kitty |
 | productivity | calendar, notes, reminders, time |
-| knowledge | code_rag, diff_rag, memory, sysml, vault, vault_log, vault_map, vault_rag |
+| knowledge | memory, sysml, vault, vault_log, vault_map, vault_rag |
 | media | music, podcasts, sound |
 | markets | graph_metrics, kospi, market, nse_eod, nse_live, stock |
 | system | cli, cli_log, encdb, hooks, system, vpn |
@@ -256,8 +256,8 @@ Two cutovers have turned MCP servers off, each with its own backup file:
 
 A fresh session now loads only taskfw and `find_cli`: 38 tools instead of 245
 (stdio servers only; hosted connectors and claude-in-chrome are unchanged).
-claude-hooks' capabilities are reached as `mac memory`, `mac vault_map`,
-`mac hooks`, `mac code_rag` and `mac diff_rag`. local-mac is still loaded
+claude-hooks' capabilities are reached as `mac memory`, `mac vault_map`
+and `mac hooks`. local-mac is still loaded
 inside `claude_for_mac_local`, through that repo's `.mcp.json`.
 
 ```bash
