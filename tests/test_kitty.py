@@ -6,6 +6,7 @@ import io
 import json
 import sys
 import unittest
+from datetime import datetime
 from pathlib import Path
 from unittest import mock
 
@@ -144,11 +145,11 @@ class KittyTest(unittest.TestCase):
         self.assertEqual(json.loads(out)["window"], 9)
 
     def test_scheduled_retry_is_one_visible_one_liner(self):
-        _, out, _ = mac(Fake(), "run", "--tab", "5", "fetch", "--at", "19:30", "--retry", "4",
+        _, out, _ = mac(Fake(), "run", "--tab", "5", "fetch", "--at", "2099-01-01T19:30", "--retry", "4",
                         "--every", "10m", "--until", "test -s out.json", "--dry-run")
         self.assertEqual(
             json.loads(out)["command"],
-            "until [ $(date +%H%M) -ge 1930 ]; do sleep 20; done; for i in $(seq 1 4); do fetch; "
+            "until [ $(date +%Y%m%d%H%M) -ge 209901011930 ]; do sleep 20; done; for i in $(seq 1 4); do fetch; "
             "test -s out.json && echo DONE && break; sleep 600; done")
 
     def test_bad_time_and_interval_are_usage_errors(self):
@@ -330,6 +331,36 @@ class CommTest(unittest.TestCase):
         status, out, _ = comm(FakeReminders(), "comm_send", "--from", "r", "--to", "you", "b", "--notify", "1", fake=fake)
         self.assertEqual(status, 0)
         self.assertIn("x-apple-reminder://NEW", fake.typed())
+
+
+class WaitAtTest(unittest.TestCase):
+    NOW = datetime(2026, 11, 24, 19, 49, 30)
+
+    def cmd(self, at):
+        return kitty.build_command("echo hi", at=at, now=self.NOW)
+
+    def test_later_today_waits_on_a_full_date_key(self):
+        self.assertIn("-ge 202611242100 ]", self.cmd("21:00"))
+
+    def test_time_already_past_today_is_refused_not_fired(self):
+        with self.assertRaises(Failure) as cm:
+            self.cmd("09:00")
+        self.assertIn("already passed today", str(cm.exception))
+
+    def test_next_day_date_time_waits_across_days(self):
+        self.assertIn("-ge 202611250250 ]", self.cmd("2026-11-25T02:50"))
+
+    def test_past_date_time_is_refused(self):
+        with self.assertRaises(Failure):
+            self.cmd("2026-11-24T19:00")
+
+    def test_garbage_and_impossible_dates_are_refused(self):
+        for bad in ("noon", "2026-13-40T10:00", "25:00"):
+            with self.assertRaises(Failure, msg=bad):
+                self.cmd(bad)
+
+    def test_no_at_means_no_wait(self):
+        self.assertNotIn("until [", kitty.build_command("echo hi", now=self.NOW))
 
 
 if __name__ == "__main__":

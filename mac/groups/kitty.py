@@ -28,6 +28,7 @@ from mac.groups._backend import call
 KITTEN_TIMEOUT_S = 20
 GUARDED_COMMANDS = {"claude"}
 HHMM = re.compile(r"([01]\d|2[0-3]):([0-5]\d)")
+STAMP = re.compile(r"(\d{4})-(\d\d)-(\d\d)[T ]([01]\d|2[0-3]):([0-5]\d)")
 EVERY = re.compile(r"(\d+)([smh])")
 SETTLE_S = 0.4
 COMM_LIST = "kitty-comm"
@@ -148,20 +149,42 @@ def _seconds(text):
     return int(m.group(1)) * {"s": 1, "m": 60, "h": 3600}[m.group(2)]
 
 
-def build_command(cmd, at=None, retry=None, every="10m", until=None):
+def _wait_key(at, now):
+    """YYYYMMDDHHMM the shell waits for, from --at (HH:MM later today, or YYYY-MM-DDTHH:MM).
+
+    Never a bare time-of-day compare: a time already past is refused, not fired at once.
+    """
+    m = HHMM.fullmatch(at)
+    if m:
+        target = now.replace(hour=int(m.group(1)), minute=int(m.group(2)), second=0, microsecond=0)
+        if target <= now:
+            raise Failure("usage", f"--at {at} has already passed today; pass a full date-time "
+                                   f"(YYYY-MM-DDTHH:MM) for a later day", 2)
+    else:
+        m = STAMP.fullmatch(at)
+        if not m:
+            raise Failure("usage", f"--at must be HH:MM (later today) or YYYY-MM-DDTHH:MM, got {at!r}", 2)
+        try:
+            target = datetime(*map(int, m.groups()))
+        except ValueError:
+            raise Failure("usage", f"--at is not a real date-time: {at!r}", 2)
+        if target <= now:
+            raise Failure("usage", f"--at {at} is in the past", 2)
+    return target.strftime("%Y%m%d%H%M")
+
+
+def build_command(cmd, at=None, retry=None, every="10m", until=None, now=None):
     """The one visible shell one-liner `run` types.
 
-    Plain `cmd` when there is no --at/--retry. Otherwise: wait until HH:MM, then run cmd up to
+    Plain `cmd` when there is no --at/--retry. Otherwise: wait until --at, then run cmd up to
     `retry` times, stopping at the first time the shell test `until` succeeds.
     """
     if not (at or retry):
         return cmd
     wait = ""
     if at:
-        m = HHMM.fullmatch(at)
-        if not m:
-            raise Failure("usage", f"--at must be HH:MM (24-hour), got {at!r}", 2)
-        wait = f"until [ $(date +%H%M) -ge {m.group(1)}{m.group(2)} ]; do sleep 20; done; "
+        key = _wait_key(at, now or datetime.now())
+        wait = f"until [ $(date +%Y%m%d%H%M) -ge {key} ]; do sleep 20; done; "
     tries = retry or 1
     secs = _seconds(every)
     test = until or "true"
@@ -283,7 +306,7 @@ def register(registry):
         p.add_argument("command", nargs="?", help="shell command to type (or --file / --stdin)")
         p.add_argument("--file", help="read the command from this file (keeps quoting intact)")
         p.add_argument("--stdin", action="store_true", help="read the command from standard input")
-        p.add_argument("--at", help="wait until this local time, HH:MM (24-hour), before running")
+        p.add_argument("--at", help="wait until this local time before running: HH:MM (later today) or YYYY-MM-DDTHH:MM; a past time is refused")
         p.add_argument("--retry", type=int, help="run up to N times, stopping when --until succeeds")
         p.add_argument("--every", default="10m", help="pause between retries: 30s, 10m, 1h (default 10m)")
         p.add_argument("--until", help="shell test that ends the retries, e.g. 'test -s out.json'")
@@ -291,7 +314,7 @@ def register(registry):
 
     @registry.verb("kitty", "run", mode="write",
                    desc="type a shell command visibly at a tab's prompt, press enter, and verify it "
-                        "appears on screen. --at HH:MM / --retry N --every 10m --until TEST wrap it in "
+                        "appears on screen. --at HH:MM|YYYY-MM-DDTHH:MM / --retry N --every 10m --until TEST wrap it in "
                         "one visible wait-and-retry one-liner",
                    args=run_args)
     def run(ns):
