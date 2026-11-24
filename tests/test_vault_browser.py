@@ -23,7 +23,7 @@ from mac.cli import default_registry, describe
 from mac.groups import _backend
 from mac.groups.browser import host_matches
 
-GUARDED = {"navigate", "close_tab", "reload", "back", "forward", "js", "read", "screenshot"}
+GUARDED = {"navigate", "close_tab", "reload", "back", "forward", "js", "read", "screenshot", "pdf"}
 # Reviewed by hand, like the WRITE tables for the generated groups.
 SAFARI_WRITE = {"open", "navigate", "js", "close_tab", "close_all_tabs", "reload", "back", "forward"}
 
@@ -93,6 +93,10 @@ class SafariForwardingTest(unittest.TestCase):
         (["screenshot", "--expect-host", "example.com"], "screenshot", {}),
         (["screenshot", "--outfile", "/tmp/x.png", "--expect-host", "example.com"], "screenshot",
          {"outfile": "/tmp/x.png"}),
+        (["pdf", "--expect-host", "example.com"], "pdf", {}),
+        (["pdf", "--outfile", "/tmp/x.pdf", "--width", "1080px", "--height", "1350px", "--landscape",
+          "--expect-host", "example.com"], "pdf",
+         {"outfile": "/tmp/x.pdf", "width": "1080px", "height": "1350px", "landscape": True}),
         (["close_tab", "--expect-host", "example.com"], "close_tab", {}),
         (["reload", "--expect-host", "example.com"], "reload", {}),
         (["back", "--expect-host", "example.com"], "back", {}),
@@ -112,7 +116,7 @@ class SafariForwardingTest(unittest.TestCase):
 class SafariGuardTest(unittest.TestCase):
     def test_missing_expect_host_is_a_usage_error_and_runs_nothing(self):
         for verb, extra in (("navigate", ["https://b.com"]), ("js", ["1"]), ("read", ["text"]),
-                            ("screenshot", []), ("close_tab", []), ("reload", []),
+                            ("screenshot", []), ("pdf", []), ("close_tab", []), ("reload", []),
                             ("back", []), ("forward", [])):
             with self.subTest(verb=verb):
                 fake = FakeSafari()

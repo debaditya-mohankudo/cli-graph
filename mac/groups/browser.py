@@ -4,7 +4,7 @@ The local-mac handlers keep the area name `safari` (DOMAIN_MAP key); they now dr
 Firefox daemon by default and AppleScript Safari only with MAC_BROWSER=safari. The
 "front tab" is the daemon's active page.
 
-Every Safari handler that acts on a page (navigate, js, read, screenshot,
+Every Safari handler that acts on a page (navigate, js, read, screenshot, pdf,
 close_tab, reload, back, forward) targets the front window's current tab, and
 that tab is usually the user's own. So those verbs require --expect-host: before
 running, the verb reads the front tab's URL and refuses with 'blocked' unless
@@ -112,3 +112,12 @@ def register(registry):
             ("mode",))
     guarded("screenshot", "read", "screenshot the front tab to a PNG file",
             lambda p: p.add_argument("--outfile", default=UNSET), ("outfile",))
+
+    def pdf_args(p):
+        p.add_argument("--outfile", default=UNSET)
+        p.add_argument("--width", default=UNSET, help='page width as a CSS length, e.g. "1080px" or "210mm"')
+        p.add_argument("--height", default=UNSET, help='page height as a CSS length, e.g. "1350px" or "297mm"')
+        p.add_argument("--landscape", default=UNSET, action="store_true")
+
+    guarded("pdf", "read", "print the front tab's URL to a PDF with headless Chromium (reloads the page: no login or page state)",
+            pdf_args, ("outfile", "width", "height", "landscape"))

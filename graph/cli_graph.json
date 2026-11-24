@@ -12,7 +12,7 @@
   },
   "domains": {
     "astrology": {"group": "astrology", "verbs": ["aq_aspects_on_house", "aq_bhava_chalit", "aq_current_dasha", "aq_dasha_timeline", "aq_navamsha", "aq_neecha_bhanga", "aq_pd_timeline", "aq_planets", "aq_predict_events", "aq_predict_events_batch", "aq_pushkar_navamsa", "aq_strength_summary", "aq_upcoming_transitions", "aq_vargottama", "aq_yogas", "d10", "d12", "d9", "gochar_dasha_tally", "gochar_house", "gochar_summary", "mahadasha", "panchang_date", "panchang_rahukaal", "panchang_today", "planets_date", "planets_lagna", "planets_today", "tarabala"]},
-    "browser": {"group": "web", "verbs": ["back", "close_all_tabs", "close_tab", "current_title", "current_url", "forward", "js", "list_tabs", "navigate", "open", "read", "reload", "screenshot"]},
+    "browser": {"group": "web", "verbs": ["back", "close_all_tabs", "close_tab", "current_title", "current_url", "forward", "js", "list_tabs", "navigate", "open", "pdf", "read", "reload", "screenshot"]},
     "calendar": {"group": "productivity", "verbs": ["add_event", "delete_event", "get_events_by_date", "get_noise_summary", "get_upcoming_events", "list_events"]},
     "claude": {"group": "development", "verbs": ["fork", "root"]},
     "cli": {"group": "system", "verbs": ["find", "skills"]},
@@ -87,6 +87,7 @@
     {"area": "browser", "cli": "mac", "desc": "list all open Safari tabs", "id": "mac browser list_tabs", "kind": "command", "mode": "read", "usage": "mac browser list_tabs [-h] [--limit LIMIT] [--json]", "verb": "list_tabs"},
     {"area": "browser", "cli": "mac", "desc": "navigate the front tab to a URL (allowlist enforced)", "id": "mac browser navigate", "kind": "command", "mode": "write", "usage": "mac browser navigate [-h] [--limit LIMIT] [--json] --expect-host HOST url", "verb": "navigate"},
     {"area": "browser", "cli": "mac", "desc": "open a URL in a new Safari tab (allowlist enforced)", "id": "mac browser open", "kind": "command", "mode": "write", "usage": "mac browser open [-h] [--limit LIMIT] [--json] [--new-window] url", "verb": "open"},
+    {"area": "browser", "cli": "mac", "desc": "print the front tab's URL to a PDF with headless Chromium (reloads the page: no login or page state)", "id": "mac browser pdf", "kind": "command", "mode": "read", "usage": "mac browser pdf [-h] [--limit LIMIT] [--json] [--outfile OUTFILE] [--width WIDTH] [--height HEIGHT] [--landscape] --expect-host HOST", "verb": "pdf"},
     {"area": "browser", "cli": "mac", "desc": "read the front tab: text, html, links, title or selected", "id": "mac browser read", "kind": "command", "mode": "read", "usage": "mac browser read [-h] [--limit LIMIT] [--json] --expect-host HOST mode", "verb": "read"},
     {"area": "browser", "cli": "mac", "desc": "reload the front tab", "id": "mac browser reload", "kind": "command", "mode": "write", "usage": "mac browser reload [-h] [--limit LIMIT] [--json] --expect-host HOST", "verb": "reload"},
     {"area": "browser", "cli": "mac", "desc": "screenshot the front tab to a PNG file", "id": "mac browser screenshot", "kind": "command", "mode": "read", "usage": "mac browser screenshot [-h] [--limit LIMIT] [--json] [--outfile OUTFILE] --expect-host HOST", "verb": "screenshot"},
