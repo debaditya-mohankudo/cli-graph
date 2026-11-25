@@ -1,8 +1,9 @@
 """`mac vault_log` — when vault files were created, edited and read, from the log kept inside the vault.
 
 The log is a SQLite file (`~/.claude/vault_file_log.sqlite`, snapshotted daily to iCloud) kept by
-stock-tracker-mcp's scripts/vault_file_log.py, which stays the one
-implementation: each verb runs it with --json and returns its result. The log is
+mac/vault_file_log.py (moved here from stock-tracker-mcp on 2026-11-25), which stays the one
+implementation: each verb runs it with --json and returns its result. After a scan, `scan`
+also re-parses the changed notes in claude-hooks' vault index, so one walk serves both. The log is
 append-only (every write is an INSERT; triggers abort UPDATE and DELETE), so the
 write verbs only add rows. Reads are
 not detectable on disk, so `read` events exist only where a caller logged them
@@ -16,9 +17,11 @@ import sys
 from pathlib import Path
 
 from mac.contract import Failure
+from mac.groups._hooks import call as hooks_call
 
 UNSET = argparse.SUPPRESS
-DEFAULT_SCRIPT = Path.home() / "workspace" / "stock-tracker-mcp" / "scripts" / "vault_file_log.py"
+# In this repo since 2026-11-25 (task:371976dd); it was stock-tracker-mcp's scripts/vault_file_log.py.
+DEFAULT_SCRIPT = Path(__file__).resolve().parent.parent / "vault_file_log.py"
 
 
 def _run(*args):
@@ -31,6 +34,19 @@ def _run(*args):
     except (IndexError, json.JSONDecodeError):
         tail = " | ".join(proc.stderr.strip().splitlines()[-5:])
         raise Failure("tool_error", "vault_file_log gave no result" + (f" (stderr: {tail})" if tail else ""))
+
+
+def _sync_index():
+    """Re-parse in claude-hooks' vault index the notes this scan saw change, so one walk serves both (task:371976dd).
+
+    Fails open: the scan has already committed its events, so an index failure is returned
+    (and claude-hooks records it in the index's meta.last_error) but never fails the verb.
+    """
+    try:
+        return hooks_call("vault_index", "sync_from_log")
+    except Failure as exc:
+        print(f"vault_log scan: index sync failed: {exc}", file=sys.stderr)
+        return {"error": str(exc)}
 
 
 def register(registry):
@@ -57,9 +73,12 @@ def register(registry):
         return _run("history", ns.path)
 
     @registry.verb("vault_log", "scan", mode="write",
-                   desc="record vault files created, edited or deleted since the last scan into the vault's file log")
+                   desc="record vault files created, edited or deleted since the last scan into the vault's file log, "
+                        "then bring the vault index (vault_map, fts) up to date from it")
     def scan(ns):
-        return _run("scan")
+        res = _run("scan")
+        res["index"] = _sync_index()
+        return res
 
     def log_read_args(p):
         p.add_argument("paths", nargs="+", help="vault-relative paths that were read")

@@ -112,7 +112,7 @@ def register(registry):
         p.add_argument('--folder', default=argparse.SUPPRESS)
 
     @registry.verb("vault", "section_search", mode="read",
-                   desc='search vault section headings by keyword, frontmatter tag, or folder path', args=vault_section_search_args)
+                   desc='search vault sections by keyword (heading or body), frontmatter tag, or folder path', args=vault_section_search_args)
     def vault_section_search(ns):
         return call('vault', 'section_search', **given(ns, ('query', 'tag', 'folder', 'limit')))
 
@@ -140,11 +140,6 @@ def register(registry):
                    desc='search vault file names (stems) for a keyword — fast, no file reads', args=vault_filename_search_args)
     def vault_filename_search(ns):
         return call('vault', 'filename_search', **given(ns, ('query', 'folder')))
-
-    @registry.verb("vault", "vault_keyword_hints", mode="read",
-                   desc='show frequently searched keywords ranked by search count')
-    def vault_vault_keyword_hints(ns):
-        return call('vault', 'vault_keyword_hints', **given(ns, ('limit',)))
 
     def vault_recent_args(p):
         p.add_argument('--days', default=argparse.SUPPRESS, type=int)

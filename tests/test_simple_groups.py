@@ -35,7 +35,7 @@ WRITE = {
     "mail": {"compose", "delete", "move", "add_local_mailbox", "post_local"},
     "imessage": {"send"},
     "vault": {"write", "append", "delete", "move"},
-    "vault_rag": {"index_vault", "index_file", "remove_section"},
+    # vault_rag: read-only since its index verbs were removed (task:371976dd)
 }
 
 # Verbs hand-written in their own module (mac/groups/system_notifications.py, task:8fed2511), not

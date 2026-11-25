@@ -12,7 +12,7 @@
     {"phrase": "delete the older reminder", "expect": ["mac reminders delete"], "kind": "request"},
     {"phrase": "add it to the vault note", "expect": ["mac vault append", "mac vault write"], "kind": "request"},
     {"phrase": "also update my vault, I sold the fund and bought another", "expect": ["mac vault append", "mac vault write"], "kind": "request"},
-    {"phrase": "check in vault too for some existing notes", "expect": ["mac vault_rag fts_vault", "mac vault filename_search", "mac vault_rag query_vault"], "kind": "request"},
+    {"phrase": "check in vault too for some existing notes", "expect": ["mac vault_rag fts_vault", "mac vault filename_search"], "kind": "request"},
     {"phrase": "open a tab with a 1 minute limit and confirm it closes", "expect": ["mac browser open", "mac browser close_tab"], "kind": "request"},
     {"phrase": "open the page in a new tab", "expect": ["mac browser open"], "kind": "request"},
     {"phrase": "what is on my calendar tomorrow", "expect": ["mac calendar get_events_by_date", "mac calendar list_events"], "kind": "request"},

@@ -24,16 +24,7 @@ class ForwardingTest(unittest.TestCase):
         (["fts_vault", "swift"], "fts_vault", {"query": "swift"}),
         (["fts_vault", "swift", "--limit", "3", "--folder", "Projects"], "fts_vault",
          {"query": "swift", "limit": 3, "folder": "Projects"}),
-        (["query_vault", "q", "--top-k", "2"], "query_vault", {"query": "q", "top_k": 2}),
-        (["smart_search", "q", "--fts-candidate-limit", "20"], "smart_search",
-         {"query": "q", "fts_candidate_limit": 20}),
-        (["index_status"], "index_status", {}),
-        (["contains_section", "7"], "contains_section", {"section_id": 7}),
-        (["remove_section", "7"], "remove_section", {"section_id": 7}),
-        (["index_file", "Projects/a.md"], "index_file", {"path": "Projects/a.md"}),
-        (["index_vault"], "index_vault", {}),
-        (["index_vault", "--force"], "index_vault", {"force": True}),
-        (["unindexed_files", "--folder", "Projects"], "unindexed_files", {"folder": "Projects"}),
+        # The embedding / TurboVec verbs' cases were removed with the verbs (task:371976dd).
     ]
 
     def test_only_supplied_args_reach_the_handler(self):

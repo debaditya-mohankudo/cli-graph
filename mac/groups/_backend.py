@@ -81,9 +81,16 @@ def call(area, action, /, **kwargs):
     """Run the `<area>__<action>` handler through the dispatcher and translate its result."""
     d = dispatcher()
     refused = tool_hooks().Refused
+    try:
+        handler = d.resolve(area, action)
+    except (KeyError, AttributeError):
+        # A verb whose local-mac handler was removed: say so, rather than a bare KeyError
+        # (task:371976dd). tests/test_simple_groups.py CoverageTest is what keeps none registered.
+        raise Failure("backend_missing", f"local-mac has no {area}__{action} handler; "
+                                         "rerun tools/gen_groups.py and graph.generate")
     ROUTED.set(True)  # dispatcher.invoke logs this call, including a refusal
     try:
-        result = d.invoke(area, action, d.resolve(area, action), kwargs)
+        result = d.invoke(area, action, handler, kwargs)
     except refused as exc:
         raise Failure("blocked", str(exc))
     except (ValueError, RuntimeError) as exc:
