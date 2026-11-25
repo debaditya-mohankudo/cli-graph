@@ -11,6 +11,7 @@ Commands typed by `run` are visible at the tab's prompt: no hidden script files.
 """
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -31,6 +32,7 @@ HHMM = re.compile(r"([01]\d|2[0-3]):([0-5]\d)")
 STAMP = re.compile(r"(\d{4})-(\d\d)-(\d\d)[T ]([01]\d|2[0-3]):([0-5]\d)")
 EVERY = re.compile(r"(\d+)([smh])")
 SETTLE_S = 0.4
+READY_TIMEOUT_S = 15  # a new tab runs direnv before its prompt appears; text typed earlier is lost
 COMM_LIST = "kitty-comm"
 COMM_TITLE = re.compile(r"\[([^\]]+?) -> ([^\]]+?)\] (.*)")
 COMM_ID = re.compile(r"\(id (x-apple-reminder://[^)\s]+)\)\s*$")
@@ -192,6 +194,56 @@ def build_command(cmd, at=None, retry=None, every="10m", until=None, now=None):
             f"sleep {secs}; done")
 
 
+def schedule_line(cmd, at, title, mac, notify_to=None, out=None, close=False, now=None):
+    """The one visible line `schedule` types: wait for --at, run cmd, then hand the result back.
+
+    The job runs in a subshell so its exit status survives; with `out` its output goes to that file
+    and is then printed. Handoff: `notify` rings the claude tab with the exit status; an empty `out`
+    file leaves a comm_send note for 'you' (and rings the tab too). A notify that is busy or fails also
+    leaves that note. `close` ends the tab's shell last: `mac kitty close` cannot do it, because the
+    tab running it is itself a guarded window.
+    """
+    q = shlex.quote
+    body = f"( {cmd} )" + (f" > {q(out)} 2>&1" if out else "")
+    steps = [body, "rc=$?"]
+    if out:
+        steps.append(f"cat {q(out)}")
+    where = f", output {out}" if out else ""
+    if notify_to is not None:
+        body = f"{q(f'{title}: finished{where}, exit ')}\"$rc\""
+        steps.append(f"{q(mac)} kitty notify --to {notify_to} --from {q(title)} --body {body} | grep -q '\"sent\": true' "
+                     f"|| {q(mac)} kitty comm_send --from {q(title)} --to you --notify {notify_to} {body}")
+    if out:
+        ring = f" --notify {notify_to}" if notify_to is not None else ""
+        steps.append(f"[ -s {q(out)} ] || {q(mac)} kitty comm_send --from {q(title)} --to you{ring} "
+                     f"{q(f'{title}: empty output {out}')}")
+    if close:
+        steps.append("exit")
+    return build_command("; ".join(steps), at, None, "10m", None, now)
+
+
+def _wait_prompt(window):
+    """Block until the tab's last screen line ends in a shell prompt char (or READY_TIMEOUT_S passes)."""
+    if READY_TIMEOUT_S <= 0:
+        return
+    deadline = time.time() + READY_TIMEOUT_S
+    while time.time() < deadline:
+        lines = [ln.rstrip() for ln in _screen(window).splitlines() if ln.strip()]
+        if lines and lines[-1][-1] in "%$#>❯":
+            return
+        time.sleep(0.3)
+
+
+def _type_line(row, tab, line):
+    """Type `line` at the tab's prompt, press enter, and fail unless it shows on screen."""
+    match = f"id:{row['window']}"
+    _kitten("send-text", "--match", match, "--stdin", stdin=line)
+    _kitten("send-key", "--match", match, "enter")
+    time.sleep(SETTLE_S)
+    if _squash(line) not in _squash(_screen(row["window"])):
+        raise Failure("tool_error", f"typed the command into tab {tab} but it is not on screen")
+
+
 def _tab_arg(p):
     p.add_argument("--tab", type=int, required=True, help="tab id from `mac kitty tabs` (never a title)")
 
@@ -334,15 +386,56 @@ def register(registry):
         if ns.dry_run:
             return {"tab": ns.tab, "command": line, "sent": False}
         row = _resolve(ns.tab)
-        match = f"id:{row['window']}"
-        _kitten("send-text", "--match", match, "--stdin", stdin=line)
-        _kitten("send-key", "--match", match, "enter")
-        time.sleep(SETTLE_S)
-        visible = _squash(line) in _squash(_screen(row["window"]))
-        if not visible:
-            raise Failure("tool_error", f"typed the command into tab {ns.tab} but it is not on screen")
+        _type_line(row, ns.tab, line)
         return {"tab": ns.tab, "window": row["window"], "command": line, "sent": True, "verified": True,
                 "at": datetime.now().isoformat(timespec="seconds")}
+
+    def schedule_args(p):
+        p.add_argument("command", help="one-line shell command or script path to run in the new tab")
+        p.add_argument("--at", required=True, help="start time: HH:MM (later today) or YYYY-MM-DDTHH:MM; a past time is refused before any tab opens")
+        p.add_argument("--title", required=True, help="title of the new tab; also the sender tag of the handoff")
+        p.add_argument("--cwd", default=None, help="working directory (default: the caller's)")
+        p.add_argument("--out", default=None, help="file the job's output goes to (also shown in the tab); an empty file after the job triggers comm_send to 'you'")
+        p.add_argument("--notify-to", type=int, default=None, help="claude tab id to ring with the exit status when the job ends")
+        p.add_argument("--close-on-done", action="store_true", help="close the tab when the job and handoff finish")
+        p.add_argument("--dry-run", action="store_true", help="return the one-liner without opening a tab")
+
+    @registry.verb("kitty", "schedule", mode="write",
+                   desc="open a new kitty tab and run a command in it at a time (--at HH:MM|YYYY-MM-DDTHH:MM) as one "
+                        "visible wait-then-run line; --out FILE captures output, --notify-to TAB rings a claude tab "
+                        "with the exit status (a busy tab or an empty --out file leaves a comm_send note), --close-on-done ends the "
+                        "tab's shell. A past --at or a bad --notify-to opens nothing",
+                   args=schedule_args)
+    def schedule(ns):
+        cmd = ns.command.strip()
+        if not cmd or "\n" in cmd:
+            raise Failure("usage", "the command must be a single non-empty line", 2)
+        title = _comm_tag(ns.title, "--title")
+        out = os.path.abspath(ns.out) if ns.out else None
+        # Validate everything that can fail before a tab exists, so a refusal leaves no orphan tab.
+        _wait_key(ns.at, datetime.now())
+        if ns.notify_to is not None:
+            _resolve(ns.notify_to, claude=True)
+        mac = shutil.which("mac") or str(Path(__file__).resolve().parents[2] / "bin" / "mac")
+        if not os.access(mac, os.X_OK):
+            raise Failure("tool_error", f"cannot find an executable mac for the handoff: {mac}")
+        if ns.dry_run:
+            return {"command": schedule_line(cmd, ns.at, title, mac, ns.notify_to, out, ns.close_on_done),
+                    "sent": False}
+        cwd = os.path.abspath(ns.cwd) if ns.cwd else os.getcwd()
+        window = int(_kitten("launch", "--type=tab", f"--tab-title={title}", f"--cwd={cwd}").strip())
+        tab = next((r["tab"] for r in _tabs() if r["window"] == window), None)
+        if tab is None:
+            raise Failure("tool_error", f"launched window {window} but found no tab for it")
+        _wait_prompt(window)
+        try:
+            line = schedule_line(cmd, ns.at, title, mac, ns.notify_to, out, ns.close_on_done)
+            _type_line(_resolve(tab), tab, line)
+        except Failure:
+            _kitten("close-tab", "--match", f"id:{tab}")  # never leave a tab that holds no job
+            raise
+        return {"tab": tab, "window": window, "title": title, "command": line, "sent": True, "verified": True,
+                "at": ns.at}
 
     def read_args(p):
         _tab_arg(p)

@@ -75,7 +75,7 @@ class ClaudeFake(Fake):
 
 def mac(fake, *argv):
     out, err = io.StringIO(), io.StringIO()
-    with mock.patch.object(kitty, "_kitten", fake), mock.patch.object(kitty, "SETTLE_S", 0):
+    with mock.patch.object(kitty, "_kitten", fake), mock.patch.object(kitty, "SETTLE_S", 0), mock.patch.object(kitty, "READY_TIMEOUT_S", 0):
         status = main(["kitty", *argv], default_registry(), out, err)
     return status, out.getvalue(), err.getvalue()
 
@@ -365,3 +365,99 @@ class WaitAtTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ScheduleTest(unittest.TestCase):
+    """`mac kitty schedule` opens a tab and types one wait-then-run line (task:a5fc841c)."""
+
+    NOW = datetime(2026, 11, 25, 7, 0)
+
+    def line(self, **kw):
+        return kitty.schedule_line("./job.sh", "09:09", "auction read", "/bin/mac", now=self.NOW, **kw)
+
+    def test_line_waits_then_runs_the_job_in_a_subshell(self):
+        line = self.line()
+        self.assertIn("-ge 202611250909", line)
+        self.assertIn("( ./job.sh ); rc=$?", line)
+        self.assertNotIn("notify", line)
+
+    def test_out_captures_prints_and_falls_back_to_comm_send(self):
+        line = self.line(out="/tmp/o.txt", notify_to=20)
+        self.assertIn("( ./job.sh ) > /tmp/o.txt 2>&1; rc=$?; cat /tmp/o.txt", line)
+        self.assertIn("kitty notify --to 20 --from 'auction read' --body 'auction read: finished, output /tmp/o.txt, exit '\"$rc\" | grep -q '\"sent\": true' || /bin/mac kitty comm_send --from 'auction read' --to you --notify 20 'auction read: finished", line)
+        self.assertIn("[ -s /tmp/o.txt ] || /bin/mac kitty comm_send --from 'auction read' --to you --notify 20", line)
+
+    def test_close_comes_last(self):
+        line = self.line(out="/tmp/o.txt", notify_to=20, close=True)
+        self.assertLess(line.rindex("comm_send"), line.index("; exit;"))
+        self.assertLess(line.index("; exit;"), line.index("echo DONE"))
+        self.assertNotIn("kitty close", line)
+
+    def test_schedule_opens_a_tab_and_types_the_line(self):
+        fake = Fake()
+        with mock.patch.object(kitty, "datetime", wraps=datetime) as dt:
+            dt.now.return_value = self.NOW
+            status, out, err = mac(fake, "schedule", "--at", "09:09", "--title", "auction read", "./job.sh")
+        self.assertEqual(status, 0, out + err)
+        row = json.loads(out)
+        self.assertEqual((row["tab"], row["window"], row["verified"]), (5, 9, True))
+        self.assertEqual(fake.verbs(), ["launch", "ls", "ls", "send-text", "send-key", "get-text"])
+        self.assertIn("--tab-title=auction read", fake.calls[0][0])
+        self.assertIn("( ./job.sh )", fake.typed())
+
+    def test_past_time_opens_no_tab(self):
+        fake = Fake()
+        with mock.patch.object(kitty, "datetime", wraps=datetime) as dt:
+            dt.now.return_value = self.NOW
+            status, out, err = mac(fake, "schedule", "--at", "06:00", "--title", "t", "x")
+        self.assertNotEqual(status, 0)
+        self.assertNotIn("launch", fake.verbs())
+
+    def test_notify_to_must_be_a_claude_tab_and_opens_nothing_otherwise(self):
+        fake = Fake()
+        with mock.patch.object(kitty, "datetime", wraps=datetime) as dt:
+            dt.now.return_value = self.NOW
+            status, out, err = mac(fake, "schedule", "--at", "09:09", "--title", "t", "--notify-to", "5", "x")
+        self.assertNotEqual(status, 0)
+        self.assertIn("refused", out + err)
+        self.assertNotIn("launch", fake.verbs())
+
+    def test_a_failed_type_closes_the_tab_it_opened(self):
+        fake = Fake(screen="$ ")
+        with mock.patch.object(kitty, "datetime", wraps=datetime) as dt:
+            dt.now.return_value = self.NOW
+            status, out, err = mac(fake, "schedule", "--at", "09:09", "--title", "t", "x")
+        self.assertNotEqual(status, 0)
+        self.assertEqual(fake.calls[-1][0], ("close-tab", "--match", "id:5"))
+
+    def test_dry_run_opens_nothing(self):
+        fake = Fake()
+        with mock.patch.object(kitty, "datetime", wraps=datetime) as dt:
+            dt.now.return_value = self.NOW
+            status, out, _ = mac(fake, "schedule", "--at", "09:09", "--title", "t", "--dry-run", "--close-on-done", "x")
+        self.assertEqual(status, 0)
+        self.assertEqual(fake.verbs(), [])
+        self.assertIn("; exit;", json.loads(out)["command"])
+
+    def test_waits_for_the_prompt_before_typing(self):
+        screens = iter(["direnv: loading\n", "direnv: loading\nme@host cli-graph % "])
+        polls = []
+        fake = Fake()
+        fake.screen = None
+        base = Fake.__call__
+
+        def call(self_, *args, stdin=None):
+            if args[0] == "get-text" and not self_.typed():
+                polls.append(1)
+                return next(screens, "me@host % ")
+            return base(self_, *args, stdin=stdin)
+
+        with mock.patch.object(Fake, "__call__", call), mock.patch.object(kitty, "READY_TIMEOUT_S", 5), \
+                mock.patch.object(kitty.time, "sleep"), mock.patch.object(kitty, "datetime", wraps=datetime) as dt:
+            dt.now.return_value = self.NOW
+            out, err = io.StringIO(), io.StringIO()
+            with mock.patch.object(kitty, "_kitten", fake):
+                status = main(["kitty", "schedule", "--at", "09:09", "--title", "t", "x"], default_registry(), out, err)
+        self.assertEqual(status, 0, out.getvalue() + err.getvalue())
+        self.assertEqual(len(polls), 2)  # one not-ready screen, then the prompt
+        self.assertIn("send-text", fake.verbs())
