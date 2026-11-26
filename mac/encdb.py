@@ -26,6 +26,7 @@ from pathlib import Path
 
 KEY_FILE = Path(__file__).resolve().parent.parent / "secrets" / "memory.key"
 PLAIN_HEADER = b"SQLite format 3\x00"
+BUSY_TIMEOUT_MS = 5000  # how long to wait on another writer's lock
 GITCRYPT_MAGIC = b"\x00GITCRYPT"
 _HEX = set("0123456789abcdefABCDEF")
 
@@ -220,6 +221,8 @@ def open_db(path: str | Path, *, readonly: bool = False, key: str | None = None,
     flags = apsw.SQLITE_OPEN_READONLY if readonly else apsw.SQLITE_OPEN_READWRITE
     raw = apsw.Connection(str(p), flags=flags)
     try:
+        # Before the key check: that read is the first to meet another writer's lock.
+        raw.set_busy_timeout(BUSY_TIMEOUT_MS)
         raw.pragma("cipher", "sqlcipher")
         raw.pragma("hexkey", hexkey)
         raw.execute("SELECT count(*) FROM sqlite_master").fetchall()
