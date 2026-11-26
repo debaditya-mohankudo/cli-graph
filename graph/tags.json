@@ -4,6 +4,7 @@
     "mac imessage send": ["sms", "text"],
     "mac memory add": ["remember", "save"],
     "mac browser read": ["active", "page"],
+    "mac browser open": ["live"],
     "mac vault append": ["add"]
   }
 }
